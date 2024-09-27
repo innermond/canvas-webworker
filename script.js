@@ -209,6 +209,7 @@ function handleFillImageButtonClick() {
             layer.add(currentImage);
             currentImage.on('click', function(evt) {
                 const pos = stage.getPointerPosition();
+                currentImage = this;
                 lastClickPos = {
                     x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
                     y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
@@ -397,6 +398,7 @@ function handleImageUpload(e) {
             layer.add(currentImage);
             currentImage.on('click', function(evt) {
                 const pos = stage.getPointerPosition();
+                currentImage = this;
                 lastClickPos = {
                     x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
                     y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
