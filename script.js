@@ -150,7 +150,7 @@ function handleFillImageButtonClick() {
         imageData,
         startPos,
         fillColor,
-        tolerance: 25 // Set the tolerance for flood fill
+        tolerance: 30 // Set the tolerance for flood fill
     });
 
     // Handle the response from the web worker
@@ -201,6 +201,8 @@ function handleFillImageButtonClick() {
             image: modifiedCanvas, // Use the modified canvas as the image source
             width: sw,
             height: sh,
+  stroke: 'red',
+  strokeWidth: 3,
             draggable: true // Make the new image draggable if needed
         });
         // Add the new image to the layer, placing it on top of the original

@@ -11,6 +11,7 @@ self.onmessage = function(e) {
         r: data[startPixelIndex],
         g: data[startPixelIndex + 1],
         b: data[startPixelIndex + 2],
+        a: data[startPixelIndex + 3],
     };
 
     // Early exit if the fill color is the same as the start color
@@ -36,6 +37,7 @@ self.onmessage = function(e) {
             r: data[pixelIndex],
             g: data[pixelIndex + 1],
             b: data[pixelIndex + 2],
+            a: data[pixelIndex + 3],
         };
 
         // Check if the current pixel matches the start color within tolerance
@@ -44,9 +46,8 @@ self.onmessage = function(e) {
             data[pixelIndex] = newColorRgb.r;        // Red
             data[pixelIndex + 1] = newColorRgb.g;    // Green
             data[pixelIndex + 2] = newColorRgb.b;    // Blue
-            data[pixelIndex + 3] = 255;               // Set alpha to fully opaque
 
-            modifiedPixels.push({ x, y, color: [newColorRgb.r, newColorRgb.g, newColorRgb.b, 255] });
+            modifiedPixels.push({ x, y});
 
             // Update bounding box
             minX = Math.min(minX, x);
@@ -65,42 +66,30 @@ self.onmessage = function(e) {
     // Calculate the width and height of the new ImageData based on the bounding box
     const newWidth = maxX - minX + 1;
     const newHeight = maxY - minY + 1;
-    // Create a new ImageData object for the cropped area
-    const croppedImageData = new ImageData(newWidth, newHeight);
 
-  // Create a new ImageData object with all pixels initially transparent
-    const modifiedImageData = new ImageData(width, height);
+    // Create a new ImageData object for the enclosing area
+    const enclosingImageData = new ImageData(newWidth, newHeight);
 
-    // Set all pixels to transparent
-for (let i = 0; i < modifiedImageData.data.length; i += 4) {
-  modifiedImageData.data[i + 3] = 0; // Set alpha to 0 (transparent)
-}
-
-console.log(newWidth, newHeight, croppedImageData.data.length, modifiedPixels.length*4)
     // Fill the new ImageData with the modified pixels
     modifiedPixels.forEach(pixel => {
         const newPixelIndex = ((pixel.y - minY) * newWidth + (pixel.x - minX)) * 4;
-      if (newPixelIndex > croppedImageData.data.length) return;
-        const index = (pixel.y * width + pixel.x) * 4;
-        modifiedImageData.data[index] = pixel.color[0];     // Red
-        modifiedImageData.data[index + 1] = pixel.color[1]; // Green
-        modifiedImageData.data[index + 2] = pixel.color[2]; // Blue
-        modifiedImageData.data[index + 3] = pixel.color[3]; // Alpha
-        //croppedImageData.data[newPixelIndex] = pixel.color[0];     // Red
-        //croppedImageData.data[newPixelIndex + 1] = pixel.color[1]; // Green
-        //croppedImageData.data[newPixelIndex + 2] = pixel.color[2]; // Blue
-        //croppedImageData.data[newPixelIndex + 3] = pixel.color[3]; // Alpha
+        enclosingImageData.data[newPixelIndex] = newColorRgb.r;     // Red
+        enclosingImageData.data[newPixelIndex + 1] = newColorRgb.g; // Green
+        enclosingImageData.data[newPixelIndex + 2] = newColorRgb.b; // Blue
+        enclosingImageData.data[newPixelIndex + 3] = 255;//newColorRgb.a; // Alpha
     });
-/*
-      for (let i = 0; i < croppedImageData.data.length; i += 4) {
-        croppedImageData.data[i] = 100;     // Red
-        croppedImageData.data[i + 1] = 100 // Green
-        croppedImageData.data[i + 2] = 100 // Blue
-        croppedImageData.data[i + 3] = 255; // Alpha
-    }
-    */
+
+
+  console.log(newWidth * newHeight * 4, enclosingImageData.data.length)
+
     // Post the smaller ImageData back to the main thread
-    self.postMessage({ modifiedImageData: modifiedImageData, x: minX, y: minY, w: newWidth, h: newHeight, });
+    self.postMessage({
+        modifiedImageData: enclosingImageData,
+        x: minX,
+        y: minY,
+        w: newWidth,
+        h: newHeight,
+    });
 };
 
 // Utility functions
