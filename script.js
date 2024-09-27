@@ -155,14 +155,7 @@ function handleFillImageButtonClick() {
 
     // Handle the response from the web worker
     floodFillWorker.onmessage = function(e) {
-        const modifiedImageData = e.data; // Get the modified image data
-
-        // Create a new canvas to hold the modified image data
-        const modifiedCanvas = document.createElement('canvas');
-        modifiedCanvas.width = width;
-        modifiedCanvas.height = height;
-        const modifiedCtx = modifiedCanvas.getContext('2d');
-        modifiedCtx.putImageData(modifiedImageData, 0, 0); // Apply the modified image data
+        const {modifiedImageData, x, y, w, h,} = e.data; // Get the modified image data
 
         const stageWidth = stage.width();
         const stageHeight = stage.height();
@@ -188,14 +181,26 @@ function handleFillImageButtonClick() {
         // Calculate the scaling factors
         imageScaleX = imgWidth / newWidth; // Scale factor for the width
         imageScaleY = imgHeight / newHeight; // Scale factor for the height
+        
+        const sx = x/imageScaleX;
+        const sy = y/imageScaleY;
+        const sw = w/imageScaleX;
+        const sh = h/imageScaleY;
+
+        // Create a new canvas to hold the modified image data
+        const modifiedCanvas = document.createElement('canvas');
+        modifiedCanvas.width = sw;
+        modifiedCanvas.height = sh;
+        const modifiedCtx = modifiedCanvas.getContext('2d');
+        modifiedCtx.putImageData(modifiedImageData, 0, 0); // Apply the modified image data
 
         // Create a new Konva.Image with the modified canvas
         const newImage = new Konva.Image({
-            x: currentImage.x(), // Use the same position as the original image
-            y: currentImage.y(),
+            x: currentImage.x() + sx, // Use the same position as the original image
+            y: currentImage.y() + sy,
             image: modifiedCanvas, // Use the modified canvas as the image source
-                width: newWidth,
-                height: newHeight,
+            width: sw,
+            height: sh,
             draggable: true // Make the new image draggable if needed
         });
         // Add the new image to the layer, placing it on top of the original
