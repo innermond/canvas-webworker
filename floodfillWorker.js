@@ -13,14 +13,10 @@ self.onmessage = function(e) {
         b: data[startPixelIndex + 2],
     };
 
-    // Early exit if the fill color is the same as the start color
-    if (colorDistance(startColor, newColorRgb) === 0) {
-        self.postMessage(imageData); // No need to fill, return original data
-        return;
-    }
-
     const pixelStack = [{ x: startX, y: startY }];
     const modifiedPixels = []; // Array to keep track of modified pixel data
+    // Initialize bounding box variables
+    let minX = startX, minY = startY, maxX = startX, maxY = startY;
 
     while (pixelStack.length > 0) {
         const { x, y } = pixelStack.pop();
@@ -35,6 +31,10 @@ self.onmessage = function(e) {
             b: data[pixelIndex + 2],
         };
 
+        if (colorDistance(startColor, newColorRgb) === 0) {
+          continue;
+        }
+
         // Check if the current pixel matches the start color within tolerance
         if (colorDistance(currentColor, startColor) <= tolerance) {
             // Fill the pixel with the new color
@@ -45,6 +45,12 @@ self.onmessage = function(e) {
 
             modifiedPixels.push({ x, y, color: [newColorRgb.r, newColorRgb.g, newColorRgb.b, 255] });
 
+            // Update bounding box
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+
             // Push neighboring pixels onto the stack
             pixelStack.push({ x: x - 1, y }); // Left
             pixelStack.push({ x: x + 1, y }); // Right
@@ -52,6 +58,9 @@ self.onmessage = function(e) {
             pixelStack.push({ x, y: y + 1 }); // Down
         }
     }
+
+    const newWidth = maxX - minX + 1;
+    const newHeight = maxY - minY + 1;
 
     // Create a new ImageData object with all pixels initially transparent
     const modifiedImageData = new ImageData(width, height);
@@ -70,7 +79,7 @@ self.onmessage = function(e) {
         modifiedImageData.data[index + 3] = pixel.color[3]; // Alpha
     });
 
-    self.postMessage(modifiedImageData); // Return the modified image data
+    self.postMessage({ modifiedImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
 };
 
 // Utility functions

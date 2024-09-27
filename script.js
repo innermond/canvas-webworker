@@ -1,8 +1,8 @@
 // Set up the stage and layer
 var stage = new Konva.Stage({
     container: 'container',
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: 800,
+    height: 400,
 });
 
 var layer = new Konva.Layer();
@@ -171,7 +171,7 @@ function handleFillImageButtonClick() {
 
     // Handle the response from the web worker
     floodFillWorker.onmessage = function(e) {
-        const modifiedImageData = e.data;
+        const {modifiedImageData, x, y, w, h,} = e.data;
         const img = new Image();
         img.onload = function () {
             const stageWidth = stage.width();
@@ -197,13 +197,15 @@ function handleFillImageButtonClick() {
             // Calculate the scaling factors
             imageScaleX = imgWidth / newWidth; // Scale factor for the width
             imageScaleY = imgHeight / newHeight; // Scale factor for the height
-
+console.log(x, y, w, h, imageScaleX, imageScaleY)
             currentImage = new Konva.Image({
-                x: (stageWidth - newWidth) / 2, // Center horizontally
-                y: (stageHeight - newHeight) / 2, // Center vertically
+                x: (stageWidth-newWidth)*0.5,
+                y: (stageHeight-newHeight)*0.5,
                 image: img,
-                width: newWidth,
-                height: newHeight,
+                width: newWidth, //w/imageScaleX,
+                height: newHeight, //h/imageScaleY,
+                stroke: 'red',
+                strokeWidth: 2,
                 draggable: true // Make the image draggable
             });
             layer.add(currentImage);
