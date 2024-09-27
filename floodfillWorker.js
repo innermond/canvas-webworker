@@ -10,38 +10,67 @@ self.onmessage = function(e) {
     const startColor = {
         r: data[startPixelIndex],
         g: data[startPixelIndex + 1],
-        b: data[startPixelIndex + 2]
+        b: data[startPixelIndex + 2],
     };
 
+    // Early exit if the fill color is the same as the start color
     if (colorDistance(startColor, newColorRgb) === 0) {
         self.postMessage(imageData); // No need to fill, return original data
         return;
     }
 
     const pixelStack = [{ x: startX, y: startY }];
+    const modifiedPixels = []; // Array to keep track of modified pixel data
 
     while (pixelStack.length > 0) {
         const { x, y } = pixelStack.pop();
+
+        // Boundary check
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
         const pixelIndex = (y * width + x) * 4;
         const currentColor = {
             r: data[pixelIndex],
             g: data[pixelIndex + 1],
-            b: data[pixelIndex + 2]
+            b: data[pixelIndex + 2],
         };
 
+        // Check if the current pixel matches the start color within tolerance
         if (colorDistance(currentColor, startColor) <= tolerance) {
-            data[pixelIndex] = newColorRgb.r;
-            data[pixelIndex + 1] = newColorRgb.g;
-            data[pixelIndex + 2] = newColorRgb.b;
+            // Fill the pixel with the new color
+            data[pixelIndex] = newColorRgb.r;        // Red
+            data[pixelIndex + 1] = newColorRgb.g;    // Green
+            data[pixelIndex + 2] = newColorRgb.b;    // Blue
+            data[pixelIndex + 3] = 255;               // Set alpha to fully opaque
 
-            if (x > 0) pixelStack.push({ x: x - 1, y });
-            if (x < width - 1) pixelStack.push({ x: x + 1, y });
-            if (y > 0) pixelStack.push({ x, y: y - 1 });
-            if (y < height - 1) pixelStack.push({ x, y: y + 1 });
+            modifiedPixels.push({ x, y, color: [newColorRgb.r, newColorRgb.g, newColorRgb.b, 255] });
+
+            // Push neighboring pixels onto the stack
+            pixelStack.push({ x: x - 1, y }); // Left
+            pixelStack.push({ x: x + 1, y }); // Right
+            pixelStack.push({ x, y: y - 1 }); // Up
+            pixelStack.push({ x, y: y + 1 }); // Down
         }
     }
 
-    self.postMessage(imageData); // Return the modified image data
+    // Create a new ImageData object with all pixels initially transparent
+    const modifiedImageData = new ImageData(width, height);
+
+    // Set all pixels to transparent
+    for (let i = 0; i < modifiedImageData.data.length; i += 4) {
+        modifiedImageData.data[i + 3] = 0; // Set alpha to 0 (transparent)
+    }
+
+    // Set only modified pixels in the new ImageData
+    modifiedPixels.forEach(pixel => {
+        const index = (pixel.y * width + pixel.x) * 4;
+        modifiedImageData.data[index] = pixel.color[0];     // Red
+        modifiedImageData.data[index + 1] = pixel.color[1]; // Green
+        modifiedImageData.data[index + 2] = pixel.color[2]; // Blue
+        modifiedImageData.data[index + 3] = pixel.color[3]; // Alpha
+    });
+
+    self.postMessage(modifiedImageData); // Return the modified image data
 };
 
 // Utility functions

@@ -123,6 +123,105 @@ function handleStageDblClick() {
     layer.batchDraw();
 }
 
+function handleFillImageButtonClick() {
+    if (!currentImage) return; // No image to fill
+
+    const imageElement = currentImage.image(); // Original image element
+    const width = imageElement.width;
+    const height = imageElement.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0);
+
+    // Get the image data from the canvas
+    const imageData = ctx.getImageData(0, 0, width, height);
+
+    // Prepare the start position for flood fill based on click coordinates
+    const startPos = {
+        x: Math.floor(lastClickPos.x),
+        y: Math.floor(lastClickPos.y)
+    };
+
+    // Send the image data, fill color, and other details to the web worker
+    floodFillWorker.postMessage({
+        imageData,
+        startPos,
+        fillColor,
+        tolerance: 25 // Set the tolerance for flood fill
+    });
+
+    // Handle the response from the web worker
+    floodFillWorker.onmessage = function(e) {
+        const modifiedImageData = e.data; // Get the modified image data
+
+        // Create a new canvas to hold the modified image data
+        const modifiedCanvas = document.createElement('canvas');
+        modifiedCanvas.width = width;
+        modifiedCanvas.height = height;
+        const modifiedCtx = modifiedCanvas.getContext('2d');
+        modifiedCtx.putImageData(modifiedImageData, 0, 0); // Apply the modified image data
+
+        const stageWidth = stage.width();
+        const stageHeight = stage.height();
+        const img = currentImage.image();
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+
+        // Calculate aspect ratios
+        const stageAspectRatio = stageWidth / stageHeight;
+        const imgAspectRatio = imgWidth / imgHeight;
+
+        // Determine how to scale the image to fit within the stage
+        let newWidth, newHeight;
+        if (imgAspectRatio > stageAspectRatio) {
+            // Image is wider than the stage, scale by width
+            newWidth = stageWidth;
+            newHeight = (imgHeight * stageWidth) / imgWidth;
+        } else {
+            // Image is taller than the stage, scale by height
+            newHeight = stageHeight;
+            newWidth = (imgWidth * stageHeight) / imgHeight;
+        }
+        // Calculate the scaling factors
+        imageScaleX = imgWidth / newWidth; // Scale factor for the width
+        imageScaleY = imgHeight / newHeight; // Scale factor for the height
+
+        // Create a new Konva.Image with the modified canvas
+        const newImage = new Konva.Image({
+            x: currentImage.x(), // Use the same position as the original image
+            y: currentImage.y(),
+            image: modifiedCanvas, // Use the modified canvas as the image source
+                width: newWidth,
+                height: newHeight,
+            draggable: true // Make the new image draggable if needed
+        });
+        // Add the new image to the layer, placing it on top of the original
+        layer.add(newImage);
+
+        newImage.on('click', function(evt) {
+            currentImage = this;
+            const pos = stage.getPointerPosition();
+            lastClickPos = {
+                x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
+                y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
+            };
+            document.getElementById('deleteButton').disabled = false; // Enable delete button
+            document.getElementById('fillImageButton').disabled = false; // Enable fill image button
+        });
+
+        currentImage = newImage;
+        layer.batchDraw(); // Redraw the layer to display the new image
+        document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+        document.getElementById('fillImageButton').disabled = false; // Enable fill image button
+    };
+
+    document.getElementById('fillImageButton').disabled = true; // Disable fill image button
+}
+
+
 // Function to handle the "Fill Path" button click
 function handleFillButtonClick() {
     if (!isClosed || !currentPath) return; // Only allow filling if the path is closed
@@ -139,48 +238,6 @@ function handleFillButtonClick() {
 
 // Create a new web worker
 const floodFillWorker = new Worker('floodfillWorker.js');
-
-// Function to handle filling the image with the global color using Web Worker
-function handleFillImageButtonClick() {
-    if (!currentImage) return; // No image to fill
-
-    const imageElement = currentImage.image();
-    const width = imageElement.width;
-    const height = imageElement.height;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imageElement, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, width, height);
-
-    const startPos = {
-        x: Math.floor(lastClickPos.x),
-        y: Math.floor(lastClickPos.y)
-    };
-
-    // Send image data and other details to the web worker
-    floodFillWorker.postMessage({
-        imageData,
-        startPos,
-        fillColor,
-        tolerance: 25 // or any other tolerance value you want
-    });
-
-    // Handle the response from the web worker
-    floodFillWorker.onmessage = function(e) {
-        const modifiedImageData = e.data;
-
-        // Put the modified image data back onto the canvas
-        ctx.putImageData(modifiedImageData, 0, 0);
-
-        // Update the Konva image with the modified canvas
-        currentImage.image(canvas);
-        layer.batchDraw(); // Redraw the layer
-    };
-}
 
 // Function to get pixel color from the image at a given position
 function getPixelColor(image, x, y) {
@@ -226,9 +283,9 @@ function parseColor(color) {
 // Function to handle the "Delete" button click
 function handleDeleteButtonClick() {
     if (currentPath) {
+        resetDrawingState(); // Reset drawing state
         currentPath.destroy(); // Remove the current path
         currentPath = null; // Reset current path variable
-        resetDrawingState(); // Reset drawing state
         
         // Disable buttons since there's no current path
         document.getElementById('fillButton').disabled = true;
@@ -237,15 +294,14 @@ function handleDeleteButtonClick() {
 
         // Clear the temporary line
         tempLine.points([]);
-        layer.batchDraw(); // Redraw the layer
     } else if (currentImage) {
         currentImage.destroy(); // Remove the current image
         currentImage = null; // Reset current image variable
         
         // Disable the delete button since there's no current image
         document.getElementById('deleteButton').disabled = true;
-        layer.batchDraw(); // Redraw the layer
     }
+    layer.batchDraw(); // Redraw the layer
 }
 
 // Function to handle the "Add New Path" button click
@@ -339,7 +395,7 @@ function handleImageUpload(e) {
             imageScaleX = imgWidth / newWidth; // Scale factor for the width
             imageScaleY = imgHeight / newHeight; // Scale factor for the height
 
-            currentImage = new Konva.Image({
+            const newImage = new Konva.Image({
                 x: (stageWidth - newWidth) / 2, // Center horizontally
                 y: (stageHeight - newHeight) / 2, // Center vertically
                 image: img,
@@ -347,8 +403,9 @@ function handleImageUpload(e) {
                 height: newHeight,
                 draggable: true // Make the image draggable
             });
-            layer.add(currentImage);
-            currentImage.on('click', function(evt) {
+            layer.add(newImage);
+            newImage.on('click', function(evt) {
+                currentImage = this;
                 const pos = stage.getPointerPosition();
                 lastClickPos = {
                     x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
@@ -357,8 +414,10 @@ function handleImageUpload(e) {
                 document.getElementById('deleteButton').disabled = false; // Enable delete button
                 document.getElementById('fillImageButton').disabled = false; // Enable fill image button
             });
+            currentImage = newImage;
             layer.batchDraw(); // Redraw the layer to show the image
             document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+            document.getElementById('fillImageButton').disabled = false; // Enable fill image button
         };
         img.src = event.target.result; // Set image source to the file's data URL
     };
