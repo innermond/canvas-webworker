@@ -172,13 +172,60 @@ function handleFillImageButtonClick() {
     // Handle the response from the web worker
     floodFillWorker.onmessage = function(e) {
         const modifiedImageData = e.data;
+        const img = new Image();
+        img.onload = function () {
+            const stageWidth = stage.width();
+            const stageHeight = stage.height();
+            const imgWidth = img.width;
+            const imgHeight = img.height;
 
-        // Put the modified image data back onto the canvas
-        ctx.putImageData(modifiedImageData, 0, 0);
+            // Calculate aspect ratios
+            const stageAspectRatio = stageWidth / stageHeight;
+            const imgAspectRatio = imgWidth / imgHeight;
 
-        // Update the Konva image with the modified canvas
-        currentImage.image(canvas);
-        layer.batchDraw(); // Redraw the layer
+            // Determine how to scale the image to fit within the stage
+            let newWidth, newHeight;
+            if (imgAspectRatio > stageAspectRatio) {
+                // Image is wider than the stage, scale by width
+                newWidth = stageWidth;
+                newHeight = (imgHeight * stageWidth) / imgWidth;
+            } else {
+                // Image is taller than the stage, scale by height
+                newHeight = stageHeight;
+                newWidth = (imgWidth * stageHeight) / imgHeight;
+            }
+            // Calculate the scaling factors
+            imageScaleX = imgWidth / newWidth; // Scale factor for the width
+            imageScaleY = imgHeight / newHeight; // Scale factor for the height
+
+            currentImage = new Konva.Image({
+                x: (stageWidth - newWidth) / 2, // Center horizontally
+                y: (stageHeight - newHeight) / 2, // Center vertically
+                image: img,
+                width: newWidth,
+                height: newHeight,
+                draggable: true // Make the image draggable
+            });
+            layer.add(currentImage);
+            currentImage.on('click', function(evt) {
+                const pos = stage.getPointerPosition();
+                lastClickPos = {
+                    x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
+                    y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
+                };
+                document.getElementById('deleteButton').disabled = false; // Enable delete button
+                document.getElementById('fillImageButton').disabled = false; // Enable fill image button
+            });
+            layer.batchDraw(); // Redraw the layer to show the image
+            document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+        };
+        // Create a new canvas to hold the modified image data
+        const modifiedCanvas = document.createElement('canvas');
+        modifiedCanvas.width = canvas.width;
+        modifiedCanvas.height = canvas.height;
+        const modifiedCtx = modifiedCanvas.getContext('2d');
+        modifiedCtx.putImageData(modifiedImageData, 0, 0); // Apply the modified image data
+        img.src = modifiedCanvas.toDataURL(); // Set image source to the file's data URL
     };
 }
 
