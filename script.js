@@ -53,6 +53,19 @@ function resetDrawingState() {
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
 
+  var pos = stage.getPointerPosition();
+  // Store the current position as the last position
+  lastPos = pos;
+
+  if (isBucketMode) {
+    if (didBucketPosition) {
+      fillBucket();
+    }
+    didBucketPosition = true;
+    return;
+  }
+  didBucketPosition = false;
+
     if (currentPath) {
       currentPath.selected = false;
       if (isPrevious) {
@@ -60,8 +73,6 @@ function handleStageClick(e) {
       }
     }
     if (isPrevious || isClosed || !currentPath) return; // Stop adding points if the path is closed or not defined
-
-    var pos = stage.getPointerPosition();
 
     if (pathData === '') {
         // If it's the first click, start the 'M'ove command
@@ -74,9 +85,6 @@ function handleStageClick(e) {
     // Update the path data
     currentPath.setAttr('data', pathData);
     layer.batchDraw();
-
-    // Store the current position as the last position
-    lastPos = pos;
 }
 
 // Function to handle mouse move to preview the next segment in real-time
@@ -140,9 +148,25 @@ function handleFillButtonClick() {
 // Create a new web worker
 const floodFillWorker = new Worker('floodfillWorker.js');
 
+// It control if flood filling is allowed
+let isBucketMode = false;
+// Position to start flood fill has been chosen
+let didBucketPosition = false;
+
 // Function to handle filling the image with the global color using Web Worker
 function handleFillImageButtonClick() {
+  isBucketMode = ! isBucketMode;
+  // When filling mode begins it requires you 
+  // to choose a starting color (by position) from image
+  // exiting from bucket mode reset its state
+  if (!isBucketMode) {
+    didBucketPosition = false;
+  }
+}
+
+function fillBucket() {
     if (!currentImage) return; // No image to fill
+    if (!isBucketMode || !didBucketPosition) return;
 
     const imageElement = currentImage.image();
     const width = imageElement.width;
@@ -213,10 +237,7 @@ function handleFillImageButtonClick() {
             strokeWidth: 2,
             draggable: true // Make the image draggable
         });
-        currentImage.cropX(x)
-        currentImage.cropY(y)
-        currentImage.cropWidth(w)
-        currentImage.cropHeight(h)
+        currentImage.crop({x, y, width: w, height: h});
         currentImage.width(w/imageScaleX)
         currentImage.height(h/imageScaleY)
         currentImage.x(currentImage.x() + x/imageScaleX)
