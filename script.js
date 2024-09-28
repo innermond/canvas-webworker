@@ -50,6 +50,9 @@ function resetDrawingState() {
     lastPos = null;
 }
 
+var bucketLayer = new Konva.Layer();
+stage.add(bucketLayer);
+
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
 
@@ -58,13 +61,9 @@ function handleStageClick(e) {
   lastPos = pos;
 
   if (isBucketMode) {
-    if (didBucketPosition) {
-      fillBucket();
-    }
-    didBucketPosition = true;
+    fillBucket();
     return;
   }
-  didBucketPosition = false;
 
     if (currentPath) {
       currentPath.selected = false;
@@ -150,8 +149,6 @@ const floodFillWorker = new Worker('floodfillWorker.js');
 
 // It control if flood filling is allowed
 let isBucketMode = false;
-// Position to start flood fill has been chosen
-let didBucketPosition = false;
 
 // Function to handle filling the image with the global color using Web Worker
 function handleFillImageButtonClick() {
@@ -159,14 +156,11 @@ function handleFillImageButtonClick() {
   // When filling mode begins it requires you 
   // to choose a starting color (by position) from image
   // exiting from bucket mode reset its state
-  if (!isBucketMode) {
-    didBucketPosition = false;
-  }
 }
 
 function fillBucket() {
     if (!currentImage) return; // No image to fill
-    if (!isBucketMode || !didBucketPosition) return;
+    if (!isBucketMode) return;
 
     const imageElement = currentImage.image();
     const width = imageElement.width;
@@ -242,7 +236,7 @@ function fillBucket() {
         currentImage.height(h/imageScaleY)
         currentImage.x(currentImage.x() + x/imageScaleX)
         currentImage.y(currentImage.y() + y/imageScaleY)
-        layer.add(currentImage);
+        bucketLayer.add(currentImage);
         currentImage.on('click', function(evt) {
             const pos = stage.getPointerPosition();
             currentImage = this;
@@ -253,7 +247,7 @@ function fillBucket() {
             document.getElementById('deleteButton').disabled = false; // Enable delete button
             document.getElementById('fillImageButton').disabled = false; // Enable fill image button
         });
-        layer.batchDraw(); // Redraw the layer to show the image
+        bucketLayer.batchDraw(); // Redraw the layer to show the image
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
     };
 }
