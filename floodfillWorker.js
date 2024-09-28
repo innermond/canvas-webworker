@@ -65,11 +65,6 @@ self.onmessage = function(e) {
     // Create a new ImageData object with all pixels initially transparent
     const modifiedImageData = new ImageData(width, height);
 
-    // Set all pixels to transparent
-    for (let i = 0; i < modifiedImageData.data.length; i += 4) {
-        modifiedImageData.data[i + 3] = 0; // Set alpha to 0 (transparent)
-    }
-
     // Set only modified pixels in the new ImageData
     modifiedPixels.forEach(pixel => {
         const index = (pixel.y * width + pixel.x) * 4;
