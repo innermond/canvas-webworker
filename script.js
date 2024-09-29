@@ -40,6 +40,9 @@ var isPrevious = false;
 // Global variable to store the fill color with a default value
 var fillColor = '#000000'; // Default fill color (black)
 
+// It controlls sensitivity for flooding image areas with fillColor
+var fillColorSensitivity = 25;
+
 // Function to reset drawing state
 function resetDrawingState() {
     if (currentPath) {
@@ -161,6 +164,8 @@ function handleFillImageButtonClick() {
   // When filling mode begins it requires you 
   // to choose a starting color (by position) from image
   // exiting from bucket mode reset its state
+  document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
+
 }
 
 function fillBucket(currentImage) {
@@ -199,7 +204,7 @@ function fillBucket(currentImage) {
         imageData,
         startPos,
         fillColor,
-        tolerance: 25 // or any other tolerance value you want
+        tolerance: fillColorSensitivity // or any other tolerance value you want
     });
 
     // Handle the response from the web worker
@@ -263,7 +268,6 @@ function fillBucket(currentImage) {
                 y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
             };
             document.getElementById('deleteButton').disabled = false; // Enable delete button
-            document.getElementById('fillImageButton').disabled = false; // Enable fill image button
         });*/
       
         bucketGroup.add(floodImage);
@@ -448,7 +452,6 @@ function handleImageUpload(e) {
                     y: (pos.y - this.y()) * imageScaleY  // Adjust using the scale factor
                 };
                 document.getElementById('deleteButton').disabled = false; // Enable delete button
-                document.getElementById('fillImageButton').disabled = false; // Enable fill image button
             });
 
             const pos = stage.getPointerPosition();
@@ -459,7 +462,6 @@ function handleImageUpload(e) {
 
             imageLayer.batchDraw(); // Redraw the imageLayer to show the image
           
-            document.getElementById('fillImageButton').disabled = false; // Enable fill image button
             document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
         };
         img.src = event.target.result; // Set image source to the file's data URL
@@ -473,12 +475,19 @@ function handleColorPickerChange() {
     fillColor = document.getElementById('fillColorPicker').value; // Update global fillColor
 }
 
+function handleFillImageSensitivityButtonClick() {
+    fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
+    document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+}
+
 // Attach event listeners
 stage.on('click', handleStageClick);
 stage.on('mousemove', handleStageMouseMove);
 stage.on('dblclick', handleStageDblClick);
 document.getElementById('fillButton').addEventListener('click', handleFillButtonClick);
 document.getElementById('fillImageButton').addEventListener('click', handleFillImageButtonClick);
+document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityButtonClick);
+document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
 document.getElementById('deleteButton').addEventListener('click', handleDeleteButtonClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathButtonClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
