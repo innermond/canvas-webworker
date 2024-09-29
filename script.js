@@ -1,12 +1,17 @@
-// Set up the stage and layer
+// Set up the stage and imageLayer
 var stage = new Konva.Stage({
     container: 'container',
-    width: 900,
+    width: 800,
     height: 400,
 });
 
-var layer = new Konva.Layer();
-stage.add(layer);
+var imageLayer = new Konva.Layer();
+stage.add(imageLayer);
+
+var bucketLayer = new Konva.Layer();
+var bucketGroup = new Konva.Group({x:0, y:0, width: stage.width, height: stage.height, });
+bucketLayer.add(bucketGroup);
+stage.add(bucketLayer);
 
 // Variable to store the current path data
 var pathData = '';
@@ -21,7 +26,7 @@ var tempLine = new Konva.Line({
     lineCap: 'round',
     dash: [10, 5], // Dashed line to distinguish from the actual path
 });
-layer.add(tempLine);
+imageLayer.add(tempLine);
 
 // Variable to store the last clicked position
 var lastPos = null;
@@ -50,9 +55,6 @@ function resetDrawingState() {
     lastPos = null;
 }
 
-var bucketLayer = new Konva.Layer();
-stage.add(bucketLayer);
-
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
 
@@ -61,10 +63,12 @@ function handleStageClick(e) {
   lastPos = pos;
 
   if (isBucketMode) {
-    fillBucket();
+    console.log(e.target, e.target?.parent === bucketLayer)
+    fillBucket(e.target);
     return;
   }
-
+  // FIXME 
+return
     if (currentPath) {
       currentPath.selected = false;
       if (isPrevious) {
@@ -83,18 +87,19 @@ function handleStageClick(e) {
 
     // Update the path data
     currentPath.setAttr('data', pathData);
-    layer.batchDraw();
+    imageLayer.batchDraw();
 }
 
 // Function to handle mouse move to preview the next segment in real-time
 function handleStageMouseMove(e) {
     if (isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
+    if (isBucketMode) return;
 
     var pos = stage.getPointerPosition();
 
     // Update the tempLine to preview the line from the last position to the current mouse position
     tempLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-    layer.batchDraw();
+    imageLayer.batchDraw();
 }
 
 // Function to handle double click to close the path
@@ -126,8 +131,8 @@ function handleStageDblClick() {
     document.getElementById('fillColorPicker').disabled = false;
     document.getElementById('deleteButton').disabled = false; // Enable delete button
 
-    // Redraw the layer
-    layer.batchDraw();
+    // Redraw the imageLayer
+    imageLayer.batchDraw();
 }
 
 // Function to handle the "Fill Path" button click
@@ -140,8 +145,8 @@ function handleFillButtonClick() {
     // Set the stroke width to zero to make it invisible
     currentPath.strokeWidth(0); 
 
-    // Redraw the layer to apply the fill
-    layer.batchDraw();
+    // Redraw the imageLayer to apply the fill
+    imageLayer.batchDraw();
 }
 
 // Create a new web worker
@@ -158,14 +163,21 @@ function handleFillImageButtonClick() {
   // exiting from bucket mode reset its state
 }
 
-function fillBucket() {
-    if (!currentImage) return; // No image to fill
-    if (!isBucketMode) return;
+function fillBucket(currentImage) {
+    if (!isBucketMode || !currentImage) return;
+
+    const scaled = () => {
+        const scaledX = currentImage.width() / currentImage.image().width;
+        const scaledY = currentImage.height() / currentImage.image().height;
+        return [scaledX, scaledY];
+    };
 
     const imageElement = currentImage.image();
+    // Native (unscaled) dimensions of image
     const width = imageElement.width;
     const height = imageElement.height;
 
+    // Get native image data to be sent outside to the worker
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -174,10 +186,13 @@ function fillBucket() {
 
     const imageData = ctx.getImageData(0, 0, width, height);
 
+    const localPos = currentImage.getRelativePointerPosition();
+    const [scaledX, scaledY] = scaled();
     const startPos = {
-        x: Math.floor(lastClickPos.x),
-        y: Math.floor(lastClickPos.y)
+        x: Math.floor(localPos.x/scaledX),
+        y: Math.floor(localPos.y/scaledY)
     };
+  
 
     // Send image data and other details to the web worker
     floodFillWorker.postMessage({
@@ -189,55 +204,58 @@ function fillBucket() {
 
     // Handle the response from the web worker
     floodFillWorker.onmessage = function(e) {
-            const stageWidth = stage.width();
-            const stageHeight = stage.height();
-            const imgWidth = width;
-            const imgHeight = height;
+        const [scaledX, scaledY] = scaled();
 
-            // Calculate aspect ratios
-            const stageAspectRatio = stageWidth / stageHeight;
-            const imgAspectRatio = imgWidth / imgHeight;
-
-            // Determine how to scale the image to fit within the stage
-            let newWidth, newHeight;
-            if (imgAspectRatio > stageAspectRatio) {
-                // Image is wider than the stage, scale by width
-                newWidth = stageWidth;
-                newHeight = (imgHeight * stageWidth) / imgWidth;
-            } else {
-                // Image is taller than the stage, scale by height
-                newHeight = stageHeight;
-                newWidth = (imgWidth * stageHeight) / imgHeight;
-            }
-            // Calculate the scaling factors
-            imageScaleX = imgWidth / newWidth; // Scale factor for the width
-            imageScaleY = imgHeight / newHeight; // Scale factor for the height
-
-        const {modifiedImageData, x, y, w, h,} = e.data;
+        // Native pixels
+        const {floodImageData, x, y, w, h,} = e.data;
+        // FIXME doing my own crop is dangerous!
+        //const onlyFloodedImageData = floodImageData.slice((y*unfloodWidth+x)*4,(y*unfloodWidth+x)*4 + w*h*4);
         // Create a new canvas to hold the modified image data
-        const modifiedCanvas = document.createElement('canvas');
-        modifiedCanvas.width = modifiedImageData.width;
-        modifiedCanvas.height = modifiedImageData.height;
+        const floodCanvas = document.createElement('canvas');
+        floodCanvas.width = w;
+        floodCanvas.height = h;
 
-        const modifiedCtx = modifiedCanvas.getContext('2d');
-        modifiedCtx.putImageData(modifiedImageData, 0, 0); // Apply the modified image data
-        currentImage = new Konva.Image({
-            x: currentImage.x(),
-            y: currentImage.y(),
-            image: modifiedCanvas,
-            width: modifiedImageData.width/imageScaleX,
-            height: modifiedImageData.height/imageScaleY,
-            stroke: 'red',
+        const floodCtx = floodCanvas.getContext('2d');
+        // !! Pay attention to -x, -y
+        floodCtx.putImageData(floodImageData, -x, -y, x, y, w, h); // Apply the modified image data
+        const floodImage = new Konva.Image({
+            x: lastClickPos.x,
+            y: lastClickPos.y,
+            image: floodCanvas,
+            stroke: 'green',
             strokeWidth: 2,
             draggable: true // Make the image draggable
         });
-        currentImage.crop({x, y, width: w, height: h});
-        currentImage.width(w/imageScaleX)
-        currentImage.height(h/imageScaleY)
-        currentImage.x(currentImage.x() + x/imageScaleX)
-        currentImage.y(currentImage.y() + y/imageScaleY)
-        bucketLayer.add(currentImage);
-        currentImage.on('click', function(evt) {
+        // Use the x, y, w, h that describe the non-transparent enclosing rect
+        //floodImage.crop({x, y, width: w, height: h});
+        // Scale native dimensions to be in sync with scaled image
+        floodImage.width(w*scaledX)
+        floodImage.height(h*scaledY)
+        // position using scaled x, y
+        floodImage.x(currentImage.x() + x*scaledX)
+        floodImage.y(currentImage.y() + y*scaledY)
+        
+        floodImage.on('click', function(e) {
+          const [scaledX, scaledY] = scaled();
+
+          const pos = this.getRelativePointerPosition();
+          // img is unscaled native image
+          const img = this.image();
+          console.log('img', this, img, floodImage.image().getContext('2d').getImageData(100, 100, 10, 10))
+          const c = getPixelColor(img, pos.x, pos.y);
+          console.log(c, pos)
+          e.cancelBubble = true;
+          /*if (c.a === 0) {
+            //floodImage.listening(false);
+            e.cancelBubble = false;
+          } else {
+            //floodImage.listening(true);
+            e.cancelBubble = true;
+          }*/
+          //floodImage.strokeWidth(0);
+          //floodImage.listening(false)
+        });
+        /*currentImage.on('click', function(evt) {
             const pos = stage.getPointerPosition();
             currentImage = this;
             lastClickPos = {
@@ -246,8 +264,11 @@ function fillBucket() {
             };
             document.getElementById('deleteButton').disabled = false; // Enable delete button
             document.getElementById('fillImageButton').disabled = false; // Enable fill image button
-        });
-        bucketLayer.batchDraw(); // Redraw the layer to show the image
+        });*/
+      
+        bucketGroup.add(floodImage);
+        bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
+
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
     };
 }
@@ -260,7 +281,6 @@ function getPixelColor(image, x, y) {
 
     const ctx = canvas.getContext('2d');
     ctx.drawImage(image, 0, 0);
-
     const pixel = ctx.getImageData(x, y, 1, 1).data;
     return {
         r: pixel[0],
@@ -307,14 +327,14 @@ function handleDeleteButtonClick() {
 
         // Clear the temporary line
         tempLine.points([]);
-        layer.batchDraw(); // Redraw the layer
+        imageLayer.batchDraw(); // Redraw the imageLayer
     } else if (currentImage) {
         currentImage.destroy(); // Remove the current image
         currentImage = null; // Reset current image variable
         
         // Disable the delete button since there's no current image
         document.getElementById('deleteButton').disabled = true;
-        layer.batchDraw(); // Redraw the layer
+        imageLayer.batchDraw(); // Redraw the imageLayer
     }
 }
 
@@ -330,8 +350,8 @@ function handleNewPathButtonClick() {
         fill: '' // Initially no fill
     });
 
-    // Add the new path to the layer
-    layer.add(currentPath);
+    // Add the new path to the imageLayer
+    imageLayer.add(currentPath);
 
     // Disable dragging until the path is closed
     currentPath.draggable(false);
@@ -367,8 +387,8 @@ function handleNewPathButtonClick() {
     // Clear the temporary line
     tempLine.points([]);
     
-    // Redraw the layer
-    layer.batchDraw();
+    // Redraw the imageLayer
+    imageLayer.batchDraw();
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
@@ -409,26 +429,37 @@ function handleImageUpload(e) {
             imageScaleX = imgWidth / newWidth; // Scale factor for the width
             imageScaleY = imgHeight / newHeight; // Scale factor for the height
 
-            currentImage = new Konva.Image({
+            const newImage = new Konva.Image({
                 x: (stageWidth - newWidth) / 2, // Center horizontally
                 y: (stageHeight - newHeight) / 2, // Center vertically
                 image: img,
                 width: newWidth,
                 height: newHeight,
+                stroke: 'magenta',
+                strokeWidht: 2,
                 draggable: true // Make the image draggable
             });
-            layer.add(currentImage);
-            currentImage.on('click', function(evt) {
+            imageLayer.add(newImage);
+          
+            newImage.on('click', function(evt) {
                 const pos = stage.getPointerPosition();
-                currentImage = this;
                 lastClickPos = {
-                    x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
-                    y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
+                    x: (pos.x - this.x()) * imageScaleX, // Adjust using the scale factor
+                    y: (pos.y - this.y()) * imageScaleY  // Adjust using the scale factor
                 };
                 document.getElementById('deleteButton').disabled = false; // Enable delete button
                 document.getElementById('fillImageButton').disabled = false; // Enable fill image button
             });
-            layer.batchDraw(); // Redraw the layer to show the image
+
+            const pos = stage.getPointerPosition();
+            lastClickPos = {
+                x: (pos.x - newImage.x()) * imageScaleX, // Adjust using the scale factor
+                y: (pos.y - newImage.y()) * imageScaleY  // Adjust using the scale factor
+            };
+
+            imageLayer.batchDraw(); // Redraw the imageLayer to show the image
+          
+            document.getElementById('fillImageButton').disabled = false; // Enable fill image button
             document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
         };
         img.src = event.target.result; // Set image source to the file's data URL

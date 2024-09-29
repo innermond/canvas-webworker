@@ -22,7 +22,7 @@ self.onmessage = function(e) {
         const { x, y } = pixelStack.pop();
 
         // Boundary check
-        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+        if (x < 1 || x > width-1 || y < 1 || y > height-1) continue;
 
         const pixelIndex = (y * width + x) * 4;
         const currentColor = {
@@ -36,14 +36,15 @@ self.onmessage = function(e) {
         }
 
         // Check if the current pixel matches the start color within tolerance
-        if (colorDistance(currentColor, startColor) <= tolerance) {
+        const distance = colorDistance(currentColor, startColor);
+        if (distance <= tolerance) {
             // Fill the pixel with the new color
             data[pixelIndex] = newColorRgb.r;        // Red
             data[pixelIndex + 1] = newColorRgb.g;    // Green
             data[pixelIndex + 2] = newColorRgb.b;    // Blue
             data[pixelIndex + 3] = 255;               // Set alpha to fully opaque
 
-            modifiedPixels.push({ x, y, color: [newColorRgb.r, newColorRgb.g, newColorRgb.b, 255] });
+            modifiedPixels.push({x, y});
 
             // Update bounding box
             minX = Math.min(minX, x);
@@ -63,18 +64,18 @@ self.onmessage = function(e) {
     const newHeight = maxY - minY + 1;
 
     // Create a new ImageData object with all pixels initially transparent
-    const modifiedImageData = new ImageData(width, height);
+    const floodImageData = new ImageData(width, height);
 
     // Set only modified pixels in the new ImageData
+    let index = 0;
     modifiedPixels.forEach(pixel => {
-        const index = (pixel.y * width + pixel.x) * 4;
-        modifiedImageData.data[index] = pixel.color[0];     // Red
-        modifiedImageData.data[index + 1] = pixel.color[1]; // Green
-        modifiedImageData.data[index + 2] = pixel.color[2]; // Blue
-        modifiedImageData.data[index + 3] = pixel.color[3]; // Alpha
+        index = (pixel.y * width + pixel.x) * 4;
+        floodImageData.data[index] = newColorRgb.r;     // Red
+        floodImageData.data[index + 1] = newColorRgb.g; // Green
+        floodImageData.data[index + 2] = newColorRgb.b; // Blue
+        floodImageData.data[index + 3] = 255; // Alpha
     });
-
-    self.postMessage({ modifiedImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
+    self.postMessage({ floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
 };
 
 // Utility functions
