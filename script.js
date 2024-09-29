@@ -8,9 +8,12 @@ var stage = new Konva.Stage({
 var imageLayer = new Konva.Layer();
 stage.add(imageLayer);
 
-var bucketLayer = new Konva.Layer();
-var bucketGroup = new Konva.Group({x:0, y:0, width: stage.width, height: stage.height, });
-bucketLayer.add(bucketGroup);
+var pathLayer = new Konva.Layer();
+stage.add(pathLayer);
+
+var bucketLayer = new Konva.Layer({
+  //globalCompositeOperation: 'source-over',
+});
 stage.add(bucketLayer);
 
 // Variable to store the current path data
@@ -26,7 +29,7 @@ var tempLine = new Konva.Line({
     lineCap: 'round',
     dash: [10, 5], // Dashed line to distinguish from the actual path
 });
-imageLayer.add(tempLine);
+pathLayer.add(tempLine);
 
 // Variable to store the last clicked position
 var lastPos = null;
@@ -66,7 +69,21 @@ function handleStageClick(e) {
   lastPos = pos;
 
   if (isBucketMode) {
-    console.log(e.target, e.target?.parent === bucketLayer)
+    if (e.target === stage) return;
+    // Event is triggered clicking on a transparent pixel of a flood image
+    // Find coresponding image from imageLayer
+    if (e.target?.parent === bucketLayer) {
+      // Check images on imageLayer - beneath bucketLayer
+      imageLayer.children.reverse().forEach(img => {
+        const {x, y} = img.getRelativePointerPosition();
+        const isInside = (0 < x && x < img.width() && 0 < y && y < img.height());
+        if (isInside) {
+          fillBucket(img);
+        }
+      })
+      return;
+    }
+
     fillBucket(e.target);
     return;
   }
@@ -90,7 +107,7 @@ return
 
     // Update the path data
     currentPath.setAttr('data', pathData);
-    imageLayer.batchDraw();
+    pathLayer.batchDraw();
 }
 
 // Function to handle mouse move to preview the next segment in real-time
@@ -102,7 +119,7 @@ function handleStageMouseMove(e) {
 
     // Update the tempLine to preview the line from the last position to the current mouse position
     tempLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-    imageLayer.batchDraw();
+    pathLayer.batchDraw();
 }
 
 // Function to handle double click to close the path
@@ -135,7 +152,7 @@ function handleStageDblClick() {
     document.getElementById('deleteButton').disabled = false; // Enable delete button
 
     // Redraw the imageLayer
-    imageLayer.batchDraw();
+    pathLayer.batchDraw();
 }
 
 // Function to handle the "Fill Path" button click
@@ -183,16 +200,30 @@ function fillBucket(currentImage) {
     const height = imageElement.height;
 
     // Get native image data to be sent outside to the worker
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imageElement, 0, 0);
+    const imageCanvas = document.createElement('canvas');
+    imageCanvas.width = width;
+    imageCanvas.height = height;
+    const imageCtx = imageCanvas.getContext('2d');
+    //ctx.globalCompositeOperation = 'source-out';
+    const [scaledX, scaledY] = scaled();
+    const sx = currentImage.x()/scaledX;
+    const sy = currentImage.y()/scaledY;
+    const bucketCanvas = bucketLayer.toCanvas();
+    //const bucketImageData = bucketCanvas.getContext('2d').getImageData(sx, sy, width, height);
+    imageCtx.drawImage(imageElement, 0, 0);
+    // TODO why use scaledX/Y here? Why?
+    imageCtx.drawImage(bucketCanvas, currentImage.x(), currentImage.y(), width, height, 0, 0, width/scaledX, height/scaledY);
 
-    const imageData = ctx.getImageData(0, 0, width, height);
+      const old = document.body.lastChild
+      if (old.nodeName.toLowerCase() === 'canvas') {
+        old.parentNode.replaceChild(imageCanvas, old)
+      } else {
+        document.body.appendChild(imageCanvas)
+      }
+
+    const imageData = imageCtx.getImageData(0, 0, width, height);
 
     const localPos = currentImage.getRelativePointerPosition();
-    const [scaledX, scaledY] = scaled();
     const startPos = {
         x: Math.floor(localPos.x/scaledX),
         y: Math.floor(localPos.y/scaledY)
@@ -208,31 +239,27 @@ function fillBucket(currentImage) {
     });
 
     // Handle the response from the web worker
-    floodFillWorker.onmessage = function(e) {
+    floodFillWorker.onmessage = async function(e) {
         const [scaledX, scaledY] = scaled();
 
         // Native pixels
         const {floodImageData, x, y, w, h,} = e.data;
-        // FIXME doing my own crop is dangerous!
-        //const onlyFloodedImageData = floodImageData.slice((y*unfloodWidth+x)*4,(y*unfloodWidth+x)*4 + w*h*4);
         // Create a new canvas to hold the modified image data
         const floodCanvas = document.createElement('canvas');
         floodCanvas.width = w;
         floodCanvas.height = h;
 
         const floodCtx = floodCanvas.getContext('2d');
+      // Polite mode: take into account already draw pixels
+        const floodBmp = await createImageBitmap(floodImageData)
+        floodCtx.drawImage(floodBmp, x, y, w, h, 0, 0, w, h); // Apply the modified image data
         // !! Pay attention to -x, -y
-        floodCtx.putImageData(floodImageData, -x, -y, x, y, w, h); // Apply the modified image data
+        //floodCtx.putImageData(floodImageData, -x, -y, x, y, w, h); // Apply the modified image data
         const floodImage = new Konva.Image({
             x: lastClickPos.x,
             y: lastClickPos.y,
             image: floodCanvas,
-            stroke: 'green',
-            strokeWidth: 2,
-            draggable: true // Make the image draggable
         });
-        // Use the x, y, w, h that describe the non-transparent enclosing rect
-        //floodImage.crop({x, y, width: w, height: h});
         // Scale native dimensions to be in sync with scaled image
         floodImage.width(w*scaledX)
         floodImage.height(h*scaledY)
@@ -242,35 +269,22 @@ function fillBucket(currentImage) {
         
         floodImage.on('click', function(e) {
           const [scaledX, scaledY] = scaled();
-
-          const pos = this.getRelativePointerPosition();
-          // img is unscaled native image
-          const img = this.image();
-          console.log('img', this, img, floodImage.image().getContext('2d').getImageData(100, 100, 10, 10))
-          const c = getPixelColor(img, pos.x, pos.y);
-          console.log(c, pos)
-          e.cancelBubble = true;
-          /*if (c.a === 0) {
-            //floodImage.listening(false);
-            e.cancelBubble = false;
-          } else {
-            //floodImage.listening(true);
-            e.cancelBubble = true;
-          }*/
-          //floodImage.strokeWidth(0);
-          //floodImage.listening(false)
+          let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
+          for (const c of bucketLayer.children) {
+            const pos = c.getRelativePointerPosition();
+            // img is unscaled native image
+            const img = c.image();
+            // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
+            a = img.getContext('2d').getImageData(pos.x/scaledX, pos.y/scaledY, 1, 1).data[3];
+            if (a > 0) { // While cycling to all flood images it was found a non-transparent pixel in
+              break;
+            }
+          }
+          // Cancel bubbling when a non-transparency pixel was found
+          e.cancelBubble = a > 0;
         });
-        /*currentImage.on('click', function(evt) {
-            const pos = stage.getPointerPosition();
-            currentImage = this;
-            lastClickPos = {
-                x: (pos.x - currentImage.x()) * imageScaleX, // Adjust using the scale factor
-                y: (pos.y - currentImage.y()) * imageScaleY  // Adjust using the scale factor
-            };
-            document.getElementById('deleteButton').disabled = false; // Enable delete button
-        });*/
       
-        bucketGroup.add(floodImage);
+        bucketLayer.add(floodImage);
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
@@ -355,7 +369,7 @@ function handleNewPathButtonClick() {
     });
 
     // Add the new path to the imageLayer
-    imageLayer.add(currentPath);
+    pathLayer.add(currentPath);
 
     // Disable dragging until the path is closed
     currentPath.draggable(false);
@@ -392,7 +406,7 @@ function handleNewPathButtonClick() {
     tempLine.points([]);
     
     // Redraw the imageLayer
-    imageLayer.batchDraw();
+    pathLayer.batchDraw();
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
@@ -461,7 +475,7 @@ function handleImageUpload(e) {
             };
 
             imageLayer.batchDraw(); // Redraw the imageLayer to show the image
-          
+            
             document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
         };
         img.src = event.target.result; // Set image source to the file's data URL
