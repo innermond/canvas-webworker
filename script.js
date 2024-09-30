@@ -46,6 +46,9 @@ var fillColor = '#000000'; // Default fill color (black)
 // It controlls sensitivity for flooding image areas with fillColor
 var fillColorSensitivity = 25;
 
+// Size of pencil
+var pencilScale = 30;
+
 // Function to reset drawing state
 function resetDrawingState() {
     if (currentPath) {
@@ -110,8 +113,10 @@ return
     pathLayer.batchDraw();
 }
 
+
 // Function to handle mouse move to preview the next segment in real-time
 function handleStageMouseMove(e) {
+  return
     if (isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
     if (isBucketMode) return;
 
@@ -156,7 +161,7 @@ function handleStageDblClick() {
 }
 
 // Function to handle the "Fill Path" button click
-function handleFillButtonClick() {
+function handleFillClick() {
     if (!isClosed || !currentPath) return; // Only allow filling if the path is closed
 
     // Set the fill color for the closed path
@@ -176,12 +181,16 @@ const floodFillWorker = new Worker('floodfillWorker.js');
 let isBucketMode = false;
 
 // Function to handle filling the image with the global color using Web Worker
-function handleFillImageButtonClick() {
+function handleFillImageClick() {
   isBucketMode = ! isBucketMode;
   // When filling mode begins it requires you 
   // to choose a starting color (by position) from image
   // exiting from bucket mode reset its state
   document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
+  if (isBucketMode) {
+    isDrawPencil = false;
+    document.getElementById('drawPencil').classList.add('inactive');
+  }
 
 }
 
@@ -206,7 +215,15 @@ function fillBucket(currentImage) {
     const imageCtx = imageCanvas.getContext('2d');
     //ctx.globalCompositeOperation = 'source-out';
     const [scaledX, scaledY] = scaled();
-    const bucketCanvas = bucketLayer.toCanvas();
+    
+    // Merge all images on bucket layer = collapse them
+    let bucketCanvas = bucketLayer.toCanvas();
+    bucketLayer.removeChildren();
+    const bucketImage = new Konva.Image({
+      image: bucketCanvas,
+    })
+    bucketLayer.add(bucketImage);
+
     imageCtx.drawImage(imageElement, 0, 0);
     // TODO why use scaledX/Y here? Why?
     imageCtx.drawImage(bucketCanvas, currentImage.x(), currentImage.y(), width, height, 0, 0, width/scaledX, height/scaledY);
@@ -264,24 +281,30 @@ function fillBucket(currentImage) {
         floodImage.x(currentImage.x() + x*scaledX)
         floodImage.y(currentImage.y() + y*scaledY)
         
-        floodImage.on('click', function(e) {
+      
+        bucketLayer.add(floodImage);
+        
+        // Collapse images from bucket layer into single one
+        bucketCanvas = bucketLayer.toCanvas();
+        bucketLayer.removeChildren();
+        const bucketImage = new Konva.Image({
+          image: bucketCanvas,
+        });
+
+        bucketImage.on('click', function(e) {
           const [scaledX, scaledY] = scaled();
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
-          for (const c of bucketLayer.children) {
-            const pos = c.getRelativePointerPosition();
-            // img is unscaled native image
-            const img = c.image();
-            // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
-            a = img.getContext('2d').getImageData(pos.x/scaledX, pos.y/scaledY, 1, 1).data[3];
-            if (a > 0) { // While cycling to all flood images it was found a non-transparent pixel in
-              break;
-            }
-          }
+          const pos = this.getRelativePointerPosition();
+          // img is unscaled native image
+          const img = this.image();
+          // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
+          a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
           // Cancel bubbling when a non-transparency pixel was found
           e.cancelBubble = a > 0;
         });
-      
-        bucketLayer.add(floodImage);
+
+        bucketLayer.add(bucketImage);
+
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
@@ -329,7 +352,7 @@ function parseColor(color) {
 }
 
 // Function to handle the "Delete" button click
-function handleDeleteButtonClick() {
+function handleDeleteClick() {
     if (currentPath) {
         currentPath.destroy(); // Remove the current path
         currentPath = null; // Reset current path variable
@@ -354,7 +377,7 @@ function handleDeleteButtonClick() {
 }
 
 // Function to handle the "Add New Path" button click
-function handleNewPathButtonClick() {
+function handleNewPathClick() {
     resetDrawingState(); // Reset the drawing state for a new path
 
     // Create a new Konva.Path object for the new path
@@ -452,7 +475,7 @@ function handleImageUpload(e) {
                 height: newHeight,
                 stroke: 'magenta',
                 strokeWidht: 2,
-                draggable: true // Make the image draggable
+                //draggable: true // Make the image draggable
             });
             imageLayer.add(newImage);
           
@@ -484,22 +507,195 @@ function handleImageUpload(e) {
 // Function to handle color picker change
 function handleColorPickerChange() {
     fillColor = document.getElementById('fillColorPicker').value; // Update global fillColor
+  if (pencil) {
+    pencil.fill(fillColor);
+  }
 }
 
-function handleFillImageSensitivityButtonClick() {
+function handleFillImageSensitivityClick() {
     fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
     document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+}
+
+
+function handleScalePencil() {
+    pencilScale = document.getElementById('scalePencilButton').value;
+    if (pencil) {
+      pencil.setAttrs({width: pencilScale, height: pencilScale});
+    }
+    document.getElementById('scalePencilLabel').textContent = pencilScale;
+}
+
+let pencil;
+let isDrawPencil = false;
+let mousemove = false;
+
+var drawLayer = new Konva.Layer();
+stage.add(drawLayer);
+
+// Mousedown event starts drawing a new shape
+stage.on('mousedown', (evt) => {
+  if (!isDrawPencil) return;
+
+  evt.cancelBubble = true;
+  mousemove = true;
+
+  if (pencil) return;
+
+  const pos = stage.getPointerPosition();
+  // Create Pencil
+  pencil = new Konva.Rect({
+    x: pos.x,
+    y: pos.y,
+    //x: pos.x - pencilScale*0.5,
+    //y: pos.y - pencilScale*0.5,
+    offsetX: pencilScale*0.5,
+    offsetY: pencilScale*0.5,
+    width: pencilScale,
+    height: pencilScale,
+    fill: fillColor,
+  });
+  drawLayer.add(pencil);
+  drawLayer.batchDraw();
+});
+
+// Mouseup event finalizes the shape
+stage.on('mouseup', (evt) => {
+  if (!isDrawPencil) return;
+
+  evt.cancelBubble = true;
+  mousemove = false;
+  pencilPrevPos = null;
+
+  // Collapse drawLayer
+  const drawCanvas = drawLayer.toCanvas();
+  drawLayer.removeChildren();
+  drawLayer.batchDraw();
+
+  // Transfer image
+  const drawImage = new Konva.Image({
+    image: drawCanvas,
+    globalCompositeOperation:  isFillClean ? 'destination-out' : 'source-over',
+  });
+  bucketLayer.add(drawImage);
+
+  let bucketCanvas = bucketLayer.toCanvas();
+  bucketLayer.removeChildren();
+  const bucketImage = new Konva.Image({
+    image: bucketCanvas,
+  });
+
+
+  bucketLayer.add(bucketImage);
+
+  bucketLayer.batchDraw();
+});
+
+let pencilPrevPos = null;
+// Mousemove event is cloning
+stage.on('mousemove', (evt) => {
+  if (!isDrawPencil) return;
+  if (!mousemove) return;
+  if (!pencil) return;
+
+  evt.cancelBubble = true;
+
+
+  // Get the current mouse position
+  let pos = stage.getPointerPosition();
+
+  if (pencilPrevPos) {
+    // Calculate the total distance between the two points
+    const distanceX = pos.x - pencilPrevPos.x;
+    const distanceY = pos.y - pencilPrevPos.y;
+    let numRectangles = 0;
+    if (distanceX === 0 && distanceY === 0) {
+     // Nothing 
+    } else if (distanceX === 0) {
+      numRectangles = Math.ceil(Math.abs(distanceY/pencilScale));
+    } else if (distanceY === 0) {
+      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilScale)));
+    } else {
+      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilScale), Math.abs(distanceY/pencilScale)));
+    }
+
+    if (numRectangles > 1) {
+      const k = 4*(numRectangles - 1);
+      // Calculate the step for each rectangle along the line
+      const stepX = distanceX / k;
+      const stepY = distanceY / k;
+      // Place rectangles at evenly spaced positions
+      for (let i = 0; i < k; i++) {
+        const x = pencilPrevPos.x + i * stepX;
+        const y = pencilPrevPos.y + i * stepY;
+
+        if (isFillClean && pencil) {
+          pencil.fill('#FFFFFF');
+        }
+        const cloned = pencil.clone({
+          x, y,
+          globalCompositeOperation: isFillClean ? 'color-burn' : 'source-over',
+        });
+        drawLayer.add(cloned);
+        pos = {x, y};
+      }
+    }
+  }
+  
+  if (isFillClean && pencil) {
+    pencil.fill('#FFFFFF');
+  }
+  const cloned = pencil.clone({
+    x: pos.x,
+    y: pos.y,
+  });
+  drawLayer.add(cloned);
+
+  pencilPrevPos = pos;
+  drawLayer.batchDraw();
+});
+
+let isFillClean = false;
+
+function handleFillClean() {
+  isFillClean = !isFillClean;
+  if (!isFillClean && pencil) {
+    pencil.fill(fillColor);
+  }
+  document.getElementById('fillCleanCheckbox').checked = isFillClean;
+  document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+}
+
+function handleDrawPencilClick() {
+  drawLayer.removeChildren();
+  drawLayer.batchDraw();
+
+  isDrawPencil = ! isDrawPencil;
+  
+  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
+  if (isDrawPencil) {
+    isBucketMode = false;
+    document.getElementById('fillImageButton').classList.add('inactive');
+  }
 }
 
 // Attach event listeners
 stage.on('click', handleStageClick);
 stage.on('mousemove', handleStageMouseMove);
 stage.on('dblclick', handleStageDblClick);
-document.getElementById('fillButton').addEventListener('click', handleFillButtonClick);
-document.getElementById('fillImageButton').addEventListener('click', handleFillImageButtonClick);
-document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityButtonClick);
+document.getElementById('fillButton').addEventListener('click', handleFillClick);
+
+document.getElementById('fillImageButton').addEventListener('click', handleFillImageClick);
+document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityClick);
 document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
-document.getElementById('deleteButton').addEventListener('click', handleDeleteButtonClick);
-document.getElementById('newPathButton').addEventListener('click', handleNewPathButtonClick);
+
+document.getElementById('drawPencil').addEventListener('click', handleDrawPencilClick);
+document.getElementById('fillCleanCheckbox').addEventListener('click', handleFillClean);
+document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+document.getElementById('scalePencilButton').addEventListener('input', handleScalePencil);
+document.getElementById('scalePencilLabel').textContent = pencilScale;
+
+document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
+document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
