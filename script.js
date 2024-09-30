@@ -206,10 +206,7 @@ function fillBucket(currentImage) {
     const imageCtx = imageCanvas.getContext('2d');
     //ctx.globalCompositeOperation = 'source-out';
     const [scaledX, scaledY] = scaled();
-    const sx = currentImage.x()/scaledX;
-    const sy = currentImage.y()/scaledY;
     const bucketCanvas = bucketLayer.toCanvas();
-    //const bucketImageData = bucketCanvas.getContext('2d').getImageData(sx, sy, width, height);
     imageCtx.drawImage(imageElement, 0, 0);
     // TODO why use scaledX/Y here? Why?
     imageCtx.drawImage(bucketCanvas, currentImage.x(), currentImage.y(), width, height, 0, 0, width/scaledX, height/scaledY);
