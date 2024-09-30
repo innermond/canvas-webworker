@@ -11,9 +11,7 @@ stage.add(imageLayer);
 var pathLayer = new Konva.Layer();
 stage.add(pathLayer);
 
-var bucketLayer = new Konva.Layer({
-  //globalCompositeOperation: 'source-over',
-});
+var bucketLayer = new Konva.Layer();
 stage.add(bucketLayer);
 
 // Variable to store the current path data
@@ -188,6 +186,7 @@ function handleFillImageClick() {
   // exiting from bucket mode reset its state
   document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
   if (isBucketMode) {
+    lastPos = stage.getPointerPosition();
     isDrawPencil = false;
     document.getElementById('drawPencil').classList.add('inactive');
   }
@@ -213,7 +212,7 @@ function fillBucket(currentImage) {
     imageCanvas.width = width;
     imageCanvas.height = height;
     const imageCtx = imageCanvas.getContext('2d');
-    //ctx.globalCompositeOperation = 'source-out';
+
     const [scaledX, scaledY] = scaled();
     
     // Merge all images on bucket layer = collapse them
@@ -543,39 +542,48 @@ stage.on('mousedown', (evt) => {
   if (pencil) return;
 
   const pos = stage.getPointerPosition();
+  lastPos = pos;
+  // TODO readable
+  let gco = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
   // Create Pencil
   pencil = new Konva.Rect({
     x: pos.x,
     y: pos.y,
-    //x: pos.x - pencilScale*0.5,
-    //y: pos.y - pencilScale*0.5,
     offsetX: pencilScale*0.5,
     offsetY: pencilScale*0.5,
     width: pencilScale,
     height: pencilScale,
     fill: fillColor,
+    globalCompositeOperation: gco,
   });
   drawLayer.add(pencil);
   drawLayer.batchDraw();
 });
 
-// Mouseup event finalizes the shape
-stage.on('mouseup', (evt) => {
+const collapseDraw = (reinit) => (evt) => {
   if (!isDrawPencil) return;
+  if (!pencil) return;
 
   evt.cancelBubble = true;
-  mousemove = false;
-  pencilPrevPos = null;
+
+  if (reinit) {
+    mousemove = false;
+    pencilPrevPos = null;
+  } else {
+    pencilPrevPos = null;
+  }
 
   // Collapse drawLayer
   const drawCanvas = drawLayer.toCanvas();
   drawLayer.removeChildren();
   drawLayer.batchDraw();
 
+  // TODO readable
+  let gco = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
   // Transfer image
   const drawImage = new Konva.Image({
     image: drawCanvas,
-    globalCompositeOperation:  isFillClean ? 'destination-out' : 'source-over',
+    globalCompositeOperation: gco,
   });
   bucketLayer.add(drawImage);
 
@@ -589,7 +597,11 @@ stage.on('mouseup', (evt) => {
   bucketLayer.add(bucketImage);
 
   bucketLayer.batchDraw();
-});
+};
+
+// Mouseup event finalizes the shape
+stage.on('mouseup', collapseDraw(true));
+stage.on('mouseleave', collapseDraw(false));
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
@@ -634,7 +646,7 @@ stage.on('mousemove', (evt) => {
         }
         const cloned = pencil.clone({
           x, y,
-          globalCompositeOperation: isFillClean ? 'color-burn' : 'source-over',
+          //globalCompositeOperation: isFillClean ? 'color-burn' : 'source-over',
         });
         drawLayer.add(cloned);
         pos = {x, y};
@@ -655,6 +667,17 @@ stage.on('mousemove', (evt) => {
   drawLayer.batchDraw();
 });
 
+let isDrawProtect = false;
+
+function handleDrawProtect() {
+  isDrawProtect = !isDrawProtect;
+  if (isDrawProtect && pencil) {
+    pencil.globalCompositeOperation('source-over');
+  }
+  document.getElementById('drawProtectCheckbox').checked = isDrawProtect;
+  document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
+}
+
 let isFillClean = false;
 
 function handleFillClean() {
@@ -664,6 +687,48 @@ function handleFillClean() {
   }
   document.getElementById('fillCleanCheckbox').checked = isFillClean;
   document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+}
+
+let pencilShape = 'rectangle';
+
+function handlePencilShape(evt) {
+  pencilShape = evt.target.value;
+  if (! pencil) return;
+
+  switch (pencilShape) {
+    case 'circle':
+      pencil = new Konva.Circle({
+        x: lastPos.x,
+        y: lastPos.y,
+        width: pencilScale,
+        height: pencilScale,
+        fill: fillColor,
+      });
+    break;
+    case 'rhomb':
+      pencil = new Konva.Rect({
+        x: lastPos.x,
+        y: lastPos.y,
+        offsetX: pencilScale*0.5,
+        offsetY: pencilScale*0.5,
+        width: pencilScale,
+        height: pencilScale,
+        rotation: 45,
+        fill: fillColor,
+      });
+    break;
+    default:
+      pencil = new Konva.Rect({
+        x: lastPos.x,
+        y: lastPos.y,
+        offsetX: pencilScale*0.5,
+        offsetY: pencilScale*0.5,
+        width: pencilScale,
+        height: pencilScale,
+        fill: fillColor,
+      });
+  }
+  pencil.globalCompositeOperation('source-over');
 }
 
 function handleDrawPencilClick() {
@@ -690,11 +755,22 @@ document.getElementById('fillImageSensitivityButton').addEventListener('input', 
 document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
 
 document.getElementById('drawPencil').addEventListener('click', handleDrawPencilClick);
-document.getElementById('fillCleanCheckbox').addEventListener('click', handleFillClean);
+
+document.getElementById('drawProtectCheckbox').addEventListener('change', handleDrawProtect);
+document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
+
+document.getElementById('fillCleanCheckbox').addEventListener('change', handleFillClean);
 document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
 document.getElementById('scalePencilButton').addEventListener('input', handleScalePencil);
 document.getElementById('scalePencilLabel').textContent = pencilScale;
 
+document.getElementsByName('pencilShape').forEach(radio => radio.addEventListener('change', handlePencilShape));
+//document.querySelector('[name="pencilShape"][value="' + pencilShape + '"]').checked = true;
+document.getElementsByName('pencilShape').forEach(radio => {
+    if (radio.value === pencilShape) {
+        radio.checked = true;
+    }
+});
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
