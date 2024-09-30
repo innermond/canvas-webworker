@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konva.js Draw Path on Click & Upload Image</title>
+    <script src="https://unpkg.com/konva@8.3.12/konva.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Button Container with absolute positioning -->
+<div id="buttonContainer">
+    <button id="newPathButton" class="button">Add New Path</button>
+    <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
+    <button id="fillButton" class="button">Fill Path with Color</button>
+    <button id="fillImageButton" class="button inactive">Fill Image With Color</button>
+    <button id="drawPencil" class="button inactive">Draw with Pencil</button>
+    <label for="fillCleanCheckbox"> <div>Remove mode <span id="fillCleanCheckboxLabel"></span></div>
+    <input type="checkbox" id="fillCleanCheckbox" value="1" />
+    </label>
+    <label for="scalePencilButton"> <div>Pencil scale <span id="scalePencilLabel"></span></div>
+    <input type="range" min="1" max="100" id="scalePencilButton" value="30" />
+    </label>
+    <label for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
+    <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
+    </label>
+    <button id="deleteButton" class="button" disabled>Delete Current Path/Image</button>
+    <input type="file" id="uploadImageButton" class="button" accept="image/*" />
+</div>
+
+<!-- Canvas Container -->
+<div id="container"></div>
+
+<!-- Reference to external JavaScript file -->
+<script src="script.js"></script>
+
+</body>
+</html>
