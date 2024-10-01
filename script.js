@@ -5,14 +5,13 @@ var stage = new Konva.Stage({
     height: 400,
 });
 
+// Order of layers is important
 var imageLayer = new Konva.Layer();
 stage.add(imageLayer);
-
-var pathLayer = new Konva.Layer();
-stage.add(pathLayer);
-
 var bucketLayer = new Konva.Layer();
 stage.add(bucketLayer);
+var pathLayer = new Konva.Layer();
+stage.add(pathLayer);
 
 // Variable to store the current path data
 var pathData = '';
@@ -77,7 +76,9 @@ function handleStageClick(e) {
       // Check images on imageLayer - beneath bucketLayer
       imageLayer.children.reverse().forEach(img => {
         const {x, y} = img.getRelativePointerPosition();
-        const isInside = (0 < x && x < img.width() && 0 < y && y < img.height());
+        const w = img.width();
+        const h = img.height();
+        const isInside = (0 < x && x < w && 0 < y && y < h);
         if (isInside) {
           fillBucket(img);
         }
@@ -227,12 +228,9 @@ function fillBucket(currentImage) {
     // TODO why use scaledX/Y here? Why?
     imageCtx.drawImage(bucketCanvas, currentImage.x(), currentImage.y(), width, height, 0, 0, width/scaledX, height/scaledY);
 
-      const old = document.body.lastChild
-      if (old.nodeName.toLowerCase() === 'canvas') {
-        old.parentNode.replaceChild(imageCanvas, old)
-      } else {
-        document.body.appendChild(imageCanvas)
-      }
+// FIXME
+const imageDbg = document.querySelector('#image > canvas')
+imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
 
     const imageData = imageCtx.getImageData(0, 0, width, height);
 
@@ -272,6 +270,7 @@ function fillBucket(currentImage) {
             x: lastClickPos.x,
             y: lastClickPos.y,
             image: floodCanvas,
+            globalCompositeOperation: gco(),
         });
         // Scale native dimensions to be in sync with scaled image
         floodImage.width(w*scaledX)
@@ -279,7 +278,6 @@ function fillBucket(currentImage) {
         // position using scaled x, y
         floodImage.x(currentImage.x() + x*scaledX)
         floodImage.y(currentImage.y() + y*scaledY)
-        
       
         bucketLayer.add(floodImage);
         
@@ -289,9 +287,14 @@ function fillBucket(currentImage) {
         const bucketImage = new Konva.Image({
           image: bucketCanvas,
         });
+      
+      // FIXME
+      const floodDbg = document.querySelector('#flood > canvas')
+      floodDbg.parentNode.replaceChild(floodCanvas, floodDbg)
+      const bucketDbg = document.querySelector('#bucket > canvas')
+      bucketDbg.parentNode.replaceChild(bucketCanvas, bucketDbg)
 
         bucketImage.on('click', function(e) {
-          const [scaledX, scaledY] = scaled();
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
           const pos = this.getRelativePointerPosition();
           // img is unscaled native image
@@ -299,7 +302,11 @@ function fillBucket(currentImage) {
           // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
           a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
           // Cancel bubbling when a non-transparency pixel was found
-          e.cancelBubble = a > 0;
+          // and painted aria protection is off
+          let isBubbling = a === 0; // bubble up when transparent
+          if (!isBubbling && !isDrawProtect) isBubbling = true; 
+          if (isFillClean) isBubbling = true;
+          e.cancelBubble = !isBubbling;
         });
 
         bucketLayer.add(bucketImage);
@@ -487,11 +494,11 @@ function handleImageUpload(e) {
                 document.getElementById('deleteButton').disabled = false; // Enable delete button
             });
 
-            const pos = stage.getPointerPosition();
-            lastClickPos = {
-                x: (pos.x - newImage.x()) * imageScaleX, // Adjust using the scale factor
-                y: (pos.y - newImage.y()) * imageScaleY  // Adjust using the scale factor
-            };
+            //const pos = stage.getPointerPosition();
+            //lastClickPos = {
+            //    x: (pos.x - newImage.x()) * imageScaleX, // Adjust using the scale factor
+            //    y: (pos.y - newImage.y()) * imageScaleY  // Adjust using the scale factor
+            //};
 
             imageLayer.batchDraw(); // Redraw the imageLayer to show the image
             
@@ -532,6 +539,10 @@ let mousemove = false;
 var drawLayer = new Konva.Layer();
 stage.add(drawLayer);
 
+function gco() {
+  const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
+  return v;
+}
 // Mousedown event starts drawing a new shape
 stage.on('mousedown', (evt) => {
   if (!isDrawPencil) return;
@@ -543,8 +554,7 @@ stage.on('mousedown', (evt) => {
 
   const pos = stage.getPointerPosition();
   lastPos = pos;
-  // TODO readable
-  let gco = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
+
   // Create Pencil
   pencil = new Konva.Rect({
     x: pos.x,
@@ -554,7 +564,7 @@ stage.on('mousedown', (evt) => {
     width: pencilScale,
     height: pencilScale,
     fill: fillColor,
-    globalCompositeOperation: gco,
+    globalCompositeOperation: gco(),
   });
   drawLayer.add(pencil);
   drawLayer.batchDraw();
@@ -578,12 +588,10 @@ const collapseDraw = (reinit) => (evt) => {
   drawLayer.removeChildren();
   drawLayer.batchDraw();
 
-  // TODO readable
-  let gco = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
   // Transfer image
   const drawImage = new Konva.Image({
     image: drawCanvas,
-    globalCompositeOperation: gco,
+    globalCompositeOperation: gco(),
   });
   bucketLayer.add(drawImage);
 

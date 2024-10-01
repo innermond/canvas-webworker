@@ -2,6 +2,7 @@ self.onmessage = function(e) {
     const { imageData, startPos, fillColor, tolerance } = e.data;
     const { data, width, height } = imageData;
 
+    // TODO handle fillColor with alpha 
     const newColorRgb = hexToRgb(fillColor);
     const startX = startPos.x;
     const startY = startPos.y;
@@ -15,6 +16,8 @@ self.onmessage = function(e) {
 
     const pixelStack = [{ x: startX, y: startY }];
     const modifiedPixels = []; // Array to keep track of modified pixel data
+    const visited = new Set(); // Set to track visited pixel
+
     // Initialize bounding box variables
     let minX = startX, minY = startY, maxX = startX, maxY = startY;
 
@@ -22,18 +25,20 @@ self.onmessage = function(e) {
         const { x, y } = pixelStack.pop();
 
         // Boundary check
-        if (x < 1 || x > width-1 || y < 1 || y > height-1) continue;
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
 
         const pixelIndex = (y * width + x) * 4;
+
+        // Check if this pixel has already been processed
+        const pixelKey = `${x},${y}`;
+        if (visited.has(pixelKey)) continue;
+        visited.add(pixelKey); // Mark the pixel as visited
+
         const currentColor = {
             r: data[pixelIndex],
             g: data[pixelIndex + 1],
             b: data[pixelIndex + 2],
         };
-
-        if (colorDistance(startColor, newColorRgb) === 0) {
-          continue;
-        }
 
         // Check if the current pixel matches the start color within tolerance
         const distance = colorDistance(currentColor, startColor);
@@ -42,7 +47,7 @@ self.onmessage = function(e) {
             data[pixelIndex] = newColorRgb.r;        // Red
             data[pixelIndex + 1] = newColorRgb.g;    // Green
             data[pixelIndex + 2] = newColorRgb.b;    // Blue
-            data[pixelIndex + 3] = 255;               // Set alpha to fully opaque
+            data[pixelIndex + 3] = 255;              // Set alpha to fully opaque
 
             modifiedPixels.push({x, y});
 
@@ -52,11 +57,24 @@ self.onmessage = function(e) {
             maxX = Math.max(maxX, x);
             maxY = Math.max(maxY, y);
 
+            // Large image may overflow JS array limit - unsigned 4-bytes integer
+            if (pixelStack.length >= 2**32 - 5) {
+              throw new Error('stack overflow')
+            }
+
             // Push neighboring pixels onto the stack
-            pixelStack.push({ x: x - 1, y }); // Left
-            pixelStack.push({ x: x + 1, y }); // Right
-            pixelStack.push({ x, y: y - 1 }); // Up
-            pixelStack.push({ x, y: y + 1 }); // Down
+            if (x > 0) {
+              pixelStack.push({ x: x - 1, y }); // Left
+            }
+            if (x < width - 1) {
+              pixelStack.push({ x: x + 1, y }); // Right
+            }
+            if (y > 0) {
+              pixelStack.push({ x, y: y - 1 }); // Up
+            }
+            if (y < height - 1) {
+              pixelStack.push({ x, y: y + 1 }); // Down
+            }
         }
     }
 
