@@ -475,13 +475,13 @@ function handleImageUpload(e) {
             imageScaleY = imgHeight / newHeight; // Scale factor for the height
 
             const newImage = new Konva.Image({
-                x: (stageWidth - newWidth) / 2, // Center horizontally
-                y: (stageHeight - newHeight) / 2, // Center vertically
+                x: stageWidth / 2, // Center horizontally
+                y: stageHeight / 2, // Center vertically
                 image: img,
                 width: newWidth,
                 height: newHeight,
-                stroke: 'magenta',
-                strokeWidht: 2,
+                offsetX: newWidth*0.5,
+                offsetY: newHeight*0.5,
                 //draggable: true // Make the image draggable
             });
             imageLayer.add(newImage);
@@ -519,11 +519,53 @@ function handleColorPickerChange() {
   }
 }
 
+let zoomScale = zoomInterval(100, 0, 500, 0, 1);
+let zoomFactor = 0.001;
+function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {
+    return outMin + (x - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+const mapZoom = v => {
+  return zoomInterval(v, 0, 1, 0, 500);
+};
+
+function handleZoom(evt) {
+    const z = parseFloat(evt.target.value); // Get the zoom scale
+    if (z <= 0) return;
+zoomScale = zoomInterval(z, 0, 1, 0, 500)/100
+console.log(zoomScale)
+    // Get the pointer position relative to the stage
+    let stageCenter = {
+        x: stage.width() / 2,
+        y: stage.height() / 2
+    };
+
+    let oldScale = stage.scaleX(); // Current scale of the stage
+    // Get the current position of the stage
+    let oldPosition = stage.position();
+
+    // Scale the stage (uniformly for both x and y)
+    stage.scale({x: zoomScale, y: zoomScale});
+
+    // Calculate the new position after zooming, to keep the center in the same place
+    let newPos = {
+        x: stageCenter.x - (stageCenter.x - oldPosition.x) * (zoomScale / oldScale),
+        y: stageCenter.y - (stageCenter.y - oldPosition.y) * (zoomScale / oldScale)
+    };
+
+    // Apply the new position to the stage
+    stage.position(newPos);
+    
+    // Update the stage
+    stage.batchDraw();  
+
+    document.getElementById('zoomButton').value = z;
+    document.getElementById('zoomButtonLabel').textContent = mapZoom(z);
+}
+
 function handleFillImageSensitivityClick() {
     fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
     document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
 }
-
 
 function handleScalePencil() {
     pencilScale = document.getElementById('scalePencilButton').value;
@@ -778,6 +820,12 @@ document.getElementsByName('pencilShape').forEach(radio => {
         radio.checked = true;
     }
 });
+
+document.getElementById('zoomButton').addEventListener('input', handleZoom);
+document.getElementById('zoomButton').setAttribute('step', zoomFactor);
+document.getElementById('zoomButton').value = zoomScale;
+document.getElementById('zoomButtonLabel').textContent = mapZoom(zoomScale);
+
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
