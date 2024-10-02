@@ -1,0 +1,48 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: scroll;
+    background: #555;
+    height: auto;
+}
+
+#container {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: min-content;
+    height: auto;
+    border: 2px solid red;
+}
+
+#buttonContainer {
+    position: relative;
+    top: 10px;
+    left: 10px;
+    z-index: 10; /* Ensure buttons stay above the canvas */
+}
+
+.button {
+    display: block;
+    margin-bottom: 10px; /* Space between buttons */
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px; /* Optional: rounded corners */
+}
+
+.button:disabled {
+    background-color: gray;
+    cursor: not-allowed;
+}
+
+.button.inactive {
+  background: gray;
+}
+
+/* Add style for color picker */
+.color-picker {
+    margin-bottom: 10px; /* Space between color picker and buttons */
+}
