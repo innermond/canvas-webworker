@@ -203,7 +203,10 @@ function fillBucket(currentImage) {
         return [scaledX, scaledY];
     };
 
+    const [scaledX, scaledY] = scaled();
+    
     const imageElement = currentImage.image();
+    lastClickPos = currentImage.getRelativePointerPosition();
     // Native (unscaled) dimensions of image
     const width = imageElement.width;
     const height = imageElement.height;
@@ -214,8 +217,6 @@ function fillBucket(currentImage) {
     imageCanvas.height = height;
     const imageCtx = imageCanvas.getContext('2d');
 
-    const [scaledX, scaledY] = scaled();
-    
     // Merge all images on bucket layer = collapse them
     let bucketCanvas = bucketLayer.toCanvas();
     bucketLayer.removeChildren();
@@ -545,15 +546,16 @@ function gco() {
 }
 // Mousedown event starts drawing a new shape
 stage.on('mousedown', (evt) => {
+  // Must be first
+  const pos = stage.getPointerPosition();
+  lastPos = pos;
+
   if (!isDrawPencil) return;
 
   evt.cancelBubble = true;
   mousemove = true;
 
   if (pencil) return;
-
-  const pos = stage.getPointerPosition();
-  lastPos = pos;
 
   // Create Pencil
   pencil = new Konva.Rect({
@@ -564,7 +566,6 @@ stage.on('mousedown', (evt) => {
     width: pencilScale,
     height: pencilScale,
     fill: fillColor,
-    globalCompositeOperation: gco(),
   });
   drawLayer.add(pencil);
   drawLayer.batchDraw();
@@ -681,9 +682,6 @@ let isDrawProtect = false;
 
 function handleDrawProtect() {
   isDrawProtect = !isDrawProtect;
-  if (isDrawProtect && pencil) {
-    pencil.globalCompositeOperation('source-over');
-  }
   document.getElementById('drawProtectCheckbox').checked = isDrawProtect;
   document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
 }
@@ -694,9 +692,6 @@ function handleFillClean() {
   isFillClean = !isFillClean;
   if (!isFillClean && pencil) {
     pencil.fill(fillColor);
-  }
-  if (isFillClean && pencil) {
-    pencil.globalCompositeOperation('source-over');
   }
   document.getElementById('fillCleanCheckbox').checked = isFillClean;
   document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
@@ -741,7 +736,6 @@ function handlePencilShape(evt) {
         fill: fillColor,
       });
   }
-  pencil.globalCompositeOperation('source-over');
 }
 
 function handleDrawPencilClick() {
