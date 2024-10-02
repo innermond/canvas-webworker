@@ -607,9 +607,12 @@ const collapseDraw = (reinit) => (evt) => {
   bucketLayer.batchDraw();
 };
 
+const collapseDrawReinitNo = collapseDraw(false);
+const collapseDrawReinitYes = collapseDraw(true);
 // Mouseup event finalizes the shape
-stage.on('mouseup', collapseDraw(true));
-stage.on('mouseleave', collapseDraw(false));
+document.addEventListener('mouseup', collapseDrawReinitYes);
+stage.on('mouseup', collapseDrawReinitYes);
+stage.on('mouseleave', collapseDrawReinitNo);
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
@@ -654,7 +657,6 @@ stage.on('mousemove', (evt) => {
         }
         const cloned = pencil.clone({
           x, y,
-          //globalCompositeOperation: isFillClean ? 'color-burn' : 'source-over',
         });
         drawLayer.add(cloned);
         pos = {x, y};
@@ -692,6 +694,9 @@ function handleFillClean() {
   isFillClean = !isFillClean;
   if (!isFillClean && pencil) {
     pencil.fill(fillColor);
+  }
+  if (isFillClean && pencil) {
+    pencil.globalCompositeOperation('source-over');
   }
   document.getElementById('fillCleanCheckbox').checked = isFillClean;
   document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
