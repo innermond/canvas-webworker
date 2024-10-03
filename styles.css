@@ -8,11 +8,15 @@ body {
 
 #container {
     position: relative;
-    top: 0;
-    left: 0;
     width: min-content;
     height: auto;
     border: 2px solid red;
+
+    max-width: 100%;
+}
+
+#container > div {
+    transform-origin: top left;
 }
 
 #buttonContainer {

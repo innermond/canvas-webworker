@@ -1,9 +1,9 @@
+let {width: pwidth, height: pheight } = document.querySelector('#container').style;
 // Set up the stage and imageLayer
 var stage = new Konva.Stage({
     container: 'container',
-    width: 1200*0.5,
-    height: 725*0.5,
-  id: 'stage',
+    width: parseInt(pwidth) ?? 200,
+    height: parseInt(pheight) ?? 100,
 });
 
 // Order of layers is important
@@ -446,8 +446,9 @@ function handleImageUpload(e) {
         const img = new Image();
         img.onload = function () {
 
-            const stageApparentWidth = stage.width();
-            const stageApparentHeight = stage.height();
+        const {width: pwidth, height: pheight } = document.querySelector('#container').style;
+            const stageApparentWidth = parseInt(pwidth); //stage.width();
+            const stageApparentHeight = parseInt(pheight); //stage.height();
             const imgWidth = img.width;
             const imgHeight = img.height;
 
@@ -472,7 +473,7 @@ function handleImageUpload(e) {
 // FIXME
           stage.width(img.width)
           stage.height(img.height)
-          stage.container().style.zoom = Math.max(imageScaleX, imageScaleY);
+          setTimeout(() => stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`);
           const allLayers = [imageLayer, bucketLayer, pathLayer];
           for (const layer of allLayers) {
             layer.removeChildren()
@@ -588,7 +589,13 @@ stage.on('mousedown', (evt) => {
   evt.cancelBubble = true;
   mousemove = true;
 
-  if (pencil) return;
+  if (pencil) {
+    pencil.width(pencilScale);
+    pencil.height(pencilScale);
+    pencil.offsetX(0.5*pencilScale);
+    pencil.offsetY(0.5*pencilScale);
+    return;
+  }
 
   // Create Pencil
   pencil = new Konva.Rect({
