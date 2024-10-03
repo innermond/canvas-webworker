@@ -1,8 +1,9 @@
 // Set up the stage and imageLayer
 var stage = new Konva.Stage({
     container: 'container',
-    width: 800,
-    height: 400,
+    width: 1200*0.5,
+    height: 725*0.5,
+  id: 'stage',
 });
 
 // Order of layers is important
@@ -64,7 +65,7 @@ function resetDrawingState() {
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
 
-  var pos = stage.getPointerPosition();
+  var pos = stage.getRelativePointerPosition();
   // Store the current position as the last position
   lastPos = pos;
 
@@ -119,7 +120,7 @@ function handleStageMouseMove(e) {
     if (isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
     if (isBucketMode) return;
 
-    var pos = stage.getPointerPosition();
+    var pos = stage.getRelativePointerPosition();
 
     // Update the tempLine to preview the line from the last position to the current mouse position
     tempLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
@@ -187,7 +188,7 @@ function handleFillImageClick() {
   // exiting from bucket mode reset its state
   document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
   if (isBucketMode) {
-    lastPos = stage.getPointerPosition();
+    lastPos = stage.getRelativePointerPosition();
     isDrawPencil = false;
     document.getElementById('drawPencil').classList.add('inactive');
   }
@@ -197,16 +198,10 @@ function handleFillImageClick() {
 function fillBucket(currentImage) {
     if (!isBucketMode || !currentImage) return;
 
-    const scaled = () => {
-        const scaledX = currentImage.width() / currentImage.image().width;
-        const scaledY = currentImage.height() / currentImage.image().height;
-        return [scaledX, scaledY];
-    };
-
-    const [scaledX, scaledY] = scaled();
-    
-    const imageElement = currentImage.image();
     lastClickPos = currentImage.getRelativePointerPosition();
+   
+    // Get raw native image behind currentImage
+    const imageElement = currentImage.image();
     // Native (unscaled) dimensions of image
     const width = imageElement.width;
     const height = imageElement.height;
@@ -216,8 +211,12 @@ function fillBucket(currentImage) {
     imageCanvas.width = width;
     imageCanvas.height = height;
     const imageCtx = imageCanvas.getContext('2d');
+    // fiil our imageCanvas with native imageElement
+    imageCtx.drawImage(imageElement, 0, 0);
 
     // Merge all images on bucket layer = collapse them
+  //bucketLayer.scaleX(1/stage.scaleX())
+  //bucketLayer.scaleY(1/stage.scaleY())
     let bucketCanvas = bucketLayer.toCanvas();
     bucketLayer.removeChildren();
     const bucketImage = new Konva.Image({
@@ -225,9 +224,18 @@ function fillBucket(currentImage) {
     })
     bucketLayer.add(bucketImage);
 
-    imageCtx.drawImage(imageElement, 0, 0);
-    // TODO why use scaledX/Y here? Why?
-    imageCtx.drawImage(bucketCanvas, currentImage.x(), currentImage.y(), width, height, 0, 0, width/scaledX, height/scaledY);
+//const bucketDbg = document.querySelector('#bucket > canvas')
+//bucketDbg.parentNode.replaceChild(bucketCanvas, bucketDbg)
+
+    // Put a bucketCanvas on imageCanvas to have a combined image to be sent to worker 
+  console.log(
+    'bucket layer',
+    bucketLayer.x(),
+    bucketLayer.y(),
+    bucketLayer.width(),
+    bucketLayer.height(),
+  )
+    imageCtx.drawImage(bucketCanvas, 0, 0,);
 
 // FIXME
 const imageDbg = document.querySelector('#image > canvas')
@@ -237,10 +245,9 @@ imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
 
     const localPos = currentImage.getRelativePointerPosition();
     const startPos = {
-        x: Math.floor(localPos.x/scaledX),
-        y: Math.floor(localPos.y/scaledY)
+        x: Math.floor(localPos.x),
+        y: Math.floor(localPos.y)
     };
-  
 
     // Send image data and other details to the web worker
     floodFillWorker.postMessage({
@@ -252,34 +259,23 @@ imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
 
     // Handle the response from the web worker
     floodFillWorker.onmessage = async function(e) {
-        const [scaledX, scaledY] = scaled();
-
         // Native pixels
         const {floodImageData, x, y, w, h,} = e.data;
         // Create a new canvas to hold the modified image data
         const floodCanvas = document.createElement('canvas');
-        floodCanvas.width = w;
-        floodCanvas.height = h;
+        floodCanvas.width = width;
+        floodCanvas.height = height;
 
         const floodCtx = floodCanvas.getContext('2d');
       // Polite mode: take into account already draw pixels
         const floodBmp = await createImageBitmap(floodImageData)
-        floodCtx.drawImage(floodBmp, x, y, w, h, 0, 0, w, h); // Apply the modified image data
-        // !! Pay attention to -x, -y
-        //floodCtx.putImageData(floodImageData, -x, -y, x, y, w, h); // Apply the modified image data
+        floodCtx.drawImage(floodBmp, 0, 0); // Apply the modified image data
         const floodImage = new Konva.Image({
-            x: lastClickPos.x,
-            y: lastClickPos.y,
+            x: 0,
+            y: 0,
             image: floodCanvas,
             globalCompositeOperation: gco(),
         });
-        // Scale native dimensions to be in sync with scaled image
-        floodImage.width(w*scaledX)
-        floodImage.height(h*scaledY)
-        // position using scaled x, y
-        floodImage.x(currentImage.x() + x*scaledX)
-        floodImage.y(currentImage.y() + y*scaledY)
-      
         bucketLayer.add(floodImage);
         
         // Collapse images from bucket layer into single one
@@ -292,8 +288,6 @@ imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
       // FIXME
       const floodDbg = document.querySelector('#flood > canvas')
       floodDbg.parentNode.replaceChild(floodCanvas, floodDbg)
-      const bucketDbg = document.querySelector('#bucket > canvas')
-      bucketDbg.parentNode.replaceChild(bucketCanvas, bucketDbg)
 
         bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -439,67 +433,64 @@ function handleNewPathClick() {
 var lastClickPos = null; // Global variable to store the last clicked position on the image
 var imageScaleX, imageScaleY; // Variables to store the scaling factors
 
+
 // Function to handle image upload
 function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) {
         return; // Exit if no file is selected
     }
-    
+
     const reader = new FileReader();
     reader.onload = function (event) {
         const img = new Image();
         img.onload = function () {
-            const stageWidth = stage.width();
-            const stageHeight = stage.height();
+
+            const stageApparentWidth = stage.width();
+            const stageApparentHeight = stage.height();
             const imgWidth = img.width;
             const imgHeight = img.height;
 
             // Calculate aspect ratios
-            const stageAspectRatio = stageWidth / stageHeight;
+            const stageAspectRatio = stageApparentWidth / stageApparentHeight;
             const imgAspectRatio = imgWidth / imgHeight;
 
             // Determine how to scale the image to fit within the stage
             let newWidth, newHeight;
             if (imgAspectRatio > stageAspectRatio) {
                 // Image is wider than the stage, scale by width
-                newWidth = stageWidth;
-                newHeight = (imgHeight * stageWidth) / imgWidth;
+                newWidth = stageApparentWidth;
+                newHeight = (imgHeight * stageApparentWidth) / imgWidth;
             } else {
                 // Image is taller than the stage, scale by height
-                newHeight = stageHeight;
-                newWidth = (imgWidth * stageHeight) / imgHeight;
+                newHeight = stageApparentHeight;
+                newWidth = (imgWidth * stageApparentHeight) / imgHeight;
             }
             // Calculate the scaling factors
-            imageScaleX = imgWidth / newWidth; // Scale factor for the width
-            imageScaleY = imgHeight / newHeight; // Scale factor for the height
-
+            imageScaleX = newWidth/imgWidth; // Scale factor for the width
+            imageScaleY = newHeight/imgHeight; // Scale factor for the height
+// FIXME
+          stage.width(img.width)
+          stage.height(img.height)
+          stage.container().style.zoom = Math.max(imageScaleX, imageScaleY);
+          const allLayers = [imageLayer, bucketLayer, pathLayer];
+          for (const layer of allLayers) {
+            layer.removeChildren()
+          }
             const newImage = new Konva.Image({
-                x: stageWidth / 2, // Center horizontally
-                y: stageHeight / 2, // Center vertically
                 image: img,
-                width: newWidth,
-                height: newHeight,
-                offsetX: newWidth*0.5,
-                offsetY: newHeight*0.5,
-                //draggable: true // Make the image draggable
             });
             imageLayer.add(newImage);
           
             newImage.on('click', function(evt) {
-                const pos = stage.getPointerPosition();
-                lastClickPos = {
+                const pos = stage.getRelativePointerPosition();
+                lastClickPos = pos;
+                /*{
                     x: (pos.x - this.x()) * imageScaleX, // Adjust using the scale factor
                     y: (pos.y - this.y()) * imageScaleY  // Adjust using the scale factor
-                };
+                };*/
                 document.getElementById('deleteButton').disabled = false; // Enable delete button
             });
-
-            //const pos = stage.getPointerPosition();
-            //lastClickPos = {
-            //    x: (pos.x - newImage.x()) * imageScaleX, // Adjust using the scale factor
-            //    y: (pos.y - newImage.y()) * imageScaleY  // Adjust using the scale factor
-            //};
 
             imageLayer.batchDraw(); // Redraw the imageLayer to show the image
             
@@ -531,8 +522,7 @@ const mapZoom = v => {
 function handleZoom(evt) {
     const z = parseFloat(evt.target.value); // Get the zoom scale
     if (z <= 0) return;
-zoomScale = zoomInterval(z, 0, 1, 0, 500)/100
-console.log(zoomScale)
+    zoomScale = zoomInterval(z, 0, 1, 0, 500)/100
     // Get the pointer position relative to the stage
     let stageCenter = {
         x: stage.width() / 2,
@@ -544,6 +534,7 @@ console.log(zoomScale)
     let oldPosition = stage.position();
 
     // Scale the stage (uniformly for both x and y)
+  // TODO copy here bucker and draw before they are posibly altered by zoom
     stage.scale({x: zoomScale, y: zoomScale});
 
     // Calculate the new position after zooming, to keep the center in the same place
@@ -589,7 +580,7 @@ function gco() {
 // Mousedown event starts drawing a new shape
 stage.on('mousedown', (evt) => {
   // Must be first
-  const pos = stage.getPointerPosition();
+  const pos = stage.getRelativePointerPosition();
   lastPos = pos;
 
   if (!isDrawPencil) return;
@@ -614,6 +605,7 @@ stage.on('mousedown', (evt) => {
 });
 
 const collapseDraw = (reinit) => (evt) => {
+  // FIXME
   if (!isDrawPencil) return;
   if (!pencil) return;
 
@@ -644,7 +636,6 @@ const collapseDraw = (reinit) => (evt) => {
     image: bucketCanvas,
   });
 
-
   bucketLayer.add(bucketImage);
 
   bucketLayer.batchDraw();
@@ -668,7 +659,7 @@ stage.on('mousemove', (evt) => {
 
 
   // Get the current mouse position
-  let pos = stage.getPointerPosition();
+  let pos = stage.getRelativePointerPosition();
 
   if (pencilPrevPos) {
     // Calculate the total distance between the two points

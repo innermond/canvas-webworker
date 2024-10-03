@@ -82,6 +82,8 @@ self.onmessage = function(e) {
     const newHeight = maxY - minY + 1;
 
     // Create a new ImageData object with all pixels initially transparent
+    // It will contains somewhere modified pixels, the others being transparent
+    // It has same width & height as source image - is a transparent layer painted with only modified pixels 
     const floodImageData = new ImageData(width, height);
 
     // Set only modified pixels in the new ImageData
