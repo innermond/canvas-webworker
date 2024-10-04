@@ -237,9 +237,6 @@ function fillBucket(currentImage) {
   )
     imageCtx.drawImage(bucketCanvas, 0, 0,);
 
-// FIXME
-const imageDbg = document.querySelector('#image > canvas')
-imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
 
     const imageData = imageCtx.getImageData(0, 0, width, height);
 
@@ -285,9 +282,6 @@ imageDbg.parentNode.replaceChild(imageCanvas, imageDbg)
           image: bucketCanvas,
         });
       
-      // FIXME
-      const floodDbg = document.querySelector('#flood > canvas')
-      floodDbg.parentNode.replaceChild(floodCanvas, floodDbg)
 
         bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -613,8 +607,15 @@ stage.on('mousedown', (evt) => {
 
 const collapseDraw = (reinit) => (evt) => {
   // FIXME
+  // Is a natural-browser event - not artificially generated ?
+  if (evt.composed) {
+    mousemove = false;
+    pencilPrevPos = null;
+    return;
+  }
   if (!isDrawPencil) return;
   if (!pencil) return;
+  if (drawLayer.children.length <= 1) return;
 
   evt.cancelBubble = true;
 
@@ -625,21 +626,30 @@ const collapseDraw = (reinit) => (evt) => {
     pencilPrevPos = null;
   }
 
+  let {x: sx, y: sy} = stage.scale();
   // Collapse drawLayer
   const drawCanvas = drawLayer.toCanvas();
   drawLayer.removeChildren();
   drawLayer.batchDraw();
-
   // Transfer image
   const drawImage = new Konva.Image({
     image: drawCanvas,
+    x: 0, y: 0,
+    width: drawCanvas.width,
+    height: drawCanvas.height,
     globalCompositeOperation: gco(),
   });
   bucketLayer.add(drawImage);
+      // FIXME
+      const floodDbg = document.querySelector('#flood > canvas')
+      floodDbg.parentNode.replaceChild(drawCanvas, floodDbg)
 
   let bucketCanvas = bucketLayer.toCanvas();
   bucketLayer.removeChildren();
   const bucketImage = new Konva.Image({
+    x: 0, y: 0,
+    width: bucketCanvas.width,
+    height: bucketCanvas.height,
     image: bucketCanvas,
   });
 
