@@ -215,29 +215,21 @@ function fillBucket(currentImage) {
     imageCtx.drawImage(imageElement, 0, 0);
 
     // Merge all images on bucket layer = collapse them
-  //bucketLayer.scaleX(1/stage.scaleX())
-  //bucketLayer.scaleY(1/stage.scaleY())
-    let bucketCanvas = bucketLayer.toCanvas();
+  const sx = 1/stage.scaleX();
+  const sy = 1/stage.scaleY();
+
+    let bucketCanvas = bucketLayer.toCanvas({x: stage.x(), y: stage.y(), width: width, height: height,});
     bucketLayer.removeChildren();
     const bucketImage = new Konva.Image({
+      x:0, y: 0,
+      width: bucketCanvas.width,
+      height: bucketCanvas.height,
       image: bucketCanvas,
     })
     bucketLayer.add(bucketImage);
 
-//const bucketDbg = document.querySelector('#bucket > canvas')
-//bucketDbg.parentNode.replaceChild(bucketCanvas, bucketDbg)
-
     // Put a bucketCanvas on imageCanvas to have a combined image to be sent to worker 
-  console.log(
-    'bucket layer',
-    bucketLayer.x(),
-    bucketLayer.y(),
-    bucketLayer.width(),
-    bucketLayer.height(),
-  )
     imageCtx.drawImage(bucketCanvas, 0, 0,);
-
-
     const imageData = imageCtx.getImageData(0, 0, width, height);
 
     const localPos = currentImage.getRelativePointerPosition();
@@ -256,7 +248,8 @@ function fillBucket(currentImage) {
 
     // Handle the response from the web worker
     floodFillWorker.onmessage = async function(e) {
-        // Native pixels
+        // Receive a widthxheight image that has bucket zone surrounded by transparency
+        // Image is just to be laid out 
         const {floodImageData, x, y, w, h,} = e.data;
         // Create a new canvas to hold the modified image data
         const floodCanvas = document.createElement('canvas');
@@ -267,21 +260,36 @@ function fillBucket(currentImage) {
       // Polite mode: take into account already draw pixels
         const floodBmp = await createImageBitmap(floodImageData)
         floodCtx.drawImage(floodBmp, 0, 0); // Apply the modified image data
-        const floodImage = new Konva.Image({
-            x: 0,
-            y: 0,
+
+  const sx = stage.scaleX();
+  const sy = stage.scaleY();
+      
+      const floodImage = new Konva.Image({
+    x:0, y: 0,
+    width: floodCanvas.width,
+    height: floodCanvas.height,
             image: floodCanvas,
             globalCompositeOperation: gco(),
         });
         bucketLayer.add(floodImage);
         
         // Collapse images from bucket layer into single one
-        bucketCanvas = bucketLayer.toCanvas();
+        bucketCanvas = bucketLayer.toCanvas({x: stage.x(), y: stage.y(), width, height});
+      // FIXME
+      const floodDbg = document.querySelector('#flood > canvas')
+      floodDbg.parentNode.replaceChild(bucketCanvas, floodDbg)
+
         bucketLayer.removeChildren();
         const bucketImage = new Konva.Image({
+    x:0, y: 0,
+          //scale: {x: sx, y: sy},
+    width: bucketCanvas.width,
+    height: bucketCanvas.height,
           image: bucketCanvas,
         });
-      
+
+        bucketLayer.add(bucketImage);
+        bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
         bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -297,10 +305,6 @@ function fillBucket(currentImage) {
           if (isFillClean) isBubbling = true;
           e.cancelBubble = !isBubbling;
         });
-
-        bucketLayer.add(bucketImage);
-
-        bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
     };
