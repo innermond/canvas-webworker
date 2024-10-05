@@ -579,6 +579,7 @@ stage.on('mousedown', (evt) => {
   lastPos = pos;
 
   if (!isDrawPencil) return;
+  if (isDragging) return;
 
   evt.cancelBubble = true;
   mousemove = true;
@@ -616,6 +617,7 @@ const collapseDraw = (reinit) => (evt) => {
   if (!isDrawPencil) return;
   if (!pencil) return;
   if (drawLayer.children.length <= 1) return;
+  if (isDragging) return;
 
   evt.cancelBubble = true;
 
@@ -626,15 +628,20 @@ const collapseDraw = (reinit) => (evt) => {
     pencilPrevPos = null;
   }
 
-  let {x: sx, y: sy} = stage.scale();
+  //let {x: sx, y: sy} = stage.scale();
   // Collapse drawLayer
   const drawCanvas = drawLayer.toCanvas();
   drawLayer.removeChildren();
   drawLayer.batchDraw();
+
+  const sx = 1/stage.scaleX();
+  const sy = 1/stage.scaleY();
   // Transfer image
   const drawImage = new Konva.Image({
     image: drawCanvas,
-    x: 0, y: 0,
+    x: -1*stage.x()*sx, y: -1*stage.y()*sy,
+    scaleX: sx,
+    scaleY: sy,
     width: drawCanvas.width,
     height: drawCanvas.height,
     globalCompositeOperation: gco(),
@@ -647,7 +654,9 @@ const collapseDraw = (reinit) => (evt) => {
   let bucketCanvas = bucketLayer.toCanvas();
   bucketLayer.removeChildren();
   const bucketImage = new Konva.Image({
-    x: 0, y: 0,
+    x: -1*stage.x()*sx, y: -1*stage.y()*sy,
+    scaleX: sx,
+    scaleY: sy,
     width: bucketCanvas.width,
     height: bucketCanvas.height,
     image: bucketCanvas,
@@ -671,6 +680,7 @@ stage.on('mousemove', (evt) => {
   if (!isDrawPencil) return;
   if (!mousemove) return;
   if (!pencil) return;
+  if (isDragging) return;
 
   evt.cancelBubble = true;
 
@@ -745,6 +755,16 @@ function handleFillClean() {
   }
   document.getElementById('fillCleanCheckbox').checked = isFillClean;
   document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+}
+
+let isDragging = false;
+
+function handleDragging() {
+  isDragging = !isDragging;
+  stage.setAttr('draggable', isDragging);
+
+  document.getElementById('isDraggingCheckbox').checked = isDragging;
+  document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 }
 
 let pencilShape = 'rectangle';
@@ -833,6 +853,9 @@ document.getElementById('zoomButton').addEventListener('input', handleZoom);
 document.getElementById('zoomButton').setAttribute('step', zoomFactor);
 document.getElementById('zoomButton').value = zoomScale;
 document.getElementById('zoomButtonLabel').textContent = mapZoom(zoomScale);
+
+document.getElementById('isDraggingCheckbox').addEventListener('change', handleDragging);
+document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
