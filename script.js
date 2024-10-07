@@ -45,7 +45,7 @@ var fillColor = '#000000'; // Default fill color (black)
 var fillColorSensitivity = 25;
 
 // Size of pencil
-var pencilScale = 30;
+var pencilSize = 30;
 
 // Function to reset drawing state
 function resetDrawingState() {
@@ -195,7 +195,7 @@ function handleFillImageClick() {
 
 }
 
-function fillBucket(currentImage) {
+async function fillBucket(currentImage) {
     if (!isBucketMode || !currentImage) return;
 
     lastClickPos = currentImage.getRelativePointerPosition();
@@ -214,22 +214,18 @@ function fillBucket(currentImage) {
     // fiil our imageCanvas with native imageElement
     imageCtx.drawImage(imageElement, 0, 0);
 
-    // Merge all images on bucket layer = collapse them
-  const sx = 1/stage.scaleX();
-  const sy = 1/stage.scaleY();
-
-    let bucketCanvas = bucketLayer.toCanvas({x: stage.x(), y: stage.y(), width: width, height: height,});
-    bucketLayer.removeChildren();
-    const bucketImage = new Konva.Image({
-      x:0, y: 0,
-      width: bucketCanvas.width,
-      height: bucketCanvas.height,
-      image: bucketCanvas,
-    })
-    bucketLayer.add(bucketImage);
-
     // Put a bucketCanvas on imageCanvas to have a combined image to be sent to worker 
-    imageCtx.drawImage(bucketCanvas, 0, 0,);
+  const bucketData = bucketLayer.getContext().getImageData(0, 0, width, height);
+    const bucketBmp = await createImageBitmap(bucketData)
+      const bucketImage = new Konva.Image({
+          x:0, y: 0,
+          width: width,
+          height: height,
+          image: bucketBmp,
+        });
+  bucketLayer.add(bucketBmp)
+
+    //imageCtx.drawImage(bucketBmp, 0, 0,);
     const imageData = imageCtx.getImageData(0, 0, width, height);
 
     const localPos = currentImage.getRelativePointerPosition();
@@ -251,45 +247,21 @@ function fillBucket(currentImage) {
         // Receive a widthxheight image that has bucket zone surrounded by transparency
         // Image is just to be laid out 
         const {floodImageData, x, y, w, h,} = e.data;
-        // Create a new canvas to hold the modified image data
-        const floodCanvas = document.createElement('canvas');
-        floodCanvas.width = width;
-        floodCanvas.height = height;
 
-        const floodCtx = floodCanvas.getContext('2d');
       // Polite mode: take into account already draw pixels
         const floodBmp = await createImageBitmap(floodImageData)
-        floodCtx.drawImage(floodBmp, 0, 0); // Apply the modified image data
 
-  const sx = stage.scaleX();
-  const sy = stage.scaleY();
-      
       const floodImage = new Konva.Image({
-    x:0, y: 0,
-    width: floodCanvas.width,
-    height: floodCanvas.height,
-            image: floodCanvas,
-            globalCompositeOperation: gco(),
+          x:0, y: 0,
+          width: floodBmp.width,
+          height: floodBmp.height,
+          image: floodBmp,
+          globalCompositeOperation: gco(),
         });
         bucketLayer.add(floodImage);
-        
-        // Collapse images from bucket layer into single one
-        bucketCanvas = bucketLayer.toCanvas({x: stage.x(), y: stage.y(), width, height});
-      // FIXME
-      const floodDbg = document.querySelector('#flood > canvas')
-      floodDbg.parentNode.replaceChild(bucketCanvas, floodDbg)
-
-        bucketLayer.removeChildren();
-        const bucketImage = new Konva.Image({
-    x:0, y: 0,
-          //scale: {x: sx, y: sy},
-    width: bucketCanvas.width,
-    height: bucketCanvas.height,
-          image: bucketCanvas,
-        });
-
-        bucketLayer.add(bucketImage);
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
+
+  //debug(bucketLayer.toCanvas())
 
         bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -364,7 +336,7 @@ function handleDeleteClick() {
 
         // Clear the temporary line
         tempLine.points([]);
-        imageLayer.batchDraw(); // Redraw the imageLayer
+        bucketLayer.batchDraw(); // Redraw the imageLayer
     } else if (currentImage) {
         currentImage.destroy(); // Remove the current image
         currentImage = null; // Reset current image variable
@@ -474,7 +446,7 @@ function handleImageUpload(e) {
           setTimeout(() => stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`);
           const allLayers = [imageLayer, bucketLayer, pathLayer];
           for (const layer of allLayers) {
-            layer.removeChildren()
+            layer.destroyChildren()
           }
             const newImage = new Konva.Image({
                 image: img,
@@ -509,11 +481,16 @@ function handleColorPickerChange() {
   }
 }
 
+// Maps interval [0, 1] to [0, 500]
+// and finds where 100 of [0, 500] will be on [0, 1]
 let zoomScale = zoomInterval(100, 0, 500, 0, 1);
 let zoomFactor = 0.001;
 function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {
     return outMin + (x - inMin) * (outMax - outMin) / (inMax - inMin);
 }
+// The inverse of zoomInterval
+// Finds where v of [0, 1] is on [0, 500]
+// just for showing on UI a human friendly value of scaling
 const mapZoom = v => {
   return zoomInterval(v, 0, 1, 0, 500);
 };
@@ -521,7 +498,7 @@ const mapZoom = v => {
 function handleZoom(evt) {
     const z = parseFloat(evt.target.value); // Get the zoom scale
     if (z <= 0) return;
-    zoomScale = zoomInterval(z, 0, 1, 0, 500)/100
+    zoomScale = mapZoom(z, 0, 1, 0, 500)/100
     // Get the pointer position relative to the stage
     let stageCenter = {
         x: stage.width() / 2,
@@ -558,19 +535,16 @@ function handleFillImageSensitivityClick() {
 }
 
 function handleScalePencil() {
-    pencilScale = document.getElementById('scalePencilButton').value;
+    pencilSize = document.getElementById('scalePencilButton').value;
     if (pencil) {
-      pencil.setAttrs({width: pencilScale, height: pencilScale});
+      pencil.setAttrs({width: pencilSize, height: pencilSize});
     }
-    document.getElementById('scalePencilLabel').textContent = pencilScale;
+    document.getElementById('scalePencilLabel').textContent = pencilSize;
 }
 
 let pencil;
 let isDrawPencil = false;
 let mousemove = false;
-
-var drawLayer = new Konva.Layer();
-stage.add(drawLayer);
 
 function gco() {
   const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
@@ -589,10 +563,11 @@ stage.on('mousedown', (evt) => {
   mousemove = true;
 
   if (pencil) {
-    pencil.width(pencilScale);
-    pencil.height(pencilScale);
-    pencil.offsetX(0.5*pencilScale);
-    pencil.offsetY(0.5*pencilScale);
+    pencil.width(pencilSize);
+    pencil.height(pencilSize);
+    pencil.offsetX(0.5*pencilSize);
+    pencil.offsetY(0.5*pencilSize);
+    pencil.globalCompositeOperation(gco());
     return;
   }
 
@@ -600,14 +575,15 @@ stage.on('mousedown', (evt) => {
   pencil = new Konva.Rect({
     x: pos.x,
     y: pos.y,
-    offsetX: pencilScale*0.5,
-    offsetY: pencilScale*0.5,
-    width: pencilScale,
-    height: pencilScale,
+    offsetX: pencilSize*0.5,
+    offsetY: pencilSize*0.5,
+    width: pencilSize,
+    height: pencilSize,
     fill: fillColor,
+    globalCompositeOperation: gco(),
   });
-  drawLayer.add(pencil);
-  drawLayer.batchDraw();
+  bucketLayer.add(pencil);
+  bucketLayer.batchDraw();
 });
 
 const collapseDraw = (reinit) => (evt) => {
@@ -620,7 +596,6 @@ const collapseDraw = (reinit) => (evt) => {
   }
   if (!isDrawPencil) return;
   if (!pencil) return;
-  if (drawLayer.children.length <= 1) return;
   if (isDragging) return;
 
   evt.cancelBubble = true;
@@ -631,44 +606,6 @@ const collapseDraw = (reinit) => (evt) => {
   } else {
     pencilPrevPos = null;
   }
-
-  //let {x: sx, y: sy} = stage.scale();
-  // Collapse drawLayer
-  const drawCanvas = drawLayer.toCanvas();
-  drawLayer.removeChildren();
-  drawLayer.batchDraw();
-
-  const sx = 1/stage.scaleX();
-  const sy = 1/stage.scaleY();
-  // Transfer image
-  const drawImage = new Konva.Image({
-    image: drawCanvas,
-    x: -1*stage.x()*sx, y: -1*stage.y()*sy,
-    scaleX: sx,
-    scaleY: sy,
-    width: drawCanvas.width,
-    height: drawCanvas.height,
-    globalCompositeOperation: gco(),
-  });
-  bucketLayer.add(drawImage);
-      // FIXME
-      const floodDbg = document.querySelector('#flood > canvas')
-      floodDbg.parentNode.replaceChild(drawCanvas, floodDbg)
-
-  let bucketCanvas = bucketLayer.toCanvas();
-  bucketLayer.removeChildren();
-  const bucketImage = new Konva.Image({
-    x: -1*stage.x()*sx, y: -1*stage.y()*sy,
-    scaleX: sx,
-    scaleY: sy,
-    width: bucketCanvas.width,
-    height: bucketCanvas.height,
-    image: bucketCanvas,
-  });
-
-  bucketLayer.add(bucketImage);
-
-  bucketLayer.batchDraw();
 };
 
 const collapseDrawReinitNo = collapseDraw(false);
@@ -688,7 +625,6 @@ stage.on('mousemove', (evt) => {
 
   evt.cancelBubble = true;
 
-
   // Get the current mouse position
   let pos = stage.getRelativePointerPosition();
 
@@ -696,19 +632,19 @@ stage.on('mousemove', (evt) => {
     // Calculate the total distance between the two points
     const distanceX = pos.x - pencilPrevPos.x;
     const distanceY = pos.y - pencilPrevPos.y;
-    let numRectangles = 0;
+    let numRectangles = 1;
     if (distanceX === 0 && distanceY === 0) {
      // Nothing 
     } else if (distanceX === 0) {
-      numRectangles = Math.ceil(Math.abs(distanceY/pencilScale));
+      numRectangles = Math.ceil(Math.abs(distanceY/pencilSize));
     } else if (distanceY === 0) {
-      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilScale)));
+      numRectangles = Math.ceil(Math.abs(distanceX/pencilSize));
     } else {
-      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilScale), Math.abs(distanceY/pencilScale)));
+      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilSize), Math.abs(distanceY/pencilSize)));
     }
-
+    numRectangles = Math.max(numRectangles, 4); 
     if (numRectangles > 1) {
-      const k = 4*(numRectangles - 1);
+      const k = 2*numRectangles;
       // Calculate the step for each rectangle along the line
       const stepX = distanceX / k;
       const stepY = distanceY / k;
@@ -723,7 +659,7 @@ stage.on('mousemove', (evt) => {
         const cloned = pencil.clone({
           x, y,
         });
-        drawLayer.add(cloned);
+        bucketLayer.add(cloned);
         pos = {x, y};
       }
     }
@@ -736,10 +672,10 @@ stage.on('mousemove', (evt) => {
     x: pos.x,
     y: pos.y,
   });
-  drawLayer.add(cloned);
+  bucketLayer.add(cloned);
 
   pencilPrevPos = pos;
-  drawLayer.batchDraw();
+  bucketLayer.batchDraw();
 });
 
 let isDrawProtect = false;
@@ -782,8 +718,8 @@ function handlePencilShape(evt) {
       pencil = new Konva.Circle({
         x: lastPos.x,
         y: lastPos.y,
-        width: pencilScale,
-        height: pencilScale,
+        width: pencilSize,
+        height: pencilSize,
         fill: fillColor,
       });
     break;
@@ -791,10 +727,10 @@ function handlePencilShape(evt) {
       pencil = new Konva.Rect({
         x: lastPos.x,
         y: lastPos.y,
-        offsetX: pencilScale*0.5,
-        offsetY: pencilScale*0.5,
-        width: pencilScale,
-        height: pencilScale,
+        offsetX: pencilSize*0.5,
+        offsetY: pencilSize*0.5,
+        width: pencilSize,
+        height: pencilSize,
         rotation: 45,
         fill: fillColor,
       });
@@ -803,19 +739,16 @@ function handlePencilShape(evt) {
       pencil = new Konva.Rect({
         x: lastPos.x,
         y: lastPos.y,
-        offsetX: pencilScale*0.5,
-        offsetY: pencilScale*0.5,
-        width: pencilScale,
-        height: pencilScale,
+        offsetX: pencilSize*0.5,
+        offsetY: pencilSize*0.5,
+        width: pencilSize,
+        height: pencilSize,
         fill: fillColor,
       });
   }
 }
 
 function handleDrawPencilClick() {
-  drawLayer.removeChildren();
-  drawLayer.batchDraw();
-
   isDrawPencil = ! isDrawPencil;
   
   document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
@@ -823,6 +756,16 @@ function handleDrawPencilClick() {
     isBucketMode = false;
     document.getElementById('fillImageButton').classList.add('inactive');
   }
+}
+
+function debug(canvas) {
+  const tpl = `<div style="position: relative">
+    <canvas/>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', tpl);
+  const el = document.body.lastElementChild.firstElementChild;
+  canvas.style = "";
+  el.parentNode.replaceChild(canvas, el);
 }
 
 // Attach event listeners
@@ -843,7 +786,7 @@ document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'activ
 document.getElementById('fillCleanCheckbox').addEventListener('change', handleFillClean);
 document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
 document.getElementById('scalePencilButton').addEventListener('input', handleScalePencil);
-document.getElementById('scalePencilLabel').textContent = pencilScale;
+document.getElementById('scalePencilLabel').textContent = pencilSize;
 
 document.getElementsByName('pencilShape').forEach(radio => radio.addEventListener('change', handlePencilShape));
 //document.querySelector('[name="pencilShape"][value="' + pencilShape + '"]').checked = true;
