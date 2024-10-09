@@ -226,7 +226,7 @@ async function fillBucket(currentImage) {
     };
     // Reset stage (no skew or rotation)
     const old = {...stage.attrs};
-    stage.off('draw');
+    Konva.autoDrawEnabled = false;
     stage.setAttrs({
       x:0, y:0, scaleX: 1, scaleY: 1, width, height,
     })
@@ -240,11 +240,10 @@ async function fillBucket(currentImage) {
       });
 
     const bucketBmp = await createImageBitmap(bucketImg)
-    debug(bucketImage.image())
 
     // Transform back
     stage.setAttrs(old);
-    stage.draw();
+    Konva.autoDrawEnabled = true;
 
     bucketLayer.removeChildren();
     bucketLayer.add(bucketImage);
@@ -500,7 +499,8 @@ function handleColorPickerChange() {
 
 // Maps interval [0, 1] to [0, 500]
 // and finds where 100 of [0, 500] will be on [0, 1]
-let zoomScale = zoomInterval(100, 0, 500, 0, 1);
+const ZOOM_MAX = 10000; // zoom in 10000/100 times 
+let zoomScale = zoomInterval(100, 0, ZOOM_MAX, 0, 1);
 let zoomFactor = 0.001;
 function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {
     return outMin + (x - inMin) * (outMax - outMin) / (inMax - inMin);
@@ -509,13 +509,13 @@ function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {
 // Finds where v of [0, 1] is on [0, 500]
 // just for showing on UI a human friendly value of scaling
 const mapZoom = v => {
-  return zoomInterval(v, 0, 1, 0, 500);
+  return zoomInterval(v, 0, 1, 0, ZOOM_MAX);
 };
 
 function handleZoom(evt) {
     const z = parseFloat(evt.target.value); // Get the zoom scale
     if (z <= 0) return;
-    zoomScale = mapZoom(z, 0, 1, 0, 500)/100
+    zoomScale = mapZoom(z, 0, 1, 0, ZOOM_MAX)/100
     // Get the pointer position relative to the stage
     let stageCenter = {
         x: stage.width() / 2,
