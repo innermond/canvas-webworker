@@ -499,7 +499,7 @@ function handleColorPickerChange() {
 
 // Maps interval [0, 1] to [0, 500]
 // and finds where 100 of [0, 500] will be on [0, 1]
-const ZOOM_MAX = 10000; // zoom in 10000/100 times 
+const ZOOM_MAX = 1000; // zoom in 1000/100 times 
 let zoomScale = zoomInterval(100, 0, ZOOM_MAX, 0, 1);
 let zoomFactor = 0.001;
 function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {

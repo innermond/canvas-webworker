@@ -2,7 +2,7 @@ body {
     margin: 0;
     padding: 0;
     overflow: scroll;
-    background: #555;
+    background: #999;
     height: auto;
 }
 
@@ -49,4 +49,8 @@ body {
 /* Add style for color picker */
 .color-picker {
     margin-bottom: 10px; /* Space between color picker and buttons */
+}
+
+#zoomButton {
+  min-width: 500px; 
 }
