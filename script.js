@@ -630,6 +630,8 @@ const collapseDraw = (reinit) => (evt) => {
   } else {
     pencilPrevPos = null;
   }
+
+  collapseBucketLayer();
 };
 
 const collapseDrawReinitNo = collapseDraw(false);
