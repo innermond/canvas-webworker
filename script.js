@@ -9,7 +9,10 @@ var stage = new Konva.Stage({
 // Order of layers is important
 var imageLayer = new Konva.Layer();
 stage.add(imageLayer);
-var bucketLayer = new Konva.Layer();
+var bucketLayer = new Konva.Layer({
+  stroke: 'green',
+  strokeWidth: 4,
+});
 stage.add(bucketLayer);
 var pathLayer = new Konva.Layer();
 stage.add(pathLayer);
@@ -195,6 +198,7 @@ function handleFillImageClick() {
 
 }
 
+
 async function fillBucket(currentImage) {
     if (!isBucketMode || !currentImage) return;
 
@@ -214,25 +218,39 @@ async function fillBucket(currentImage) {
     // fiil our imageCanvas with native imageElement
     imageCtx.drawImage(imageElement, 0, 0);
 
-    // Put a bucketCanvas on imageCanvas to have a combined image to be sent to worker 
-  const bucketData = bucketLayer.getContext().getImageData(0, 0, width, height);
-    const bucketBmp = await createImageBitmap(bucketData)
-      const bucketImage = new Konva.Image({
-          x:0, y: 0,
-          width: width,
-          height: height,
-          image: bucketBmp,
-        });
-  bucketLayer.add(bucketBmp)
-
-    //imageCtx.drawImage(bucketBmp, 0, 0,);
-    const imageData = imageCtx.getImageData(0, 0, width, height);
-
+    // Get pos on a transformed currentImage (through stage's transformation)
     const localPos = currentImage.getRelativePointerPosition();
     const startPos = {
         x: Math.floor(localPos.x),
         y: Math.floor(localPos.y)
     };
+    // Reset stage (no skew or rotation)
+    const old = {...stage.attrs};
+    stage.off('draw');
+    stage.setAttrs({
+      x:0, y:0, scaleX: 1, scaleY: 1, width, height,
+    })
+
+    const bucketImg = await bucketLayer.toImage();
+    const bucketImage = new Konva.Image({
+        x:0, y: 0,
+        width: width,
+        height: height,
+        image: bucketImg,
+      });
+
+    const bucketBmp = await createImageBitmap(bucketImg)
+    debug(bucketImage.image())
+
+    // Transform back
+    stage.setAttrs(old);
+    stage.draw();
+
+    bucketLayer.removeChildren();
+    bucketLayer.add(bucketImage);
+
+    imageCtx.drawImage(bucketBmp, 0, 0,);
+    const imageData = imageCtx.getImageData(0, 0, width, height);
 
     // Send image data and other details to the web worker
     floodFillWorker.postMessage({
@@ -261,7 +279,6 @@ async function fillBucket(currentImage) {
         bucketLayer.add(floodImage);
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
-  //debug(bucketLayer.toCanvas())
 
         bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -443,7 +460,7 @@ function handleImageUpload(e) {
 // FIXME
           stage.width(img.width)
           stage.height(img.height)
-          setTimeout(() => stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`);
+          stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
           const allLayers = [imageLayer, bucketLayer, pathLayer];
           for (const layer of allLayers) {
             layer.destroyChildren()
@@ -759,6 +776,28 @@ function handleDrawPencilClick() {
 }
 
 function debug(canvas) {
+  if ([HTMLImageElement].includes(canvas.constructor)) {
+    document.body.appendChild(canvas)
+    return
+  }
+  if ([ImageBitmap].includes(canvas.constructor)) {
+    const imageBitmap = canvas;
+    var canvas = document.createElement('canvas');
+    canvas.width = imageBitmap.width;
+    canvas.height = imageBitmap.height;
+
+    var ctx = canvas.getContext('2d');
+    // 2. Draw the ImageBitmap onto the canvas
+    ctx.drawImage(imageBitmap, 0, 0);
+    // 3. Convert the canvas content to a data URL or Blob
+    var dataURL = canvas.toDataURL();  // Option 1: Using data URL
+    // var blob = await new Promise(resolve => canvas.toBlob(resolve));  // Option 2: Using Blob (for larger images)
+    // 4. Create a new Image object
+    var newImage = new Image();
+    newImage.src = dataURL;
+    document.body.appendChild(newImage)
+    return
+  }
   const tpl = `<div style="position: relative">
     <canvas/>
   </div>`;
