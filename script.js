@@ -188,7 +188,6 @@ function handleFillImageClick() {
   isBucketMode = ! isBucketMode;
   // When filling mode begins it requires you 
   // to choose a starting color (by position) from image
-  // exiting from bucket mode reset its state
   document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
   if (isBucketMode) {
     lastPos = stage.getRelativePointerPosition();
@@ -198,6 +197,35 @@ function handleFillImageClick() {
 
 }
 
+async function collapseBucketLayer() {
+  // Reset stage (no skew or rotation)
+  const old = {...stage.attrs};
+  Konva.autoDrawEnabled = false;
+  const w = bucketLayer.width();
+  const h = bucketLayer.height();
+  stage.setAttrs({
+    x:0, y:0,
+    scaleX: 1, scaleY: 1, 
+    widht: w, height: h,
+  });
+
+  const bucketImg = await bucketLayer.toImage();
+  const bucketImage = new Konva.Image({
+      x:0, y: 0,
+      width: w,
+      height: h,
+      image: bucketImg,
+    });
+
+  // Transform back
+  stage.setAttrs(old);
+  Konva.autoDrawEnabled = true;
+
+  bucketLayer.removeChildren();
+  bucketLayer.add(bucketImage);
+
+  return bucketImage;
+}
 
 async function fillBucket(currentImage) {
     if (!isBucketMode || !currentImage) return;
@@ -224,30 +252,9 @@ async function fillBucket(currentImage) {
         x: Math.floor(localPos.x),
         y: Math.floor(localPos.y)
     };
-    // Reset stage (no skew or rotation)
-    const old = {...stage.attrs};
-    Konva.autoDrawEnabled = false;
-    stage.setAttrs({
-      x:0, y:0, scaleX: 1, scaleY: 1, width, height,
-    })
 
-    const bucketImg = await bucketLayer.toImage();
-    const bucketImage = new Konva.Image({
-        x:0, y: 0,
-        width: width,
-        height: height,
-        image: bucketImg,
-      });
-
-    const bucketBmp = await createImageBitmap(bucketImg)
-
-    // Transform back
-    stage.setAttrs(old);
-    Konva.autoDrawEnabled = true;
-
-    bucketLayer.removeChildren();
-    bucketLayer.add(bucketImage);
-
+    const bucketImage = await collapseBucketLayer();
+    const bucketBmp = await createImageBitmap(bucketImage.image());
     imageCtx.drawImage(bucketBmp, 0, 0,);
     const imageData = imageCtx.getImageData(0, 0, width, height);
 
