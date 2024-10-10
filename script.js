@@ -611,7 +611,6 @@ stage.on('mousedown', (evt) => {
 });
 
 const collapseDraw = (reinit) => (evt) => {
-  // FIXME
   // Is a natural-browser event - not artificially generated ?
   if (evt.composed) {
     mousemove = false;
@@ -658,19 +657,27 @@ stage.on('mousemove', (evt) => {
     // Calculate the total distance between the two points
     const distanceX = pos.x - pencilPrevPos.x;
     const distanceY = pos.y - pencilPrevPos.y;
-    let numRectangles = 1;
+    const MIN_NIB = 4;
+    let numRectangles = MIN_NIB;
     if (distanceX === 0 && distanceY === 0) {
-     // Nothing 
+      // Don't draw anything
+      return;
     } else if (distanceX === 0) {
       numRectangles = Math.ceil(Math.abs(distanceY/pencilSize));
     } else if (distanceY === 0) {
       numRectangles = Math.ceil(Math.abs(distanceX/pencilSize));
     } else {
-      numRectangles = Math.ceil(Math.max(Math.abs(distanceX/pencilSize), Math.abs(distanceY/pencilSize)));
+      const a = Math.abs(distanceX);
+      const b = Math.abs(distanceY);
+      // hypothenuse
+      const c = Math.sqrt(a**2 + b**2);
+      if (c < pencilSize/MIN_NIB) {
+        return;
+      }
+      numRectangles = Math.ceil(c/pencilSize);
     }
-    numRectangles = Math.max(numRectangles, 4); 
     if (numRectangles > 1) {
-      const k = 2*numRectangles;
+      const k = MIN_NIB*numRectangles;
       // Calculate the step for each rectangle along the line
       const stepX = distanceX / k;
       const stepY = distanceY / k;
