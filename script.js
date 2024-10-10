@@ -370,6 +370,11 @@ function handleDeleteClick() {
     }
 }
 
+function handleClearAllClick() {
+  bucketLayer.removeChildren();
+  bucketLayer.clear();
+}
+
 // Function to handle the "Add New Path" button click
 function handleNewPathClick() {
     resetDrawingState(); // Reset the drawing state for a new path
@@ -860,6 +865,7 @@ document.getElementById('isDraggingCheckbox').addEventListener('change', handleD
 document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
+document.getElementById('clearAllButton').addEventListener('click', handleClearAllClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
