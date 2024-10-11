@@ -1,20 +1,26 @@
 let {width: pwidth, height: pheight } = document.querySelector('#container').style;
 // Set up the stage and imageLayer
 var stage = new Konva.Stage({
+    id: 'stage',
     container: 'container',
     width: parseInt(pwidth) ?? 200,
     height: parseInt(pheight) ?? 100,
 });
 
 // Order of layers is important
-var imageLayer = new Konva.Layer();
+var imageLayer = new Konva.Layer({
+  id: 'image',
+});
 stage.add(imageLayer);
 var bucketLayer = new Konva.Layer({
+  id: 'bucket',
   stroke: 'green',
   strokeWidth: 4,
 });
 stage.add(bucketLayer);
-var pathLayer = new Konva.Layer();
+var pathLayer = new Konva.Layer({
+  id: 'path',
+});
 stage.add(pathLayer);
 
 // Variable to store the current path data
@@ -611,11 +617,12 @@ stage.on('mousedown', (evt) => {
     fill: fillColor,
     globalCompositeOperation: gco(),
   });
-  bucketLayer.add(pencil);
-  bucketLayer.batchDraw();
 });
 
-const collapseDraw = (reinit) => (evt) => {
+const collapseDraw = (evt) => {
+
+  evt.cancelBubble = true;
+
   // Is a natural-browser event - not artificially generated ?
   if (evt.composed) {
     mousemove = false;
@@ -626,34 +633,57 @@ const collapseDraw = (reinit) => (evt) => {
   if (!pencil) return;
   if (isDragging) return;
 
-  evt.cancelBubble = true;
-
-  if (reinit) {
-    mousemove = false;
-    pencilPrevPos = null;
-  } else {
-    pencilPrevPos = null;
-  }
-
   collapseBucketLayer();
 };
 
-const collapseDrawReinitNo = collapseDraw(false);
-const collapseDrawReinitYes = collapseDraw(true);
 // Mouseup event finalizes the shape
-document.addEventListener('mouseup', collapseDrawReinitYes);
-stage.on('mouseup', collapseDrawReinitYes);
-stage.on('mouseleave', collapseDrawReinitNo);
+document.addEventListener('mouseup', collapseDraw);
+stage.on('mouseup', (kevt) => {
+  mousemove = false;
+  pencilPrevPos = null;
+
+  if (isDragging) {
+    stage.setAttr('draggable', false);
+  }
+
+  kevt?.evt?.stopImmediatePropagation();
+  if (kevt?.evt?.cancelBubble) {
+    kevt.evt.cancelBubble = true;
+  }
+  
+  collapseBucketLayer();
+});
+//stage.on('mouseup', collapseDraw);
+stage.on('mouseleave', collapseDraw);
+// FIXME
+bucketLayer.on('mouseleave', (evt) => {
+  evt.cancelBubble = true;
+
+  pencilPrevPos = null;
+});
+//// FIXME
+//bucketLayer.on('mouseenter', (evt) => {
+//  evt.cancelBubble = true;
+//
+//  mousemove = true;
+//  pencilPrevPos = null;
+//});
+
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
 stage.on('mousemove', (evt) => {
+
+  if (evt.target?.attrs?.id === 'stage') {
+    return;
+  }
   if (!isDrawPencil) return;
   if (!mousemove) return;
   if (!pencil) return;
   if (isDragging) return;
 
   evt.cancelBubble = true;
+
 
   // Get the current mouse position
   let pos = stage.getRelativePointerPosition();
@@ -676,10 +706,9 @@ stage.on('mousemove', (evt) => {
       const b = Math.abs(distanceY);
       // hypothenuse
       const c = Math.sqrt(a**2 + b**2);
-      if (c < pencilSize/MIN_NIB) {
-        return;
+      if (c >= pencilSize/MIN_NIB) {
+        numRectangles = Math.ceil(c/pencilSize);
       }
-      numRectangles = Math.ceil(c/pencilSize);
     }
     if (numRectangles > 1) {
       const k = MIN_NIB*numRectangles;
@@ -711,9 +740,9 @@ stage.on('mousemove', (evt) => {
     y: pos.y,
   });
   bucketLayer.add(cloned);
+  bucketLayer.batchDraw();
 
   pencilPrevPos = pos;
-  bucketLayer.batchDraw();
 });
 
 let isDrawProtect = false;
