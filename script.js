@@ -586,7 +586,7 @@ function gco() {
   return v;
 }
 // Mousedown event starts drawing a new shape
-stage.on('mousedown', (evt) => {
+bucketLayer.on('mousedown', (evt) => {
   // Must be first
   const pos = stage.getRelativePointerPosition();
   lastPos = pos;
@@ -638,7 +638,7 @@ const collapseDraw = (evt) => {
 
 // Mouseup event finalizes the shape
 document.addEventListener('mouseup', collapseDraw);
-stage.on('mouseup', (kevt) => {
+bucketLayer.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
 
@@ -766,10 +766,13 @@ function handleFillClean() {
 
 let isDragging = false;
 
-function handleDragging() {
+function toggleDragging() {
   isDragging = !isDragging;
   stage.setAttr('draggable', isDragging);
+}
 
+function handleDragging() {
+  toggleDragging();
   document.getElementById('isDraggingCheckbox').checked = isDragging;
   document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 }
