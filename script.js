@@ -128,6 +128,7 @@ function handleStageMouseMove(e) {
   return
     if (isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
     if (isBucketMode) return;
+    if (isDragging) return;
 
     var pos = stage.getRelativePointerPosition();
 
@@ -586,13 +587,16 @@ function gco() {
   return v;
 }
 // Mousedown event starts drawing a new shape
-bucketLayer.on('mousedown', (evt) => {
+stage.on('mousedown', (evt) => {
   // Must be first
   const pos = stage.getRelativePointerPosition();
   lastPos = pos;
 
+  if (isDragging === true) {
+    stage.startDrag();
+    return;
+  }
   if (!isDrawPencil) return;
-  if (isDragging) return;
 
   evt.cancelBubble = true;
   mousemove = true;
@@ -620,9 +624,6 @@ bucketLayer.on('mousedown', (evt) => {
 });
 
 const collapseDraw = (evt) => {
-
-  evt.cancelBubble = true;
-
   // Is a natural-browser event - not artificially generated ?
   if (evt.composed) {
     mousemove = false;
@@ -638,12 +639,12 @@ const collapseDraw = (evt) => {
 
 // Mouseup event finalizes the shape
 document.addEventListener('mouseup', collapseDraw);
-bucketLayer.on('mouseup', (kevt) => {
+stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
 
-  if (isDragging) {
-    stage.setAttr('draggable', false);
+  if (isDragging === true) {
+    stage.stopDrag();
   }
 
   kevt?.evt?.stopImmediatePropagation();
@@ -656,19 +657,9 @@ bucketLayer.on('mouseup', (kevt) => {
 //stage.on('mouseup', collapseDraw);
 stage.on('mouseleave', collapseDraw);
 // FIXME
-bucketLayer.on('mouseleave', (evt) => {
-  evt.cancelBubble = true;
-
+bucketLayer.on('mouseleave', () => {
   pencilPrevPos = null;
 });
-//// FIXME
-//bucketLayer.on('mouseenter', (evt) => {
-//  evt.cancelBubble = true;
-//
-//  mousemove = true;
-//  pencilPrevPos = null;
-//});
-
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
@@ -766,13 +757,8 @@ function handleFillClean() {
 
 let isDragging = false;
 
-function toggleDragging() {
-  isDragging = !isDragging;
-  stage.setAttr('draggable', isDragging);
-}
-
 function handleDragging() {
-  toggleDragging();
+  isDragging = !isDragging;
   document.getElementById('isDraggingCheckbox').checked = isDragging;
   document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 }
@@ -820,12 +806,19 @@ function handlePencilShape(evt) {
 
 function handleDrawPencilClick() {
   isDrawPencil = ! isDrawPencil;
-  
-  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
   if (isDrawPencil) {
     isBucketMode = false;
+
+    // Force dragging to stop
+    isDragging = false;
+    stage.stopDrag();
+    document.getElementById('isDraggingCheckbox').checked = isDragging;
+    document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
+
     document.getElementById('fillImageButton').classList.add('inactive');
   }
+  
+  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
 }
 
 function debug(canvas) {
@@ -864,6 +857,7 @@ function debug(canvas) {
 stage.on('click', handleStageClick);
 stage.on('mousemove', handleStageMouseMove);
 stage.on('dblclick', handleStageDblClick);
+
 document.getElementById('fillButton').addEventListener('click', handleFillClick);
 
 document.getElementById('fillImageButton').addEventListener('click', handleFillImageClick);
@@ -877,6 +871,7 @@ document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'activ
 
 document.getElementById('fillCleanCheckbox').addEventListener('change', handleFillClean);
 document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+
 document.getElementById('scalePencilButton').addEventListener('input', handleScalePencil);
 document.getElementById('scalePencilLabel').textContent = pencilSize;
 
