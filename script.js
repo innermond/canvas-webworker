@@ -14,8 +14,6 @@ var imageLayer = new Konva.Layer({
 stage.add(imageLayer);
 var bucketLayer = new Konva.Layer({
   id: 'bucket',
-  stroke: 'green',
-  strokeWidth: 4,
 });
 stage.add(bucketLayer);
 var pathLayer = new Konva.Layer({
@@ -380,6 +378,13 @@ function handleDeleteClick() {
 function handleClearAllClick() {
   bucketLayer.removeChildren();
   bucketLayer.clear();
+}
+
+function handleUndoClick() {
+}
+
+function handleRedoClick() {
+console.log(stage.toJSON())
 }
 
 // Function to handle the "Add New Path" button click
@@ -895,6 +900,8 @@ document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'a
 
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('clearAllButton').addEventListener('click', handleClearAllClick);
+document.getElementById('undoButton').addEventListener('click', handleUndoClick);
+document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
