@@ -213,7 +213,7 @@ async function collapseBucketLayer() {
   stage.setAttrs({
     x:0, y:0,
     scaleX: 1, scaleY: 1, 
-    widht: w, height: h,
+    width: w, height: h,
   });
 
   const bucketImg = await bucketLayer.toImage();
@@ -652,7 +652,9 @@ stage.on('mouseup', (kevt) => {
     kevt.evt.cancelBubble = true;
   }
   
-  collapseBucketLayer();
+  if (!isBucketMode) {
+    collapseBucketLayer();
+  }
 });
 //stage.on('mouseup', collapseDraw);
 stage.on('mouseleave', collapseDraw);
