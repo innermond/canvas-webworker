@@ -609,23 +609,11 @@ stage.on('mousedown', (evt) => {
   if (pencil) {
     pencil.width(pencilSize);
     pencil.height(pencilSize);
-    pencil.offsetX(0.5*pencilSize);
-    pencil.offsetY(0.5*pencilSize);
-    pencil.globalCompositeOperation(gco());
-    return;
+  } else {
+    const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
+    createPencilShape(ps);
   }
-
-  // Create Pencil
-  pencil = new Konva.Rect({
-    x: pos.x,
-    y: pos.y,
-    offsetX: pencilSize*0.5,
-    offsetY: pencilSize*0.5,
-    width: pencilSize,
-    height: pencilSize,
-    fill: fillColor,
-    globalCompositeOperation: gco(),
-  });
+  pencil.globalCompositeOperation(gco());
 });
 
 const collapseDraw = (evt) => {
@@ -774,13 +762,15 @@ let pencilShape = 'rectangle';
 
 function handlePencilShape(evt) {
   pencilShape = evt.target.value;
-  if (! pencil) return;
+  createPencilShape(pencilShape);
+}
 
+function createPencilShape(pencilShape = 'rectangle') {
   switch (pencilShape) {
     case 'circle':
       pencil = new Konva.Circle({
-        x: lastPos.x,
-        y: lastPos.y,
+        offsetX: 0,
+        offsetY: 0,
         width: pencilSize,
         height: pencilSize,
         fill: fillColor,
@@ -788,8 +778,6 @@ function handlePencilShape(evt) {
     break;
     case 'rhomb':
       pencil = new Konva.Rect({
-        x: lastPos.x,
-        y: lastPos.y,
         offsetX: pencilSize*0.5,
         offsetY: pencilSize*0.5,
         width: pencilSize,
@@ -800,8 +788,6 @@ function handlePencilShape(evt) {
     break;
     default:
       pencil = new Konva.Rect({
-        x: lastPos.x,
-        y: lastPos.y,
         offsetX: pencilSize*0.5,
         offsetY: pencilSize*0.5,
         width: pencilSize,
