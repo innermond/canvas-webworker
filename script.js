@@ -203,11 +203,14 @@ function handleFillImageClick() {
 }
 
 async function collapseBucketLayer() {
-  // Reset stage (no skew or rotation)
-  const old = {...stage.attrs};
   Konva.autoDrawEnabled = false;
+  
+  const {x, y, scaleX, scaleY, width, height,} = stage.attrs;
+  const old = {x, y, scaleX, scaleY, width, height};
+
   const w = bucketLayer.width();
   const h = bucketLayer.height();
+  // Reset stage (no skew or rotation)
   stage.setAttrs({
     x:0, y:0,
     scaleX: 1, scaleY: 1, 
@@ -224,6 +227,7 @@ async function collapseBucketLayer() {
 
   // Transform back
   stage.setAttrs(old);
+
   Konva.autoDrawEnabled = true;
 
   bucketLayer.removeChildren();
