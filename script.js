@@ -614,6 +614,14 @@ stage.on('mousedown', (evt) => {
     createPencilShape(ps);
   }
   pencil.globalCompositeOperation(gco());
+
+  const cloned = pencil.clone({
+    x: pos.x, y: pos.y,
+    id: 'pencilGhost',
+    fill: 'transparent', stroke: fillColor, strokeWidth: 2,
+    globalCompositeOperation: 'source-over',
+  });
+  bucketLayer.add(cloned);
 });
 
 const collapseDraw = (evt) => {
@@ -646,6 +654,10 @@ stage.on('mouseup', (kevt) => {
   }
   
   if (!isBucketMode) {
+    const pencilGhost = stage.findOne('#pencilGhost');
+    if (pencilGhost) {
+      pencilGhost.destroy();
+    }
     collapseBucketLayer();
   }
 });
@@ -669,7 +681,6 @@ stage.on('mousemove', (evt) => {
   if (isDragging) return;
 
   evt.cancelBubble = true;
-
 
   // Get the current mouse position
   let pos = stage.getRelativePointerPosition();
