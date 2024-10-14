@@ -56,17 +56,17 @@ var pencilSize = 30;
 
 // Function to reset drawing state
 function resetDrawingState() {
-    if (currentPath) {
-      currentPath.selected = false;
-      if (isPrevious) {
-        currentPath.strokeWidth(0);
-      }
+  if (currentPath) {
+    currentPath.selected = false;
+    if (isPrevious) {
+      currentPath.strokeWidth(0);
     }
+  }
 
-    pathData = ''; 
-    isClosed = false; 
-    isPrevious = false;
-    lastPos = null;
+  pathData = ''; 
+  isClosed = false; 
+  isPrevious = false;
+  lastPos = null;
 }
 
 // Function to handle mouse click to add points to the path
@@ -97,38 +97,36 @@ function handleStageClick(e) {
     fillBucket(e.target);
     return;
   }
-  // FIXME 
-return
-    if (currentPath) {
-      currentPath.selected = false;
-      if (isPrevious) {
-        currentPath.strokeWidth(0);
-      }
-    }
-    if (isPrevious || isClosed || !currentPath) return; // Stop adding points if the path is closed or not defined
 
-    if (pathData === '') {
-        // If it's the first click, start the 'M'ove command
-        pathData += `M${pos.x},${pos.y}`;
-    } else {
-        // Add line to ('L') for subsequent clicks
-        pathData += ` L${pos.x},${pos.y}`;
+  if (currentPath) {
+    currentPath.selected = false;
+    if (isPrevious) {
+      currentPath.strokeWidth(0);
     }
+  }
+  if (isPrevious || isClosed || !currentPath) return; // Stop adding points if the path is closed or not defined
 
-    // Update the path data
-    currentPath.setAttr('data', pathData);
-    pathLayer.batchDraw();
+  if (pathData === '') {
+      // If it's the first click, start the 'M'ove command
+      pathData += `M${pos.x},${pos.y}`;
+  } else {
+      // Add line to ('L') for subsequent clicks
+      pathData += ` L${pos.x},${pos.y}`;
+  }
+
+  // Update the path data
+  currentPath.setAttr('data', pathData);
+  pathLayer.batchDraw();
 }
-
 
 // Function to handle mouse move to preview the next segment in real-time
 function handleStageMouseMove(e) {
-  return
     if (isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
     if (isBucketMode) return;
     if (isDragging) return;
 
     var pos = stage.getRelativePointerPosition();
+    lastPos = pos;
 
     // Update the tempLine to preview the line from the last position to the current mouse position
     tempLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
@@ -295,7 +293,8 @@ async function fillBucket(currentImage) {
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
 
-        bucketImage.on('click', function(e) {
+        // TODO needless?
+        /*bucketImage.on('click', function(e) {
           let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
           const pos = this.getRelativePointerPosition();
           // img is unscaled native image
@@ -308,7 +307,7 @@ async function fillBucket(currentImage) {
           if (!isBubbling && !isDrawProtect) isBubbling = true; 
           if (isFillClean) isBubbling = true;
           e.cancelBubble = !isBubbling;
-        });
+        });*/
 
         document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
     };
@@ -393,55 +392,55 @@ console.log(stage.toJSON())
 
 // Function to handle the "Add New Path" button click
 function handleNewPathClick() {
-    resetDrawingState(); // Reset the drawing state for a new path
+  resetDrawingState(); // Reset the drawing state for a new path
 
-    // Create a new Konva.Path object for the new path
-    currentPath = new Konva.Path({
-        data: '',
-        stroke: 'green',
-        strokeWidth: 3,
-        fill: '' // Initially no fill
-    });
+  // Create a new Konva.Path object for the new path
+  currentPath = new Konva.Path({
+      data: '',
+      stroke: 'green',
+      strokeWidth: 3,
+      fill: '' // Initially no fill
+  });
 
-    // Add the new path to the imageLayer
-    pathLayer.add(currentPath);
+  // Add the new path to the imageLayer
+  pathLayer.add(currentPath);
 
-    // Disable dragging until the path is closed
-    currentPath.draggable(false);
+  // Disable dragging until the path is closed
+  currentPath.draggable(false);
 
-    // Add click event listener to the new path to set it as current and restore drawing state
-    currentPath.on('click', function (evt) {
-        evt.cancelBubble = true; // Prevent the event from bubbling up
+  // Add click event listener to the new path to set it as current and restore drawing state
+  currentPath.on('click', function (evt) {
+      evt.cancelBubble = true; // Prevent the event from bubbling up
 
-        if (currentPath) {
-          currentPath.strokeWidth(0); // Reset previous path stroke
-        }
+      if (currentPath) {
+        currentPath.strokeWidth(0); // Reset previous path stroke
+      }
 
-        currentPath = this; // Set this path as the current path
-        if (! currentPath?.selected) {
-          currentPath.strokeWidth(2); // Reset previous path stroke
-        }
-        currentPath.selected = ! currentPath?.selected;
-        isPrevious = true; // Mark currentPath as previous
-        pathData = this.getAttr('data'); // Restore the path data
-        lastPos = null; // Reset last position for drawing
+      currentPath = this; // Set this path as the current path
+      if (! currentPath?.selected) {
+        currentPath.strokeWidth(2); // Reset previous path stroke
+      }
+      currentPath.selected = ! currentPath?.selected;
+      isPrevious = true; // Mark currentPath as previous
+      pathData = this.getAttr('data'); // Restore the path data
+      lastPos = null; // Reset last position for drawing
 
-        // Update button states
-        document.getElementById('deleteButton').disabled = false; // Enable the delete button
-        document.getElementById('fillButton').disabled = false; // Enable the fill button
-        document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
-    });
+      // Update button states
+      document.getElementById('deleteButton').disabled = false; // Enable the delete button
+      document.getElementById('fillButton').disabled = false; // Enable the fill button
+      document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
+  });
 
-    // Disable the fill button, color picker, and delete button since we are starting a new path
-    document.getElementById('fillButton').disabled = true;
-    document.getElementById('fillColorPicker').disabled = true;
-    document.getElementById('deleteButton').disabled = true;
+  // Disable the fill button, color picker, and delete button since we are starting a new path
+  document.getElementById('fillButton').disabled = true;
+  document.getElementById('fillColorPicker').disabled = true;
+  document.getElementById('deleteButton').disabled = true;
 
-    // Clear the temporary line
-    tempLine.points([]);
-    
-    // Redraw the imageLayer
-    pathLayer.batchDraw();
+  // Clear the temporary line
+  tempLine.points([]);
+  
+  // Redraw the imageLayer
+  pathLayer.batchDraw();
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
