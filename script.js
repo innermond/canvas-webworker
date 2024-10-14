@@ -202,7 +202,7 @@ function handleFillImageClick() {
 
 }
 
-async function collapseBucketLayer() {
+function collapseBucketLayer() {
   Konva.autoDrawEnabled = false;
   
   const {x, y, scaleX, scaleY, width, height,} = stage.attrs;
@@ -217,12 +217,12 @@ async function collapseBucketLayer() {
     width: w, height: h,
   });
 
-  const bucketImg = await bucketLayer.toImage();
+  const bucketCanvas = bucketLayer.toCanvas();
   const bucketImage = new Konva.Image({
       x:0, y: 0,
       width: w,
       height: h,
-      image: bucketImg,
+      image: bucketCanvas,
     });
 
   // Transform back
