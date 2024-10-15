@@ -110,8 +110,6 @@ function handleStageDblClick() {
 
     // Update the path data and set the closed flag
     currentPath.setAttr('data', pathData);
-    isClosed = true;  // Mark the path as closed
-    isPrevious = false;
 
     currentPath.fill(fillColor);
     currentPath.strokeWidth(0); 
@@ -119,6 +117,8 @@ function handleStageDblClick() {
 
     resetDrawingState();
     currentPath = null;
+    isClosed = true;  // Mark the path as closed
+    isPrevious = false;
     
     // Enable the "Fill Path" button and color picker after the path is closed
     document.getElementById('fillButton').disabled = false;
@@ -422,6 +422,9 @@ function handleNewPathClick() {
       if (currentPath?.selected) {
         currentPath.strokeWidth(2);
         currentPath.draggable(true);
+      } else {
+        currentPath.strokeWidth(0);
+        currentPath.draggable(false);
       }
       isPrevious = true; // Mark currentPath as previous
       pathData = this.getAttr('data'); // Restore the path data
