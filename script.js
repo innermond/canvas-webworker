@@ -89,7 +89,7 @@ function handleStageClick(e) {
 }
 
 // Function to handle mouse move to preview the next segment in real-time
-function handleStageMouseMove(evt) {
+function previewCurrentLine(evt) {
     if (!currentPath || isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
     if (isBucketMode) return;
     if (isDragging) return;
@@ -406,9 +406,12 @@ function handleNewPathClick() {
 
   // Add click event listener to the new path to set it as current and restore drawing state
   currentPath.on('click', function (evt) {
+      if ( ! isClosed) {
+        return
+      }
       evt.cancelBubble = true; // Prevent the event from bubbling up
 
-      if (currentPath) {
+      if (currentPath && currentPath !== this) {
         currentPath.strokeWidth(0); // Reset previous path stroke
         currentPath.draggable(false);
         currentPath.selected = false;
@@ -856,7 +859,7 @@ function debug(canvas) {
 
 // Attach event listeners
 stage.on('click', handleStageClick);
-stage.on('mousemove', handleStageMouseMove);
+stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
 document.getElementById('fillButton').addEventListener('click', handleFillClick);
