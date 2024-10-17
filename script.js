@@ -96,8 +96,8 @@ function previewCurrentLine(evt) {
 
     var pos = stage.getRelativePointerPosition();
 
-    // Update the tempLine to preview the line from the last position to the current mouse position
-    tempLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
+    // Update the previewLine to preview the line from the last position to the current mouse position
+    previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
     pathLayer.batchDraw();
 }
 
@@ -328,7 +328,7 @@ function handleDeleteClick() {
         document.getElementById('deleteButton').disabled = true;
 
         // Clear the temporary line
-        tempLine.points([]);
+        previewLine.points([]);
         bucketLayer.batchDraw(); // Redraw the imageLayer
     } else if (currentImage) {
         currentImage.destroy(); // Remove the current image
@@ -341,6 +341,8 @@ function handleDeleteClick() {
 }
 
 function handleClearAllClick() {
+  pathLayer.removeChildren();
+  pathLayer.clear();
   bucketLayer.removeChildren();
   bucketLayer.clear();
 }
@@ -361,14 +363,31 @@ var isClosed = false;
 var isPrevious = false;
 
 // Create a temporary line for the preview (while moving the mouse)
-var tempLine = new Konva.Line({
-    points: [],
-    stroke: 'green',
-    strokeWidth: 2,
-    lineCap: 'round',
-    dash: [10, 5], // Dashed line to distinguish from the actual path
+var previewLine = new Konva.Line({
+  id: 'previewLine',
+  points: [],
+  stroke: 'green',
+  strokeWidth: 2,
+  lineCap: 'round',
+  dash: [10, 5], // Dashed line to distinguish from the actual path
 });
-pathLayer.add(tempLine);
+pathLayer.add(previewLine);
+
+function restorePreviewLine() {
+  const foundLine = pathLayer.findOne('#previewLine');
+  if (foundLine) {
+    return;
+  }
+
+  previewLine = new Konva.Line({
+      points: [],
+      stroke: 'green',
+      strokeWidth: 2,
+      lineCap: 'round',
+      dash: [10, 5], // Dashed line to distinguish from the actual path
+  });
+  pathLayer.add(previewLine);
+}
 
 // Function to reset drawing state
 function resetDrawingState() {
@@ -383,7 +402,7 @@ function resetDrawingState() {
   isClosed = false; 
   isPrevious = false;
   lastPos = null;
-  tempLine.points([]);
+  previewLine.points([]);
 }
 
 // Function to handle the "Add New Path" button click
@@ -492,22 +511,26 @@ function handleImageUpload(e) {
           stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
           const allLayers = [imageLayer, bucketLayer, pathLayer];
           for (const layer of allLayers) {
+            // Remove including non-drawing preview line 
             layer.destroyChildren()
           }
-            const newImage = new Konva.Image({
-                image: img,
-            });
-            imageLayer.add(newImage);
-          
-            newImage.on('click', function(evt) {
-                const pos = stage.getRelativePointerPosition();
-                lastClickPos = pos;
-                document.getElementById('deleteButton').disabled = false; // Enable delete button
-            });
+          // Add back preview line
+          restorePreviewLine();
 
-            imageLayer.batchDraw(); // Redraw the imageLayer to show the image
-            
-            document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+          const newImage = new Konva.Image({
+              image: img,
+          });
+          imageLayer.add(newImage);
+        
+          newImage.on('click', function(evt) {
+              const pos = stage.getRelativePointerPosition();
+              lastClickPos = pos;
+              document.getElementById('deleteButton').disabled = false; // Enable delete button
+          });
+
+          imageLayer.batchDraw(); // Redraw the imageLayer to show the image
+          
+          document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
         };
         img.src = event.target.result; // Set image source to the file's data URL
     };
@@ -643,7 +666,9 @@ const collapseDraw = (evt) => {
 };
 
 // Mouseup event finalizes the shape
-document.addEventListener('mouseup', collapseDraw);
+// FIXME Just to comfirm that I am guilty of stupidity
+//document.body.addEventListener('click', () => console.log('document click'));
+document.body.addEventListener('mouseup', collapseDraw);
 stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
@@ -656,18 +681,18 @@ stage.on('mouseup', (kevt) => {
   if (kevt?.evt?.cancelBubble) {
     kevt.evt.cancelBubble = true;
   }
-  
+  //
   if (!isBucketMode) {
     const pencilGhost = stage.findOne('#pencilGhost');
     if (pencilGhost) {
       pencilGhost.destroy();
     }
-    collapseBucketLayer();
+    // TODO will affect other ops than shape-ing?
+    //collapseBucketLayer();
   }
 });
-//stage.on('mouseup', collapseDraw);
 stage.on('mouseleave', collapseDraw);
-// FIXME
+//// FIXME
 bucketLayer.on('mouseleave', () => {
   pencilPrevPos = null;
 });
