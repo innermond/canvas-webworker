@@ -38,7 +38,6 @@ var pencilSize = 30;
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
   var pos = stage.getRelativePointerPosition();
-  // Store the current position as the last position
   lastPos = pos;
 
   if (isBucketMode) {
@@ -404,18 +403,18 @@ function handleNewPathClick() {
   document.getElementById('newPathButton').classList.remove('inactive');
 
   // Create a new Konva.Path object for the new path
-  currentPath = new Konva.Path({
+  const newCurrentPath = new Konva.Path({
       data: '',
       stroke: 'green',
       strokeWidth: 3,
       fill: '' // Initially no fill
   });
 
-  pathLayer.add(currentPath);
-  currentPath.draggable(false);
+  pathLayer.add(newCurrentPath);
+  newCurrentPath.draggable(false);
 
   // Add click event listener to the new path to set it as current and restore drawing state
-  currentPath.on('click', function (evt) {
+  newCurrentPath.on('click', function (evt) {
     evt.cancelBubble = true;
 
     //if (currentPath && currentPath !== this) {
@@ -424,7 +423,8 @@ function handleNewPathClick() {
     //  currentPath.selected = false;
     //}
 
-    //currentPath = this; // Set this path as the current path
+    const that = currentPath;
+    currentPath = this; // Set this path as the current path
     this.selected = ! this?.selected;
     if (this?.selected) {
       this.strokeWidth(2);
@@ -432,8 +432,8 @@ function handleNewPathClick() {
     } else {
       this.strokeWidth(0);
       this.draggable(false);
+      currentPath = that;
     }
-    //pathData = this.getAttr('data'); // Restore the path data
     lastPos = null; // Reset last position for drawing
 
     // Update button states
@@ -441,9 +441,10 @@ function handleNewPathClick() {
     document.getElementById('fillButton').disabled = false; // Enable the fill button
     document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
   });
-  currentPath.on('mousemove', function (evt) {
+  newCurrentPath.on('mousemove', function (evt) {
     evt.cancelBubble = true;
   });
+
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
