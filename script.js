@@ -38,9 +38,8 @@ var pencilSize = 30;
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
   var pos = stage.getRelativePointerPosition();
-  //if (!lastPos) {
-  //  lastPos = pos;
-  //}
+  // Store the current position as the last position
+  lastPos = pos;
 
   if (isBucketMode) {
     if (e.target === stage) return;
@@ -64,33 +63,35 @@ function handleStageClick(e) {
     return;
   }
 
-  if (currentPath) {
-    currentPath.selected = false;
-    if (isPrevious) {
-      currentPath.strokeWidth(0);
+  if (isDrawPath) {
+    if (! currentPath) {
+      currentPath = new Konva.Path({
+          data: '',
+          stroke: 'green',
+          strokeWidth: 3,
+          fill: '' // Initially no fill
+      });
+      pathData = '';
+      pathLayer.add(currentPath);
     }
+
+    if (pathData === '') {
+        // If it's the first click, start the 'M'ove command
+        pathData += `M${pos.x},${pos.y}`;
+    } else {
+        // Add line to ('L') for subsequent clicks
+        pathData += ` L${pos.x},${pos.y}`;
+    }
+
+    //// Update the path data
+    currentPath.setAttr('data', pathData);
+    pathLayer.batchDraw();
   }
-  if (isPrevious || isClosed || !currentPath) return true; // Stop adding points if the path is closed or not defined
-
-  if (pathData === '') {
-      // If it's the first click, start the 'M'ove command
-      pathData += `M${pos.x},${pos.y}`;
-  } else {
-      // Add line to ('L') for subsequent clicks
-      pathData += ` L${pos.x},${pos.y}`;
-  }
-
-  //// Update the path data
-  currentPath.setAttr('data', pathData);
-  pathLayer.batchDraw();
-
-  // Store the current position as the last position
-  lastPos = pos;
 }
 
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
-    if (!currentPath || isPrevious || isClosed || !lastPos) return; // Don't preview if path is closed or no previous point
+    if (!currentPath || !lastPos) return; // Don't preview if no path or no previous point
     if (isBucketMode) return;
     if (isDragging) return;
 
@@ -103,7 +104,7 @@ function previewCurrentLine(evt) {
 
 // Function to handle double click to close the path
 function handleStageDblClick() {
-    if (isClosed || pathData === '') return; // Don't close if already closed or path is empty
+    if (pathData === '') return; // Don't close if already closed or path is empty
 
     // Close the path by adding 'Z' to the SVG path data
     pathData += ' Z';
@@ -115,10 +116,7 @@ function handleStageDblClick() {
     currentPath.strokeWidth(0); 
     currentPath.draggable(true);
 
-    resetDrawingState();
-    currentPath = null;
-    isClosed = true;  // Mark the path as closed
-    isPrevious = false;
+    resetPathState();
     
     // Enable the "Fill Path" button and color picker after the path is closed
     document.getElementById('fillButton').disabled = false;
@@ -131,7 +129,7 @@ function handleStageDblClick() {
 
 // Function to handle the "Fill Path" button click
 function handleFillClick() {
-    if (!isClosed || !currentPath) return; // Only allow filling if the path is closed
+    if (!currentPath) return; // Only allow filling if the path is closed
 
     // Set the fill color for the closed path
     currentPath.fill(fillColor);
@@ -320,7 +318,7 @@ function handleDeleteClick() {
     if (currentPath) {
         currentPath.destroy(); // Remove the current path
         currentPath = null; // Reset current path variable
-        resetDrawingState(); // Reset drawing state
+        resetPathState(); // Reset drawing state
         
         // Disable buttons since there's no current path
         document.getElementById('fillButton').disabled = true;
@@ -354,14 +352,6 @@ function handleRedoClick() {
 console.log(stage.toJSON())
 }
 
-// Variable to store the current path data
-var pathData = '';
-var currentPath; // Variable to hold the current path object
-// Variable to track if the path is closed
-var isClosed = false;
-// Variable to track if the path was already done
-var isPrevious = false;
-
 // Create a temporary line for the preview (while moving the mouse)
 var previewLine = new Konva.Line({
   id: 'previewLine',
@@ -389,25 +379,29 @@ function restorePreviewLine() {
   pathLayer.add(previewLine);
 }
 
-// Function to reset drawing state
-function resetDrawingState() {
-  if (currentPath) {
-    currentPath.selected = false;
-    if (isPrevious) {
-      currentPath.strokeWidth(0);
-    }
-  }
+// Variable to store the current path data
+var pathData = '';
+var currentPath; // Variable to hold the current path object
 
+// Function to reset drawing state
+function resetPathState() {
+  currentPath = null;
   pathData = ''; 
-  isClosed = false; 
-  isPrevious = false;
   lastPos = null;
   previewLine.points([]);
 }
 
+var isDrawPath = false;
 // Function to handle the "Add New Path" button click
 function handleNewPathClick() {
-  resetDrawingState(); // Reset the drawing state for a new path
+  resetPathState();
+
+  isDrawPath = ! isDrawPath;
+  if ( isDrawPath === false) {
+    document.getElementById('newPathButton').classList.add('inactive');
+    return;
+  }
+  document.getElementById('newPathButton').classList.remove('inactive');
 
   // Create a new Konva.Path object for the new path
   currentPath = new Konva.Path({
@@ -417,46 +411,40 @@ function handleNewPathClick() {
       fill: '' // Initially no fill
   });
 
-  // Add the new path to the imageLayer
   pathLayer.add(currentPath);
-
-  // Disable dragging until the path is closed
   currentPath.draggable(false);
 
   // Add click event listener to the new path to set it as current and restore drawing state
   currentPath.on('click', function (evt) {
-      if ( ! isClosed) {
-        return
-      }
-      evt.cancelBubble = true; // Prevent the event from bubbling up
+    evt.cancelBubble = true;
 
-      if (currentPath && currentPath !== this) {
-        currentPath.strokeWidth(0); // Reset previous path stroke
-        currentPath.draggable(false);
-        currentPath.selected = false;
-      }
+    //if (currentPath && currentPath !== this) {
+    //  currentPath.strokeWidth(0); // Reset previous path stroke
+    //  currentPath.draggable(false);
+    //  currentPath.selected = false;
+    //}
 
-      currentPath = this; // Set this path as the current path
-      currentPath.selected = ! currentPath?.selected;
-      if (currentPath?.selected) {
-        currentPath.strokeWidth(2);
-        currentPath.draggable(true);
-      } else {
-        currentPath.strokeWidth(0);
-        currentPath.draggable(false);
-      }
-      isPrevious = true; // Mark currentPath as previous
-      pathData = this.getAttr('data'); // Restore the path data
-      lastPos = null; // Reset last position for drawing
+    //currentPath = this; // Set this path as the current path
+    this.selected = ! this?.selected;
+    if (this?.selected) {
+      this.strokeWidth(2);
+      this.draggable(true);
+    } else {
+      this.strokeWidth(0);
+      this.draggable(false);
+    }
+    //pathData = this.getAttr('data'); // Restore the path data
+    lastPos = null; // Reset last position for drawing
 
-      // Update button states
-      document.getElementById('deleteButton').disabled = false; // Enable the delete button
-      document.getElementById('fillButton').disabled = false; // Enable the fill button
-      document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
+    // Update button states
+    document.getElementById('deleteButton').disabled = false; // Enable the delete button
+    document.getElementById('fillButton').disabled = false; // Enable the fill button
+    document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
   });
-
+  currentPath.on('mousemove', function (evt) {
+    evt.cancelBubble = true;
+  });
   // Disable the fill button, color picker, and delete button since we are starting a new path
-  document.getElementById('newPathButton').classList.remove('inactive');
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('deleteButton').disabled = true;
