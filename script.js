@@ -1,4 +1,4 @@
-let {width: pwidth, height: pheight } = document.querySelector('#container').style;
+let { width: pwidth, height: pheight } = document.querySelector('#container').style;
 // Set up the stage and imageLayer
 var stage = new Konva.Stage({
     id: 'stage',
@@ -9,15 +9,15 @@ var stage = new Konva.Stage({
 
 // Order of layers is important
 var imageLayer = new Konva.Layer({
-  id: 'image',
+    id: 'image',
 });
 stage.add(imageLayer);
 var bucketLayer = new Konva.Layer({
-  id: 'bucket',
+    id: 'bucket',
 });
 stage.add(bucketLayer);
 var pathLayer = new Konva.Layer({
-  id: 'path',
+    id: 'path',
 });
 stage.add(pathLayer);
 
@@ -37,55 +37,92 @@ var pencilSize = 30;
 
 // Function to handle mouse click to add points to the path
 function handleStageClick(e) {
-  var pos = stage.getRelativePointerPosition();
-  lastPos = pos;
+    var pos = stage.getRelativePointerPosition();
+    lastPos = pos;
 
-  if (isBucketMode) {
-    if (e.target === stage) return;
-    // Event is triggered clicking on a transparent pixel of a flood image
-    // Find coresponding image from imageLayer
-    if (e.target?.parent === bucketLayer) {
-      // Check images on imageLayer - beneath bucketLayer
-      imageLayer.children.reverse().forEach(img => {
-        const {x, y} = img.getRelativePointerPosition();
-        const w = img.width();
-        const h = img.height();
-        const isInside = (0 < x && x < w && 0 < y && y < h);
-        if (isInside) {
-          fillBucket(img);
+    if (isBucketMode) {
+        if (e.target === stage) return;
+        // Event is triggered clicking on a transparent pixel of a flood image
+        // Find coresponding image from imageLayer
+        if (e.target?.parent === bucketLayer) {
+            // Check images on imageLayer - beneath bucketLayer
+            imageLayer.children.reverse().forEach(img => {
+                const { x, y } = img.getRelativePointerPosition();
+                const w = img.width();
+                const h = img.height();
+                const isInside = (0 < x && x < w && 0 < y && y < h);
+                if (isInside) {
+                    fillBucket(img);
+                }
+            })
+            return;
         }
-      })
-      return;
+
+        fillBucket(e.target);
+        return;
     }
 
-    fillBucket(e.target);
-    return;
-  }
+    if (isDrawPath) {
+        if (!currentPath) {
+            currentPath = new Konva.Path({
+                data: '',
+                stroke: 'green',
+                strokeWidth: 3,
+                fill: '' // Initially no fill
+            });
+            pathData = '';
+            pathLayer.add(currentPath);
+            currentPath.on('click', function(evt) {
+                evt.cancelBubble = true;
 
-  if (isDrawPath) {
-    if (! currentPath) {
-      currentPath = new Konva.Path({
-          data: '',
-          stroke: 'green',
-          strokeWidth: 3,
-          fill: '' // Initially no fill
-      });
-      pathData = '';
-      pathLayer.add(currentPath);
+                //if (currentPath && currentPath !== this) {
+                //  currentPath.strokeWidth(0); // Reset previous path stroke
+                //  currentPath.draggable(false);
+                //  currentPath.selected = false;
+                //}
+
+                const that = currentPath;
+                currentPath = this; // Set this path as the current path
+                this.selected = !this?.selected;
+                if (this?.selected) {
+                    this.strokeWidth(2);
+                    this.draggable(true);
+                } else {
+                    this.strokeWidth(0);
+                    this.draggable(false);
+                    currentPath = that;
+                }
+                lastPos = null; // Reset last position for drawing
+
+                // Update button states
+                document.getElementById('deleteButton').disabled = false; // Enable the delete button
+                document.getElementById('fillButton').disabled = false; // Enable the fill button
+                document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
+            });
+            currentPath.on('mouseup', function(evt) {
+                evt.cancelBubble = true;
+                this.selected = false;
+                this.draggable(false);
+                this.strokeWidth(0);
+            });
+            currentPath.on('mousemove', function(evt) {
+                evt.cancelBubble = true;
+            });
+
+        }
+
+        if (pathData === '') {
+            // If it's the first click, start the 'M'ove command
+            pathData += `M${pos.x},${pos.y}`;
+        } else {
+            // Add line to ('L') for subsequent clicks
+            pathData += ` L${pos.x},${pos.y}`;
+        }
+
+        //// Update the path data
+        currentPath.setAttr('data', pathData);
+        pathLayer.batchDraw();
     }
-
-    if (pathData === '') {
-        // If it's the first click, start the 'M'ove command
-        pathData += `M${pos.x},${pos.y}`;
-    } else {
-        // Add line to ('L') for subsequent clicks
-        pathData += ` L${pos.x},${pos.y}`;
-    }
-
-    //// Update the path data
-    currentPath.setAttr('data', pathData);
-    pathLayer.batchDraw();
-  }
 }
 
 // Function to handle mouse move to preview the next segment in real-time
@@ -112,11 +149,11 @@ function handleStageDblClick() {
     currentPath.setAttr('data', pathData);
 
     currentPath.fill(fillColor);
-    currentPath.strokeWidth(0); 
-    currentPath.draggable(true);
+    currentPath.strokeWidth(0);
+    //currentPath.draggable(true);
 
     resetPathState();
-    
+
     // Enable the "Fill Path" button and color picker after the path is closed
     document.getElementById('fillButton').disabled = false;
     document.getElementById('fillColorPicker').disabled = false;
@@ -134,7 +171,7 @@ function handleFillClick() {
     currentPath.fill(fillColor);
 
     // Set the stroke width to zero to make it invisible
-    currentPath.strokeWidth(0); 
+    currentPath.strokeWidth(0);
 
     // Redraw the imageLayer to apply the fill
     imageLayer.batchDraw();
@@ -148,56 +185,56 @@ let isBucketMode = false;
 
 // Function to handle filling the image with the global color using Web Worker
 function handleFillImageClick() {
-  isBucketMode = ! isBucketMode;
-  // When filling mode begins it requires you 
-  // to choose a starting color (by position) from image
-  document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
-  if (isBucketMode) {
-    lastPos = stage.getRelativePointerPosition();
-    isDrawPencil = false;
-    document.getElementById('drawPencil').classList.add('inactive');
-  }
+    isBucketMode = !isBucketMode;
+    // When filling mode begins it requires you 
+    // to choose a starting color (by position) from image
+    document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
+    if (isBucketMode) {
+        lastPos = stage.getRelativePointerPosition();
+        isDrawPencil = false;
+        document.getElementById('drawPencil').classList.add('inactive');
+    }
 }
 
 function collapseBucketLayer() {
-  Konva.autoDrawEnabled = false;
-  
-  const {x, y, scaleX, scaleY, width, height,} = stage.attrs;
-  const old = {x, y, scaleX, scaleY, width, height};
+    Konva.autoDrawEnabled = false;
 
-  const w = bucketLayer.width();
-  const h = bucketLayer.height();
-  // Reset stage (no skew or rotation)
-  stage.setAttrs({
-    x:0, y:0,
-    scaleX: 1, scaleY: 1, 
-    width: w, height: h,
-  });
+    const { x, y, scaleX, scaleY, width, height, } = stage.attrs;
+    const old = { x, y, scaleX, scaleY, width, height };
 
-  const bucketCanvas = bucketLayer.toCanvas();
-  const bucketImage = new Konva.Image({
-      x:0, y: 0,
-      width: w,
-      height: h,
-      image: bucketCanvas,
+    const w = bucketLayer.width();
+    const h = bucketLayer.height();
+    // Reset stage (no skew or rotation)
+    stage.setAttrs({
+        x: 0, y: 0,
+        scaleX: 1, scaleY: 1,
+        width: w, height: h,
     });
 
-  // Transform back
-  stage.setAttrs(old);
+    const bucketCanvas = bucketLayer.toCanvas();
+    const bucketImage = new Konva.Image({
+        x: 0, y: 0,
+        width: w,
+        height: h,
+        image: bucketCanvas,
+    });
 
-  Konva.autoDrawEnabled = true;
+    // Transform back
+    stage.setAttrs(old);
 
-  bucketLayer.removeChildren();
-  bucketLayer.add(bucketImage);
+    Konva.autoDrawEnabled = true;
 
-  return bucketImage;
+    bucketLayer.removeChildren();
+    bucketLayer.add(bucketImage);
+
+    return bucketImage;
 }
 
 async function fillBucket(currentImage) {
     if (!isBucketMode || !currentImage) return;
 
     lastClickPos = currentImage.getRelativePointerPosition();
-   
+
     // Get raw native image behind currentImage
     const imageElement = currentImage.image();
     // Native (unscaled) dimensions of image
@@ -236,17 +273,17 @@ async function fillBucket(currentImage) {
     floodFillWorker.onmessage = async function(e) {
         // Receive a widthxheight image that has bucket zone surrounded by transparency
         // Image is just to be laid out 
-        const {floodImageData, x, y, w, h,} = e.data;
+        const { floodImageData, x, y, w, h, } = e.data;
 
-      // Polite mode: take into account already draw pixels
+        // Polite mode: take into account already draw pixels
         const floodBmp = await createImageBitmap(floodImageData)
 
-      const floodImage = new Konva.Image({
-          x:0, y: 0,
-          width: floodBmp.width,
-          height: floodBmp.height,
-          image: floodBmp,
-          globalCompositeOperation: gco(),
+        const floodImage = new Konva.Image({
+            x: 0, y: 0,
+            width: floodBmp.width,
+            height: floodBmp.height,
+            image: floodBmp,
+            globalCompositeOperation: gco(),
         });
         bucketLayer.add(floodImage);
         bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
@@ -318,7 +355,7 @@ function handleDeleteClick() {
         currentPath.destroy(); // Remove the current path
         currentPath = null; // Reset current path variable
         resetPathState(); // Reset drawing state
-        
+
         // Disable buttons since there's no current path
         document.getElementById('fillButton').disabled = true;
         document.getElementById('fillColorPicker').disabled = true;
@@ -330,7 +367,7 @@ function handleDeleteClick() {
     } else if (currentImage) {
         currentImage.destroy(); // Remove the current image
         currentImage = null; // Reset current image variable
-        
+
         // Disable the delete button since there's no current image
         document.getElementById('deleteButton').disabled = true;
         imageLayer.batchDraw(); // Redraw the imageLayer
@@ -338,44 +375,44 @@ function handleDeleteClick() {
 }
 
 function handleClearAllClick() {
-  pathLayer.removeChildren();
-  pathLayer.clear();
-  bucketLayer.removeChildren();
-  bucketLayer.clear();
+    pathLayer.removeChildren();
+    pathLayer.clear();
+    bucketLayer.removeChildren();
+    bucketLayer.clear();
 }
 
 function handleUndoClick() {
 }
 
 function handleRedoClick() {
-console.log(stage.toJSON())
+    console.log(stage.toJSON())
 }
 
 // Create a temporary line for the preview (while moving the mouse)
 var previewLine = new Konva.Line({
-  id: 'previewLine',
-  points: [],
-  stroke: 'green',
-  strokeWidth: 2,
-  lineCap: 'round',
-  dash: [10, 5], // Dashed line to distinguish from the actual path
+    id: 'previewLine',
+    points: [],
+    stroke: 'green',
+    strokeWidth: 2,
+    lineCap: 'round',
+    dash: [10, 5], // Dashed line to distinguish from the actual path
 });
 pathLayer.add(previewLine);
 
 function restorePreviewLine() {
-  const foundLine = pathLayer.findOne('#previewLine');
-  if (foundLine) {
-    return;
-  }
+    const foundLine = pathLayer.findOne('#previewLine');
+    if (foundLine) {
+        return;
+    }
 
-  previewLine = new Konva.Line({
-      points: [],
-      stroke: 'green',
-      strokeWidth: 2,
-      lineCap: 'round',
-      dash: [10, 5], // Dashed line to distinguish from the actual path
-  });
-  pathLayer.add(previewLine);
+    previewLine = new Konva.Line({
+        points: [],
+        stroke: 'green',
+        strokeWidth: 2,
+        lineCap: 'round',
+        dash: [10, 5], // Dashed line to distinguish from the actual path
+    });
+    pathLayer.add(previewLine);
 }
 
 // Variable to store the current path data
@@ -384,74 +421,74 @@ var currentPath; // Variable to hold the current path object
 
 // Function to reset drawing state
 function resetPathState() {
-  currentPath = null;
-  pathData = ''; 
-  lastPos = null;
-  previewLine.points([]);
+    currentPath = null;
+    pathData = '';
+    lastPos = null;
+    previewLine.points([]);
 }
 
 var isDrawPath = false;
 // Function to handle the "Add New Path" button click
 function handleNewPathClick() {
-  resetPathState();
+    resetPathState();
 
-  isDrawPath = ! isDrawPath;
-  if ( isDrawPath === false) {
-    document.getElementById('newPathButton').classList.add('inactive');
-    return;
-  }
-  document.getElementById('newPathButton').classList.remove('inactive');
-
-  // Create a new Konva.Path object for the new path
-  const newCurrentPath = new Konva.Path({
-      data: '',
-      stroke: 'green',
-      strokeWidth: 3,
-      fill: '' // Initially no fill
-  });
-
-  pathLayer.add(newCurrentPath);
-  newCurrentPath.draggable(false);
-
-  // Add click event listener to the new path to set it as current and restore drawing state
-  newCurrentPath.on('click', function (evt) {
-    evt.cancelBubble = true;
-
-    //if (currentPath && currentPath !== this) {
-    //  currentPath.strokeWidth(0); // Reset previous path stroke
-    //  currentPath.draggable(false);
-    //  currentPath.selected = false;
-    //}
-
-    const that = currentPath;
-    currentPath = this; // Set this path as the current path
-    this.selected = ! this?.selected;
-    if (this?.selected) {
-      this.strokeWidth(2);
-      this.draggable(true);
-    } else {
-      this.strokeWidth(0);
-      this.draggable(false);
-      currentPath = that;
+    isDrawPath = !isDrawPath;
+    if (isDrawPath === false) {
+        document.getElementById('newPathButton').classList.add('inactive');
+        return;
     }
-    lastPos = null; // Reset last position for drawing
+    document.getElementById('newPathButton').classList.remove('inactive');
+    /*
+        // Create a new Konva.Path object for the new path
+        const newCurrentPath = new Konva.Path({
+            data: '',
+            stroke: 'green',
+            strokeWidth: 3,
+            fill: '' // Initially no fill
+        });
+    
+        pathLayer.add(newCurrentPath);
+        newCurrentPath.draggable(false);
+    
+        // Add click event listener to the new path to set it as current and restore drawing state
+        newCurrentPath.on('click', function(evt) {
+            evt.cancelBubble = true;
+    
+            //if (currentPath && currentPath !== this) {
+            //  currentPath.strokeWidth(0); // Reset previous path stroke
+            //  currentPath.draggable(false);
+            //  currentPath.selected = false;
+            //}
+    
+            const that = currentPath;
+            currentPath = this; // Set this path as the current path
+            this.selected = !this?.selected;
+            if (this?.selected) {
+                this.strokeWidth(2);
+                //      this.draggable(true);
+            } else {
+                this.strokeWidth(0);
+                //     this.draggable(false);
+                currentPath = that;
+            }
+            lastPos = null; // Reset last position for drawing
+    
+            // Update button states
+            document.getElementById('deleteButton').disabled = false; // Enable the delete button
+            document.getElementById('fillButton').disabled = false; // Enable the fill button
+            document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
+        });
+        newCurrentPath.on('mousemove', function(evt) {
+            evt.cancelBubble = true;
+        });
+    */
+    // Disable the fill button, color picker, and delete button since we are starting a new path
+    document.getElementById('fillButton').disabled = true;
+    document.getElementById('fillColorPicker').disabled = true;
+    document.getElementById('deleteButton').disabled = true;
 
-    // Update button states
-    document.getElementById('deleteButton').disabled = false; // Enable the delete button
-    document.getElementById('fillButton').disabled = false; // Enable the fill button
-    document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
-  });
-  newCurrentPath.on('mousemove', function (evt) {
-    evt.cancelBubble = true;
-  });
-
-  // Disable the fill button, color picker, and delete button since we are starting a new path
-  document.getElementById('fillButton').disabled = true;
-  document.getElementById('fillColorPicker').disabled = true;
-  document.getElementById('deleteButton').disabled = true;
-
-  // Redraw the imageLayer
-  pathLayer.batchDraw();
+    // Redraw the imageLayer
+    //   pathLayer.batchDraw();
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
@@ -466,11 +503,11 @@ function handleImageUpload(e) {
     }
 
     const reader = new FileReader();
-    reader.onload = function (event) {
+    reader.onload = function(event) {
         const img = new Image();
-        img.onload = function () {
+        img.onload = function() {
 
-        const {width: pwidth, height: pheight } = document.querySelector('#container').style;
+            const { width: pwidth, height: pheight } = document.querySelector('#container').style;
             const stageApparentWidth = parseInt(pwidth); //stage.width();
             const stageApparentHeight = parseInt(pheight); //stage.height();
             const imgWidth = img.width;
@@ -492,47 +529,47 @@ function handleImageUpload(e) {
                 newWidth = (imgWidth * stageApparentHeight) / imgHeight;
             }
             // Calculate the scaling factors
-            imageScaleX = newWidth/imgWidth; // Scale factor for the width
-            imageScaleY = newHeight/imgHeight; // Scale factor for the height
-// FIXME
-          stage.width(img.width)
-          stage.height(img.height)
-          stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
-          const allLayers = [imageLayer, bucketLayer, pathLayer];
-          for (const layer of allLayers) {
-            // Remove including non-drawing preview line 
-            layer.destroyChildren()
-          }
-          // Add back preview line
-          restorePreviewLine();
+            imageScaleX = newWidth / imgWidth; // Scale factor for the width
+            imageScaleY = newHeight / imgHeight; // Scale factor for the height
+            // FIXME
+            stage.width(img.width)
+            stage.height(img.height)
+            stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
+            const allLayers = [imageLayer, bucketLayer, pathLayer];
+            for (const layer of allLayers) {
+                // Remove including non-drawing preview line 
+                layer.destroyChildren()
+            }
+            // Add back preview line
+            restorePreviewLine();
 
-          const newImage = new Konva.Image({
-              image: img,
-          });
-          imageLayer.add(newImage);
-        
-          newImage.on('click', function(evt) {
-              const pos = stage.getRelativePointerPosition();
-              lastClickPos = pos;
-              document.getElementById('deleteButton').disabled = false; // Enable delete button
-          });
+            const newImage = new Konva.Image({
+                image: img,
+            });
+            imageLayer.add(newImage);
 
-          imageLayer.batchDraw(); // Redraw the imageLayer to show the image
-          
-          document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+            newImage.on('click', function(evt) {
+                const pos = stage.getRelativePointerPosition();
+                lastClickPos = pos;
+                document.getElementById('deleteButton').disabled = false; // Enable delete button
+            });
+
+            imageLayer.batchDraw(); // Redraw the imageLayer to show the image
+
+            document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
         };
         img.src = event.target.result; // Set image source to the file's data URL
     };
-    
+
     reader.readAsDataURL(file); // Read the file as a data URL
 }
 
 // Function to handle color picker change
 function handleColorPickerChange() {
     fillColor = document.getElementById('fillColorPicker').value; // Update global fillColor
-  if (pencil) {
-    pencil.fill(fillColor);
-  }
+    if (pencil) {
+        pencil.fill(fillColor);
+    }
 }
 
 // Maps interval [0, 1] to [0, 500]
@@ -547,13 +584,13 @@ function zoomInterval(x, inMin = 0, inMax = 1, outMin = -800, outMax = 800) {
 // Finds where v of [0, 1] is on [0, 500]
 // just for showing on UI a human friendly value of scaling
 const mapZoom = v => {
-  return zoomInterval(v, 0, 1, 0, ZOOM_MAX);
+    return zoomInterval(v, 0, 1, 0, ZOOM_MAX);
 };
 
 function handleZoom(evt) {
     const z = parseFloat(evt.target.value); // Get the zoom scale
     if (z <= 0) return;
-    zoomScale = mapZoom(z, 0, 1, 0, ZOOM_MAX)/100
+    zoomScale = mapZoom(z, 0, 1, 0, ZOOM_MAX) / 100
     // Get the pointer position relative to the stage
     let stageCenter = {
         x: stage.width() / 2,
@@ -565,8 +602,8 @@ function handleZoom(evt) {
     let oldPosition = stage.position();
 
     // Scale the stage (uniformly for both x and y)
-  // TODO copy here bucker and draw before they are posibly altered by zoom
-    stage.scale({x: zoomScale, y: zoomScale});
+    // TODO copy here bucker and draw before they are posibly altered by zoom
+    stage.scale({ x: zoomScale, y: zoomScale });
 
     // Calculate the new position after zooming, to keep the center in the same place
     let newPos = {
@@ -576,9 +613,9 @@ function handleZoom(evt) {
 
     // Apply the new position to the stage
     stage.position(newPos);
-    
+
     // Update the stage
-    stage.batchDraw();  
+    stage.batchDraw();
 
     document.getElementById('zoomButton').value = z;
     document.getElementById('zoomButtonLabel').textContent = mapZoom(z);
@@ -592,7 +629,7 @@ function handleFillImageSensitivityClick() {
 function handleScalePencil() {
     pencilSize = document.getElementById('scalePencilButton').value;
     if (pencil) {
-      pencil.setAttrs({width: pencilSize, height: pencilSize});
+        pencil.setAttrs({ width: pencilSize, height: pencilSize });
     }
     document.getElementById('scalePencilLabel').textContent = pencilSize;
 }
@@ -602,56 +639,56 @@ let isDrawPencil = false;
 let mousemove = false;
 
 function gco() {
-  const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
-  return v;
+    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
+    return v;
 }
 // Mousedown event starts drawing a new shape
 stage.on('mousedown', (evt) => {
-  // Must be first
-  const pos = stage.getRelativePointerPosition();
-  lastPos = pos;
+    // Must be first
+    const pos = stage.getRelativePointerPosition();
+    lastPos = pos;
 
-  if (isDragging === true) {
-    stage.startDrag();
-    return;
-  }
-  if (!isDrawPencil) {
-    return true;
-  }
+    if (isDragging === true) {
+        stage.startDrag();
+        return;
+    }
+    if (!isDrawPencil) {
+        return true;
+    }
 
-  evt.cancelBubble = true;
-  mousemove = true;
+    evt.cancelBubble = true;
+    mousemove = true;
 
-  if (pencil) {
-    pencil.width(pencilSize);
-    pencil.height(pencilSize);
-  } else {
-    const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
-    createPencilShape(ps);
-  }
-  pencil.globalCompositeOperation(gco());
+    if (pencil) {
+        pencil.width(pencilSize);
+        pencil.height(pencilSize);
+    } else {
+        const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
+        createPencilShape(ps);
+    }
+    pencil.globalCompositeOperation(gco());
 
-  const cloned = pencil.clone({
-    x: pos.x, y: pos.y,
-    id: 'pencilGhost',
-    fill: 'transparent', stroke: fillColor, strokeWidth: 2,
-    globalCompositeOperation: 'source-over',
-  });
-  bucketLayer.add(cloned);
+    const cloned = pencil.clone({
+        x: pos.x, y: pos.y,
+        id: 'pencilGhost',
+        fill: 'transparent', stroke: fillColor, strokeWidth: 2,
+        globalCompositeOperation: 'source-over',
+    });
+    bucketLayer.add(cloned);
 });
 
 const collapseDraw = (evt) => {
-  // Is a natural-browser event - not artificially generated ?
-  if (evt.composed) {
-    mousemove = false;
-    pencilPrevPos = null;
-    return;
-  }
-  if (!isDrawPencil) return;
-  if (!pencil) return;
-  if (isDragging) return;
+    // Is a natural-browser event - not artificially generated ?
+    if (evt.composed) {
+        mousemove = false;
+        pencilPrevPos = null;
+        return;
+    }
+    if (!isDrawPencil) return;
+    if (!pencil) return;
+    if (isDragging) return;
 
-  collapseBucketLayer();
+    collapseBucketLayer();
 };
 
 // Mouseup event finalizes the shape
@@ -659,219 +696,219 @@ const collapseDraw = (evt) => {
 //document.body.addEventListener('click', () => console.log('document click'));
 document.body.addEventListener('mouseup', collapseDraw);
 stage.on('mouseup', (kevt) => {
-  mousemove = false;
-  pencilPrevPos = null;
+    mousemove = false;
+    pencilPrevPos = null;
 
-  if (isDragging === true) {
-    stage.stopDrag();
-  }
-
-  kevt?.evt?.stopImmediatePropagation();
-  if (kevt?.evt?.cancelBubble) {
-    kevt.evt.cancelBubble = true;
-  }
-  //
-  if (!isBucketMode) {
-    const pencilGhost = stage.findOne('#pencilGhost');
-    if (pencilGhost) {
-      pencilGhost.destroy();
+    if (isDragging === true) {
+        stage.stopDrag();
     }
-    // TODO will affect other ops than shape-ing?
-    //collapseBucketLayer();
-  }
+
+    kevt?.evt?.stopImmediatePropagation();
+    if (kevt?.evt?.cancelBubble) {
+        kevt.evt.cancelBubble = true;
+    }
+    //
+    if (!isBucketMode) {
+        const pencilGhost = stage.findOne('#pencilGhost');
+        if (pencilGhost) {
+            pencilGhost.destroy();
+        }
+        // TODO will affect other ops than shape-ing?
+        //collapseBucketLayer();
+    }
 });
 stage.on('mouseleave', collapseDraw);
 //// FIXME
 bucketLayer.on('mouseleave', () => {
-  pencilPrevPos = null;
+    pencilPrevPos = null;
 });
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
 stage.on('mousemove', (evt) => {
-  if (evt.target?.attrs?.id === 'stage') {
-    return;
-  }
-  if (!isDrawPencil) return;
-  if (!mousemove) return;
-  if (!pencil) return;
-  if (isDragging) return;
-
-  evt.cancelBubble = true;
-
-  // Get the current mouse position
-  let pos = stage.getRelativePointerPosition();
-
-  if (pencilPrevPos) {
-    // Calculate the total distance between the two points
-    const distanceX = pos.x - pencilPrevPos.x;
-    const distanceY = pos.y - pencilPrevPos.y;
-    const MIN_NIB = 4;
-    let numRectangles = MIN_NIB;
-    if (distanceX === 0 && distanceY === 0) {
-      // Don't draw anything
-      return;
-    } else if (distanceX === 0) {
-      numRectangles = Math.ceil(Math.abs(distanceY/pencilSize));
-    } else if (distanceY === 0) {
-      numRectangles = Math.ceil(Math.abs(distanceX/pencilSize));
-    } else {
-      const a = Math.abs(distanceX);
-      const b = Math.abs(distanceY);
-      // hypothenuse
-      const c = Math.sqrt(a**2 + b**2);
-      if (c >= pencilSize/MIN_NIB) {
-        numRectangles = Math.ceil(c/pencilSize);
-      }
+    if (evt.target?.attrs?.id === 'stage') {
+        return;
     }
-    if (numRectangles > 1) {
-      const k = MIN_NIB*numRectangles;
-      // Calculate the step for each rectangle along the line
-      const stepX = distanceX / k;
-      const stepY = distanceY / k;
-      // Place rectangles at evenly spaced positions
-      for (let i = 0; i < k; i++) {
-        const x = pencilPrevPos.x + i * stepX;
-        const y = pencilPrevPos.y + i * stepY;
+    if (!isDrawPencil) return;
+    if (!mousemove) return;
+    if (!pencil) return;
+    if (isDragging) return;
 
-        if (isFillClean && pencil) {
-          pencil.fill('#FFFFFF');
+    evt.cancelBubble = true;
+
+    // Get the current mouse position
+    let pos = stage.getRelativePointerPosition();
+
+    if (pencilPrevPos) {
+        // Calculate the total distance between the two points
+        const distanceX = pos.x - pencilPrevPos.x;
+        const distanceY = pos.y - pencilPrevPos.y;
+        const MIN_NIB = 4;
+        let numRectangles = MIN_NIB;
+        if (distanceX === 0 && distanceY === 0) {
+            // Don't draw anything
+            return;
+        } else if (distanceX === 0) {
+            numRectangles = Math.ceil(Math.abs(distanceY / pencilSize));
+        } else if (distanceY === 0) {
+            numRectangles = Math.ceil(Math.abs(distanceX / pencilSize));
+        } else {
+            const a = Math.abs(distanceX);
+            const b = Math.abs(distanceY);
+            // hypothenuse
+            const c = Math.sqrt(a ** 2 + b ** 2);
+            if (c >= pencilSize / MIN_NIB) {
+                numRectangles = Math.ceil(c / pencilSize);
+            }
         }
-        const cloned = pencil.clone({
-          x, y,
-        });
-        bucketLayer.add(cloned);
-        pos = {x, y};
-      }
-    }
-  }
-  
-  if (isFillClean && pencil) {
-    pencil.fill('#FFFFFF');
-  }
-  const cloned = pencil.clone({
-    x: pos.x,
-    y: pos.y,
-  });
-  bucketLayer.add(cloned);
-  bucketLayer.batchDraw();
+        if (numRectangles > 1) {
+            const k = MIN_NIB * numRectangles;
+            // Calculate the step for each rectangle along the line
+            const stepX = distanceX / k;
+            const stepY = distanceY / k;
+            // Place rectangles at evenly spaced positions
+            for (let i = 0; i < k; i++) {
+                const x = pencilPrevPos.x + i * stepX;
+                const y = pencilPrevPos.y + i * stepY;
 
-  pencilPrevPos = pos;
+                if (isFillClean && pencil) {
+                    pencil.fill('#FFFFFF');
+                }
+                const cloned = pencil.clone({
+                    x, y,
+                });
+                bucketLayer.add(cloned);
+                pos = { x, y };
+            }
+        }
+    }
+
+    if (isFillClean && pencil) {
+        pencil.fill('#FFFFFF');
+    }
+    const cloned = pencil.clone({
+        x: pos.x,
+        y: pos.y,
+    });
+    bucketLayer.add(cloned);
+    bucketLayer.batchDraw();
+
+    pencilPrevPos = pos;
 });
 
 let isDrawProtect = false;
 
 function handleDrawProtect() {
-  isDrawProtect = !isDrawProtect;
-  document.getElementById('drawProtectCheckbox').checked = isDrawProtect;
-  document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
+    isDrawProtect = !isDrawProtect;
+    document.getElementById('drawProtectCheckbox').checked = isDrawProtect;
+    document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
 }
 
 let isFillClean = false;
 
 function handleFillClean() {
-  isFillClean = !isFillClean;
-  if (!isFillClean && pencil) {
-    pencil.fill(fillColor);
-  }
-  document.getElementById('fillCleanCheckbox').checked = isFillClean;
-  document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+    isFillClean = !isFillClean;
+    if (!isFillClean && pencil) {
+        pencil.fill(fillColor);
+    }
+    document.getElementById('fillCleanCheckbox').checked = isFillClean;
+    document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
 }
 
 let isDragging = false;
 
 function handleDragging() {
-  isDragging = !isDragging;
-  document.getElementById('isDraggingCheckbox').checked = isDragging;
-  document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
+    isDragging = !isDragging;
+    document.getElementById('isDraggingCheckbox').checked = isDragging;
+    document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
 }
 
 let pencilShape = 'rectangle';
 
 function handlePencilShape(evt) {
-  pencilShape = evt.target.value;
-  createPencilShape(pencilShape);
+    pencilShape = evt.target.value;
+    createPencilShape(pencilShape);
 }
 
 function createPencilShape(pencilShape = 'rectangle') {
-  switch (pencilShape) {
-    case 'circle':
-      pencil = new Konva.Circle({
-        offsetX: 0,
-        offsetY: 0,
-        width: pencilSize,
-        height: pencilSize,
-        fill: fillColor,
-      });
-    break;
-    case 'rhomb':
-      pencil = new Konva.Rect({
-        offsetX: pencilSize*0.5,
-        offsetY: pencilSize*0.5,
-        width: pencilSize,
-        height: pencilSize,
-        rotation: 45,
-        fill: fillColor,
-      });
-    break;
-    default:
-      pencil = new Konva.Rect({
-        offsetX: pencilSize*0.5,
-        offsetY: pencilSize*0.5,
-        width: pencilSize,
-        height: pencilSize,
-        fill: fillColor,
-      });
-  }
+    switch (pencilShape) {
+        case 'circle':
+            pencil = new Konva.Circle({
+                offsetX: 0,
+                offsetY: 0,
+                width: pencilSize,
+                height: pencilSize,
+                fill: fillColor,
+            });
+            break;
+        case 'rhomb':
+            pencil = new Konva.Rect({
+                offsetX: pencilSize * 0.5,
+                offsetY: pencilSize * 0.5,
+                width: pencilSize,
+                height: pencilSize,
+                rotation: 45,
+                fill: fillColor,
+            });
+            break;
+        default:
+            pencil = new Konva.Rect({
+                offsetX: pencilSize * 0.5,
+                offsetY: pencilSize * 0.5,
+                width: pencilSize,
+                height: pencilSize,
+                fill: fillColor,
+            });
+    }
 }
 
 function handleDrawPencilClick() {
-  isDrawPencil = ! isDrawPencil;
-  if (isDrawPencil) {
-    isBucketMode = false;
+    isDrawPencil = !isDrawPencil;
+    if (isDrawPencil) {
+        isBucketMode = false;
 
-    // Force dragging to stop
-    isDragging = false;
-    stage.stopDrag();
-    document.getElementById('isDraggingCheckbox').checked = isDragging;
-    document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
+        // Force dragging to stop
+        isDragging = false;
+        stage.stopDrag();
+        document.getElementById('isDraggingCheckbox').checked = isDragging;
+        document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
 
-    document.getElementById('fillImageButton').classList.add('inactive');
-  }
-  
-  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
+        document.getElementById('fillImageButton').classList.add('inactive');
+    }
+
+    document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
 }
 
 function debug(canvas) {
-  if ([HTMLImageElement].includes(canvas.constructor)) {
-    document.body.appendChild(canvas)
-    return
-  }
-  if ([ImageBitmap].includes(canvas.constructor)) {
-    const imageBitmap = canvas;
-    var canvas = document.createElement('canvas');
-    canvas.width = imageBitmap.width;
-    canvas.height = imageBitmap.height;
+    if ([HTMLImageElement].includes(canvas.constructor)) {
+        document.body.appendChild(canvas)
+        return
+    }
+    if ([ImageBitmap].includes(canvas.constructor)) {
+        const imageBitmap = canvas;
+        var canvas = document.createElement('canvas');
+        canvas.width = imageBitmap.width;
+        canvas.height = imageBitmap.height;
 
-    var ctx = canvas.getContext('2d');
-    // 2. Draw the ImageBitmap onto the canvas
-    ctx.drawImage(imageBitmap, 0, 0);
-    // 3. Convert the canvas content to a data URL or Blob
-    var dataURL = canvas.toDataURL();  // Option 1: Using data URL
-    // var blob = await new Promise(resolve => canvas.toBlob(resolve));  // Option 2: Using Blob (for larger images)
-    // 4. Create a new Image object
-    var newImage = new Image();
-    newImage.src = dataURL;
-    document.body.appendChild(newImage)
-    return
-  }
-  const tpl = `<div style="position: relative">
+        var ctx = canvas.getContext('2d');
+        // 2. Draw the ImageBitmap onto the canvas
+        ctx.drawImage(imageBitmap, 0, 0);
+        // 3. Convert the canvas content to a data URL or Blob
+        var dataURL = canvas.toDataURL();  // Option 1: Using data URL
+        // var blob = await new Promise(resolve => canvas.toBlob(resolve));  // Option 2: Using Blob (for larger images)
+        // 4. Create a new Image object
+        var newImage = new Image();
+        newImage.src = dataURL;
+        document.body.appendChild(newImage)
+        return
+    }
+    const tpl = `<div style="position: relative">
     <canvas/>
   </div>`;
-  document.body.insertAdjacentHTML('beforeend', tpl);
-  const el = document.body.lastElementChild.firstElementChild;
-  canvas.style = "";
-  el.parentNode.replaceChild(canvas, el);
+    document.body.insertAdjacentHTML('beforeend', tpl);
+    const el = document.body.lastElementChild.firstElementChild;
+    canvas.style = "";
+    el.parentNode.replaceChild(canvas, el);
 }
 
 // Attach event listeners
