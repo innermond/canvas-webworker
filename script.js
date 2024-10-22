@@ -620,16 +620,26 @@ function handleZoom(evt) {
 }
 
 function handleFillImageSensitivityClick() {
-    fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
-    document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+  fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
+  document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+}
+
+function adjustPencilCenter() {
+  if (pencilShape !== 'circle') {
+    pencil.setAttrs({
+      offsetX: pencilSize * 0.5,
+      offsetY: pencilSize * 0.5,
+    });
+  }
 }
 
 function handleScalePencil() {
-    pencilSize = document.getElementById('scalePencilButton').value;
-    if (pencil) {
-        pencil.setAttrs({ width: pencilSize, height: pencilSize });
-    }
-    document.getElementById('scalePencilLabel').textContent = pencilSize;
+  pencilSize = document.getElementById('scalePencilButton').value;
+  if (pencil) {
+    pencil.setAttrs({ width: pencilSize, height: pencilSize });
+    adjustPencilCenter();
+  }
+  document.getElementById('scalePencilLabel').textContent = pencilSize;
 }
 
 let pencil;
@@ -660,6 +670,7 @@ stage.on('mousedown', (evt) => {
     if (pencil) {
         pencil.width(pencilSize);
         pencil.height(pencilSize);
+        adjustPencilCenter();
     } else {
         const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
         createPencilShape(ps);
@@ -721,10 +732,20 @@ bucketLayer.on('mouseleave', () => {
     pencilPrevPos = null;
 });
 
+function directionAngle(dx, dy) {
+  const radians = Math.atan2(dx, dy);
+  let grades = radians*(180/Math.PI);
+  if (grades < 0) {
+    grades += 360;
+  }
+  return [grades, radians];
+}
+
 let pencilPrevPos = null;
 // Mousemove event is cloning
+// Draw on stage
 stage.on('mousemove', (evt) => {
-    if (evt.target?.attrs?.id === 'stage') {
+    if (!mousemove && evt.target?.attrs?.id === 'stage') {
         return;
     }
     if (!isDrawPencil) return;
@@ -738,60 +759,63 @@ stage.on('mousemove', (evt) => {
     let pos = stage.getRelativePointerPosition();
 
     if (pencilPrevPos) {
-        // Calculate the total distance between the two points
-        const distanceX = pos.x - pencilPrevPos.x;
-        const distanceY = pos.y - pencilPrevPos.y;
-        const MIN_NIB = 4;
-        let numRectangles = MIN_NIB;
-        if (distanceX === 0 && distanceY === 0) {
-            // Don't draw anything
-            return;
-        } else if (distanceX === 0) {
-            numRectangles = Math.ceil(Math.abs(distanceY / pencilSize));
-        } else if (distanceY === 0) {
-            numRectangles = Math.ceil(Math.abs(distanceX / pencilSize));
-        } else {
-            const a = Math.abs(distanceX);
-            const b = Math.abs(distanceY);
-            // hypothenuse
-            const c = Math.sqrt(a ** 2 + b ** 2);
-            if (c >= pencilSize / MIN_NIB) {
-                numRectangles = Math.ceil(c / pencilSize);
-            }
-        }
-        if (numRectangles > 1) {
-            const k = MIN_NIB * numRectangles;
-            // Calculate the step for each rectangle along the line
-            const stepX = distanceX / k;
-            const stepY = distanceY / k;
-            // Place rectangles at evenly spaced positions
-            for (let i = 0; i < k; i++) {
-                const x = pencilPrevPos.x + i * stepX;
-                const y = pencilPrevPos.y + i * stepY;
+      // Calculate the total distance between the two points
+      const distanceX = pos.x - pencilPrevPos.x;
+      const distanceY = pos.y - pencilPrevPos.y;
+      // angle
+      const [ang] = directionAngle(distanceX, distanceY);
+      const MIN_NIB = 5;
+      let numRectangles = MIN_NIB;
 
-                if (isFillClean && pencil) {
-                    pencil.fill('#FFFFFF');
-                }
-                const cloned = pencil.clone({
-                    x, y,
-                });
-                bucketLayer.add(cloned);
-                pos = { x, y };
-            }
+      const a = Math.abs(distanceX);
+      const b = Math.abs(distanceY);
+      const c = Math.sqrt(a ** 2 + b ** 2);
+      if (c < pencilSize/MIN_NIB) {
+        return;
+      } 
+      if (c < pencilSize) {
+        numRectangles = MIN_NIB;
+      } 
+
+      adjustPencilCenter();
+      const diffAng = ang - pencil.rotation();
+      pencil.rotate(diffAng);
+
+      numRectangles = MIN_NIB*Math.ceil(c / pencilSize);
+      // Calculate the step for each rectangle along the line
+      // Place rectangles at evenly spaced positions
+      const stepX = distanceX/numRectangles;
+      const stepY = distanceY/numRectangles;
+      for (let i = 1; i <= numRectangles; i++) {
+        const x = pencilPrevPos.x + stepX;
+        const y = pencilPrevPos.y + stepY;
+
+        if (isFillClean && pencil) {
+          pencil.fill('#FFFFFF');
         }
+        const cloned = pencil.clone({
+          x, y,
+        });
+        bucketLayer.add(cloned);
+
+        pos = { x, y };
+        pencilPrevPos = pos;
+      }
     }
 
     if (isFillClean && pencil) {
-        pencil.fill('#FFFFFF');
+      pencil.fill('#FFFFFF');
     }
-    const cloned = pencil.clone({
+    if (!pencilPrevPos) {
+      const cloned = pencil.clone({
         x: pos.x,
         y: pos.y,
-    });
-    bucketLayer.add(cloned);
-    bucketLayer.batchDraw();
+      });
+      pencilPrevPos = pos;
+      bucketLayer.add(cloned);
+    }
 
-    pencilPrevPos = pos;
+    bucketLayer.batchDraw();
 });
 
 let isDrawProtect = false;
