@@ -464,27 +464,29 @@ var currentPathId = null; // Variable to hold the current path object
 
 // Function to reset drawing state
 function resetPathState() {
-    currentPathId = null;
-    pathData = '';
-    lastPos = null;
-    previewLine.points([]);
+  currentPathId = null;
+  pathData = '';
+  lastPos = null;
+  previewLine.points([]);
 }
 
 var isDrawPath = false;
 // Function to handle the "Add New Path" button click
 function handleNewPathClick() {
-    resetPathState();
+  resetPathState();
 
-    isDrawPath = !isDrawPath;
-    if (isDrawPath === false) {
-        document.getElementById('newPathButton').classList.add('inactive');
-        return;
-    }
-    document.getElementById('newPathButton').classList.remove('inactive');
-    // Disable the fill button, color picker, and delete button since we are starting a new path
-    document.getElementById('fillButton').disabled = true;
-    document.getElementById('fillColorPicker').disabled = true;
-    document.getElementById('deleteButton').disabled = true;
+  isDrawPath = !isDrawPath;
+  if (isDrawPath === false) {
+      document.getElementById('newPathButton').classList.add('inactive');
+      return;
+  }
+  isDrawPencil = false;
+  document.getElementById('newPathButton').classList.remove('inactive');
+  document.getElementById('drawPencil').classList.add('inactive');
+  // Disable the fill button, color picker, and delete button since we are starting a new path
+  document.getElementById('fillButton').disabled = true;
+  document.getElementById('fillColorPicker').disabled = true;
+  document.getElementById('deleteButton').disabled = true;
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
@@ -493,71 +495,71 @@ var imageScaleX, imageScaleY; // Variables to store the scaling factors
 
 // Function to handle image upload
 function handleImageUpload(e) {
-    const file = e.target.files[0];
-    if (!file) {
-        return; // Exit if no file is selected
-    }
+  const file = e.target.files[0];
+  if (!file) {
+    return; // Exit if no file is selected
+  }
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const img = new Image();
+    img.onload = function() {
 
-            const { width: pwidth, height: pheight } = document.querySelector('#container').style;
-            const stageApparentWidth = parseInt(pwidth); //stage.width();
-            const stageApparentHeight = parseInt(pheight); //stage.height();
-            const imgWidth = img.width;
-            const imgHeight = img.height;
+      const { width: pwidth, height: pheight } = document.querySelector('#container').style;
+      const stageApparentWidth = parseInt(pwidth); //stage.width();
+      const stageApparentHeight = parseInt(pheight); //stage.height();
+      const imgWidth = img.width;
+      const imgHeight = img.height;
 
-            // Calculate aspect ratios
-            const stageAspectRatio = stageApparentWidth / stageApparentHeight;
-            const imgAspectRatio = imgWidth / imgHeight;
+      // Calculate aspect ratios
+      const stageAspectRatio = stageApparentWidth / stageApparentHeight;
+      const imgAspectRatio = imgWidth / imgHeight;
 
-            // Determine how to scale the image to fit within the stage
-            let newWidth, newHeight;
-            if (imgAspectRatio > stageAspectRatio) {
-                // Image is wider than the stage, scale by width
-                newWidth = stageApparentWidth;
-                newHeight = (imgHeight * stageApparentWidth) / imgWidth;
-            } else {
-                // Image is taller than the stage, scale by height
-                newHeight = stageApparentHeight;
-                newWidth = (imgWidth * stageApparentHeight) / imgHeight;
-            }
-            // Calculate the scaling factors
-            imageScaleX = newWidth / imgWidth; // Scale factor for the width
-            imageScaleY = newHeight / imgHeight; // Scale factor for the height
-            // FIXME
-            stage.width(img.width)
-            stage.height(img.height)
-            stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
-            const allLayers = [imageLayer, bucketLayer, pathLayer];
-            for (const layer of allLayers) {
-                // Remove including non-drawing preview line 
-                layer.destroyChildren()
-            }
-            // Add back preview line
-            restorePreviewLine();
+      // Determine how to scale the image to fit within the stage
+      let newWidth, newHeight;
+      if (imgAspectRatio > stageAspectRatio) {
+        // Image is wider than the stage, scale by width
+        newWidth = stageApparentWidth;
+        newHeight = (imgHeight * stageApparentWidth) / imgWidth;
+      } else {
+        // Image is taller than the stage, scale by height
+        newHeight = stageApparentHeight;
+        newWidth = (imgWidth * stageApparentHeight) / imgHeight;
+      }
+      // Calculate the scaling factors
+      imageScaleX = newWidth / imgWidth; // Scale factor for the width
+      imageScaleY = newHeight / imgHeight; // Scale factor for the height
+      // FIXME
+      stage.width(img.width)
+      stage.height(img.height)
+      stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
+      const allLayers = [imageLayer, bucketLayer, pathLayer];
+      for (const layer of allLayers) {
+        // Remove including non-drawing preview line 
+        layer.destroyChildren()
+      }
+      // Add back preview line
+      restorePreviewLine();
 
-            const newImage = new Konva.Image({
-                image: img,
-            });
-            imageLayer.add(newImage);
+      const newImage = new Konva.Image({
+        image: img,
+      });
+      imageLayer.add(newImage);
 
-            newImage.on('click', function(evt) {
-                const pos = stage.getRelativePointerPosition();
-                lastClickPos = pos;
-                document.getElementById('deleteButton').disabled = false; // Enable delete button
-            });
+      newImage.on('click', function(evt) {
+        const pos = stage.getRelativePointerPosition();
+        lastClickPos = pos;
+        document.getElementById('deleteButton').disabled = false; // Enable delete button
+      });
 
-            imageLayer.batchDraw(); // Redraw the imageLayer to show the image
+      imageLayer.batchDraw(); // Redraw the imageLayer to show the image
 
-            document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
-        };
-        img.src = event.target.result; // Set image source to the file's data URL
+      document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
     };
+    img.src = event.target.result; // Set image source to the file's data URL
+};
 
-    reader.readAsDataURL(file); // Read the file as a data URL
+  reader.readAsDataURL(file); // Read the file as a data URL
 }
 
 // Function to handle color picker change
@@ -859,52 +861,53 @@ function createPencilShape(pencilShape = 'rectangle') {
 }
 
 function handleDrawPencilClick() {
-    isDrawPencil = !isDrawPencil;
-    if (isDrawPencil) {
-        isBucketMode = false;
+  isDrawPencil = !isDrawPencil;
+  if (isDrawPencil) {
+    isBucketMode = false;
+    isDrawPath = false;
+    isDragging = false;
+    stage.stopDrag();
 
-        // Force dragging to stop
-        isDragging = false;
-        stage.stopDrag();
-        document.getElementById('isDraggingCheckbox').checked = isDragging;
-        document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
+    document.getElementById('isDraggingCheckbox').checked = isDragging;
+    document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
 
-        document.getElementById('fillImageButton').classList.add('inactive');
-    }
+    document.getElementById('fillImageButton').classList.add('inactive');
+    document.getElementById('newPathButton').classList.add('inactive');
+  }
 
-    document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
+  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
 }
 
 function debug(canvas) {
-    if ([HTMLImageElement].includes(canvas.constructor)) {
-        document.body.appendChild(canvas)
-        return
-    }
-    if ([ImageBitmap].includes(canvas.constructor)) {
-        const imageBitmap = canvas;
-        var canvas = document.createElement('canvas');
-        canvas.width = imageBitmap.width;
-        canvas.height = imageBitmap.height;
+  if ([HTMLImageElement].includes(canvas.constructor)) {
+    document.body.appendChild(canvas)
+    return
+  }
+  if ([ImageBitmap].includes(canvas.constructor)) {
+    const imageBitmap = canvas;
+    var canvas = document.createElement('canvas');
+    canvas.width = imageBitmap.width;
+    canvas.height = imageBitmap.height;
 
-        var ctx = canvas.getContext('2d');
-        // 2. Draw the ImageBitmap onto the canvas
-        ctx.drawImage(imageBitmap, 0, 0);
-        // 3. Convert the canvas content to a data URL or Blob
-        var dataURL = canvas.toDataURL();  // Option 1: Using data URL
-        // var blob = await new Promise(resolve => canvas.toBlob(resolve));  // Option 2: Using Blob (for larger images)
-        // 4. Create a new Image object
-        var newImage = new Image();
-        newImage.src = dataURL;
-        document.body.appendChild(newImage)
-        return
-    }
-    const tpl = `<div style="position: relative">
-    <canvas/>
-  </div>`;
-    document.body.insertAdjacentHTML('beforeend', tpl);
-    const el = document.body.lastElementChild.firstElementChild;
-    canvas.style = "";
-    el.parentNode.replaceChild(canvas, el);
+    var ctx = canvas.getContext('2d');
+    // 2. Draw the ImageBitmap onto the canvas
+    ctx.drawImage(imageBitmap, 0, 0);
+    // 3. Convert the canvas content to a data URL or Blob
+    var dataURL = canvas.toDataURL();  // Option 1: Using data URL
+    // var blob = await new Promise(resolve => canvas.toBlob(resolve));  // Option 2: Using Blob (for larger images)
+    // 4. Create a new Image object
+    var newImage = new Image();
+    newImage.src = dataURL;
+    document.body.appendChild(newImage)
+    return
+  }
+  const tpl = `<div style="position: relative">
+  <canvas/>
+</div>`;
+  document.body.insertAdjacentHTML('beforeend', tpl);
+  const el = document.body.lastElementChild.firstElementChild;
+  canvas.style = "";
+  el.parentNode.replaceChild(canvas, el);
 }
 
 // Attach event listeners
