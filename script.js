@@ -85,19 +85,18 @@ function handlePathMode(kevt) {
         
         currentPath.on('click', function(evt) {
             evt.cancelBubble = true;
-            // Click on unclosed curve let the upper event handler manage the click
-            if (this.data().endsWith('Z') === -1) {
-              evt.cancelBubble = false;
-              return true;
+            // Click on unclosed curve does none
+            if (this.data().endsWith('Z') === false) {
+              return;
             }
 
             if (!currentPathId) {
               currentPathId = this.getId();
             }
-
+            // Reset previous path stroke
             if (currentPathId !== this.getId()) {
               const previousPath = pathLayer.findOne(`#${currentPathId}`);
-              previousPath.strokeWidth(0); // Reset previous path stroke
+              previousPath.strokeWidth(0);
               previousPath.draggable(false);
               previousPath.selected = false;
             }
@@ -132,6 +131,7 @@ function handlePathMode(kevt) {
     if (currentPath.data().endsWith('Z')) {
       currentPath.strokeWidth(0);
       currentPath.draggable(false);
+      currentPathId = null;
       return;
     }
 
