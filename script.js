@@ -89,6 +89,22 @@ function handlePathMode(kevt) {
             if (this.data().endsWith('Z') === false) {
               return;
             }
+            // Another path is currently drawing but we clicked on already closed path
+            if (currentPathId !== null && this.getId() !== currentPathId) {
+              const previousPath = pathLayer.findOne(`#${currentPathId}`);
+              // Prev path is currently drawing
+              if (previousPath.data().endsWith('Z') === false) {
+                evt.cancelBubble = false;
+                return;
+              } else {
+                // Reset prev path
+                previousPath.strokeWidth(0);
+                previousPath.draggable(false);
+                previousPath.selected = false;
+                // Current path is this one closed just clicked
+                currentPathId = this.getId();
+              }
+            }
 
             if (!currentPathId) {
               currentPathId = this.getId();
@@ -101,7 +117,6 @@ function handlePathMode(kevt) {
               previousPath.selected = false;
             }
 
-            const that = currentPathId;
             currentPathId = this.getId(); // Set this path as the current path
             this.selected = !this?.selected;
             if (this?.selected) {
@@ -110,7 +125,6 @@ function handlePathMode(kevt) {
             } else {
                 this.strokeWidth(0);
                 this.draggable(false);
-                currentPathId = that;
             }
             pathLayer.batchDraw();
             lastPos = null; // Reset last position for drawing
@@ -131,6 +145,7 @@ function handlePathMode(kevt) {
     if (currentPath.data().endsWith('Z')) {
       currentPath.strokeWidth(0);
       currentPath.draggable(false);
+      currentPath.selected = false;
       currentPathId = null;
       return;
     }
