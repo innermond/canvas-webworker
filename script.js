@@ -120,9 +120,11 @@ function handlePathMode(kevt) {
           currentPathId = this.getId(); // Set this path as the current path
           this.selected = !this?.selected;
           if (this?.selected) {
-              this.strokeWidth(2);
+            this.strokeWidth(2);
+            this.draggable(true);
           } else {
-              this.strokeWidth(0);
+            this.strokeWidth(0);
+            this.draggable(false);
           }
           pathLayer.batchDraw();
           lastPos = null; // Reset last position for drawing
@@ -134,14 +136,21 @@ function handlePathMode(kevt) {
         });
         currentPath.on('mousedown', function(evt) {
           evt.cancelBubble = true;
-          this.draggable(true);
+          if (isDragging && !this.selected) {
+            evt.cancelBubble = false;
+          }
         });
         currentPath.on('mouseup', function(evt) {
           evt.cancelBubble = true;
-          this.draggable(false);
+          if (isDragging && !this.selected) {
+            evt.cancelBubble = false;
+          }
         });
         currentPath.on('mousemove', function(evt) {
           evt.cancelBubble = true;
+          if (isDragging && !this.selected) {
+            evt.cancelBubble = false;
+          }
         });
     } else {
       currentPath = pathLayer.findOne(`#${currentPathId}`);
