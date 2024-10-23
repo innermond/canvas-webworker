@@ -55,7 +55,7 @@ function handleBucketMode(kevt) {
                 fillBucket(img);
             }
         })
-        return;
+        //return;
     }
 
     fillBucket(kevt.target);
