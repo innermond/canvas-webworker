@@ -245,6 +245,8 @@ function handleFillImageClick() {
   if (isBucketMode) {
     lastPos = stage.getRelativePointerPosition();
     isDrawPencil = false;
+    isDrawPath = false;
+    document.getElementById('newPathButton').classList.add('inactive');
     document.getElementById('drawPencil').classList.add('inactive');
   }
 }
@@ -277,7 +279,7 @@ function collapseBucketLayer() {
 
   Konva.autoDrawEnabled = true;
 
-  bucketLayer.removeChildren();
+  bucketLayer.destroyChildren();
   bucketLayer.add(bucketImage);
 
   return bucketImage;
@@ -432,6 +434,38 @@ function handleClearAllClick() {
     pathLayer.clear();
     bucketLayer.removeChildren();
     bucketLayer.clear();
+}
+
+function dropShapeClick() {
+  if (! currentPathId) {
+    return;
+  }
+
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  if (! currentPath) {
+    return;
+  }
+
+  currentPath.strokeWidth(0);
+  bucketLayer.add(currentPath);
+  collapseBucketLayer();
+  resetPathState();
+}
+
+function dropShapeAllClick() {
+  for (let i=0; i < pathLayer.children.length; i++) {
+    const p = pathLayer.children[i];
+    if (p.getId() === 'previewLine') {
+      continue;
+    }
+    p.strokeWidth(0);
+    bucketLayer.add(p);
+    i--;
+  };
+  collapseBucketLayer();
+  resetPathState();
+  pathLayer.batchDraw();
+  bucketLayer.batchDraw();
 }
 
 function handleUndoClick() {
@@ -998,6 +1032,8 @@ document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'a
 
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('clearAllButton').addEventListener('click', handleClearAllClick);
+document.getElementById('dropShape').addEventListener('click', dropShapeClick);
+document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllClick);
 document.getElementById('undoButton').addEventListener('click', handleUndoClick);
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
