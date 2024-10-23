@@ -172,52 +172,53 @@ function handlePathMode(kevt) {
 
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
-    if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
-    if (isBucketMode) return;
-    if (isDragging) return;
+  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
+  if (isBucketMode) return;
+  if (isDrawPencil) return;
+  if (isDragging) return;
 
-    var pos = stage.getRelativePointerPosition();
+  var pos = stage.getRelativePointerPosition();
 
-    // Update the previewLine to preview the line from the last position to the current mouse position
-    previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-    pathLayer.batchDraw();
+  // Update the previewLine to preview the line from the last position to the current mouse position
+  previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
+  pathLayer.batchDraw();
 }
 
 // Function to handle double click to close the path
 function handleStageDblClick() {
-    if (pathData === '') return;
-    if (!currentPathId) return;
+  if (pathData === '') return;
+  if (!currentPathId) return;
 
-    // Close the path by adding 'Z' to the SVG path data
-    pathData += ' Z';
+  // Close the path by adding 'Z' to the SVG path data
+  pathData += ' Z';
 
-    const currentPath = pathLayer.findOne(`#${currentPathId}`);
-    // Update the path data and set the closed flag
-    currentPath.setAttr('data', pathData);
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  // Update the path data and set the closed flag
+  currentPath.setAttr('data', pathData);
 
-    currentPath.fill(fillColor);
-    currentPath.strokeWidth(0);
+  currentPath.fill(fillColor);
+  currentPath.strokeWidth(0);
 
-    resetPathState();
+  resetPathState();
 
-    // Enable the "Fill Path" button and color picker after the path is closed
-    document.getElementById('fillButton').disabled = false;
-    document.getElementById('fillColorPicker').disabled = false;
-    document.getElementById('deleteButton').disabled = false; // Enable delete button
+  // Enable the "Fill Path" button and color picker after the path is closed
+  document.getElementById('fillButton').disabled = false;
+  document.getElementById('fillColorPicker').disabled = false;
+  document.getElementById('deleteButton').disabled = false; // Enable delete button
 
-    // Redraw the imageLayer
-    pathLayer.batchDraw();
+  // Redraw the imageLayer
+  pathLayer.batchDraw();
 }
 
 // Function to handle the "Fill Path" button click
 function handleFillClick() {
-    if (!currentPathId) return; // Only allow filling if the path is closed
+  if (!currentPathId) return; // Only allow filling if the path is closed
 
-    const currentPath = pathLayer.findOne(`#${currentPathId}`);
-    currentPath.fill(fillColor);
-    currentPath.strokeWidth(0);
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  currentPath.fill(fillColor);
+  currentPath.strokeWidth(0);
 
-    pathLayer.batchDraw();
+  pathLayer.batchDraw();
 }
 
 // Create a new web worker
@@ -228,128 +229,128 @@ let isBucketMode = false;
 
 // Function to handle filling the image with the global color using Web Worker
 function handleFillImageClick() {
-    isBucketMode = !isBucketMode;
-    // When filling mode begins it requires you 
-    // to choose a starting color (by position) from image
-    document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
-    if (isBucketMode) {
-        lastPos = stage.getRelativePointerPosition();
-        isDrawPencil = false;
-        document.getElementById('drawPencil').classList.add('inactive');
-    }
+  isBucketMode = !isBucketMode;
+  // When filling mode begins it requires you 
+  // to choose a starting color (by position) from image
+  document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
+  if (isBucketMode) {
+    lastPos = stage.getRelativePointerPosition();
+    isDrawPencil = false;
+    document.getElementById('drawPencil').classList.add('inactive');
+  }
 }
 
 function collapseBucketLayer() {
-    Konva.autoDrawEnabled = false;
+  Konva.autoDrawEnabled = false;
 
-    const { x, y, scaleX, scaleY, width, height, } = stage.attrs;
-    const old = { x, y, scaleX, scaleY, width, height };
+  const { x, y, scaleX, scaleY, width, height, } = stage.attrs;
+  const old = { x, y, scaleX, scaleY, width, height };
 
-    const w = bucketLayer.width();
-    const h = bucketLayer.height();
-    // Reset stage (no skew or rotation)
-    stage.setAttrs({
-        x: 0, y: 0,
-        scaleX: 1, scaleY: 1,
-        width: w, height: h,
-    });
+  const w = bucketLayer.width();
+  const h = bucketLayer.height();
+  // Reset stage (no skew or rotation)
+  stage.setAttrs({
+    x: 0, y: 0,
+    scaleX: 1, scaleY: 1,
+    width: w, height: h,
+  });
 
-    const bucketCanvas = bucketLayer.toCanvas();
-    const bucketImage = new Konva.Image({
-        x: 0, y: 0,
-        width: w,
-        height: h,
-        image: bucketCanvas,
-    });
+  const bucketCanvas = bucketLayer.toCanvas();
+  const bucketImage = new Konva.Image({
+    x: 0, y: 0,
+    width: w,
+    height: h,
+    image: bucketCanvas,
+  });
 
-    // Transform back
-    stage.setAttrs(old);
+  // Transform back
+  stage.setAttrs(old);
 
-    Konva.autoDrawEnabled = true;
+  Konva.autoDrawEnabled = true;
 
-    bucketLayer.removeChildren();
-    bucketLayer.add(bucketImage);
+  bucketLayer.removeChildren();
+  bucketLayer.add(bucketImage);
 
-    return bucketImage;
+  return bucketImage;
 }
 
 async function fillBucket(currentImage) {
-    if (!isBucketMode || !currentImage) return;
+  if (!isBucketMode || !currentImage) return;
 
-    lastClickPos = currentImage.getRelativePointerPosition();
+  lastClickPos = currentImage.getRelativePointerPosition();
 
-    // Get raw native image behind currentImage
-    const imageElement = currentImage.image();
-    // Native (unscaled) dimensions of image
-    const width = imageElement.width;
-    const height = imageElement.height;
+  // Get raw native image behind currentImage
+  const imageElement = currentImage.image();
+  // Native (unscaled) dimensions of image
+  const width = imageElement.width;
+  const height = imageElement.height;
 
-    // Get native image data to be sent outside to the worker
-    const imageCanvas = document.createElement('canvas');
-    imageCanvas.width = width;
-    imageCanvas.height = height;
-    const imageCtx = imageCanvas.getContext('2d');
-    // fiil our imageCanvas with native imageElement
-    imageCtx.drawImage(imageElement, 0, 0);
+  // Get native image data to be sent outside to the worker
+  const imageCanvas = document.createElement('canvas');
+  imageCanvas.width = width;
+  imageCanvas.height = height;
+  const imageCtx = imageCanvas.getContext('2d');
+  // fiil our imageCanvas with native imageElement
+  imageCtx.drawImage(imageElement, 0, 0);
 
-    // Get pos on a transformed currentImage (through stage's transformation)
-    const localPos = currentImage.getRelativePointerPosition();
-    const startPos = {
-        x: Math.floor(localPos.x),
-        y: Math.floor(localPos.y)
-    };
+  // Get pos on a transformed currentImage (through stage's transformation)
+  const localPos = currentImage.getRelativePointerPosition();
+  const startPos = {
+    x: Math.floor(localPos.x),
+    y: Math.floor(localPos.y)
+  };
 
-    const bucketImage = await collapseBucketLayer();
-    const bucketBmp = await createImageBitmap(bucketImage.image());
-    imageCtx.drawImage(bucketBmp, 0, 0,);
-    const imageData = imageCtx.getImageData(0, 0, width, height);
+  const bucketImage = await collapseBucketLayer();
+  const bucketBmp = await createImageBitmap(bucketImage.image());
+  imageCtx.drawImage(bucketBmp, 0, 0,);
+  const imageData = imageCtx.getImageData(0, 0, width, height);
 
-    // Send image data and other details to the web worker
-    floodFillWorker.postMessage({
-        imageData,
-        startPos,
-        fillColor,
-        tolerance: fillColorSensitivity // or any other tolerance value you want
+  // Send image data and other details to the web worker
+  floodFillWorker.postMessage({
+    imageData,
+    startPos,
+    fillColor,
+    tolerance: fillColorSensitivity // or any other tolerance value you want
+  });
+
+  // Handle the response from the web worker
+  floodFillWorker.onmessage = async function(e) {
+    // Receive a widthxheight image that has bucket zone surrounded by transparency
+    // Image is just to be laid out 
+    const { floodImageData, x, y, w, h, } = e.data;
+
+    // Polite mode: take into account already draw pixels
+    const floodBmp = await createImageBitmap(floodImageData)
+
+    const floodImage = new Konva.Image({
+      x: 0, y: 0,
+      width: floodBmp.width,
+      height: floodBmp.height,
+      image: floodBmp,
+      globalCompositeOperation: gco(),
     });
-
-    // Handle the response from the web worker
-    floodFillWorker.onmessage = async function(e) {
-        // Receive a widthxheight image that has bucket zone surrounded by transparency
-        // Image is just to be laid out 
-        const { floodImageData, x, y, w, h, } = e.data;
-
-        // Polite mode: take into account already draw pixels
-        const floodBmp = await createImageBitmap(floodImageData)
-
-        const floodImage = new Konva.Image({
-            x: 0, y: 0,
-            width: floodBmp.width,
-            height: floodBmp.height,
-            image: floodBmp,
-            globalCompositeOperation: gco(),
-        });
-        bucketLayer.add(floodImage);
-        bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
+    bucketLayer.add(floodImage);
+    bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
 
-        // TODO needless?
-        /*bucketImage.on('click', function(e) {
-          let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
-          const pos = this.getRelativePointerPosition();
-          // img is unscaled native image
-          const img = this.image();
-          // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
-          a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
-          // Cancel bubbling when a non-transparency pixel was found
-          // and painted aria protection is off
-          let isBubbling = a === 0; // bubble up when transparent
-          if (!isBubbling && !isDrawProtect) isBubbling = true; 
-          if (isFillClean) isBubbling = true;
-          e.cancelBubble = !isBubbling;
-        });*/
+    // TODO needless?
+    /*bucketImage.on('click', function(e) {
+      let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
+      const pos = this.getRelativePointerPosition();
+      // img is unscaled native image
+      const img = this.image();
+      // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
+      a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
+      // Cancel bubbling when a non-transparency pixel was found
+      // and painted aria protection is off
+      let isBubbling = a === 0; // bubble up when transparent
+      if (!isBubbling && !isDrawProtect) isBubbling = true; 
+      if (isFillClean) isBubbling = true;
+      e.cancelBubble = !isBubbling;
+    });*/
 
-        document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
-    };
+    document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+  };
 }
 
 // Function to get pixel color from the image at a given position
@@ -650,40 +651,52 @@ function gco() {
     const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
     return v;
 }
-// Mousedown event starts drawing a new shape
+// Mousedown event starts drawing with pencil
 stage.on('mousedown', (evt) => {
-    // Must be first
-    const pos = stage.getRelativePointerPosition();
-    lastPos = pos;
-
-    if (isDragging === true) {
-        stage.startDrag();
-        return;
+  if (!isDrawPath && currentPathId) {
+    const p = pathLayer.findOne(`#${currentPathId}`);
+    // Prev path is currently drawing
+    if (p.data().endsWith('Z') === true) {
+      // Reset prev path
+      p.strokeWidth(0);
+      p.draggable(false);
+      p.selected = false;
     }
-    if (!isDrawPencil) {
-        return true;
-    }
+    resetPathState();
+  }
 
-    evt.cancelBubble = true;
-    mousemove = true;
+  // Must be first
+  const pos = stage.getRelativePointerPosition();
+  lastPos = pos;
 
-    if (pencil) {
-        pencil.width(pencilSize);
-        pencil.height(pencilSize);
-        adjustPencilCenter();
-    } else {
-        const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
-        createPencilShape(ps);
-    }
-    pencil.globalCompositeOperation(gco());
+  if (isDragging === true) {
+    stage.startDrag();
+    return;
+  }
+  if (!isDrawPencil) {
+    return true;
+  }
 
-    const cloned = pencil.clone({
-        x: pos.x, y: pos.y,
-        id: 'pencilGhost',
-        fill: 'transparent', stroke: fillColor, strokeWidth: 2,
-        globalCompositeOperation: 'source-over',
-    });
-    bucketLayer.add(cloned);
+  evt.cancelBubble = true;
+  mousemove = true;
+
+  if (pencil) {
+    pencil.width(pencilSize);
+    pencil.height(pencilSize);
+    adjustPencilCenter();
+  } else {
+    const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
+    createPencilShape(ps);
+  }
+  pencil.globalCompositeOperation(gco());
+
+  const cloned = pencil.clone({
+    x: pos.x, y: pos.y,
+    id: 'pencilGhost',
+    fill: 'transparent', stroke: fillColor, strokeWidth: 2,
+    globalCompositeOperation: 'source-over',
+  });
+  bucketLayer.add(cloned);
 });
 
 const collapseDraw = (evt) => {
@@ -723,7 +736,9 @@ stage.on('mouseup', (kevt) => {
             pencilGhost.destroy();
         }
         // TODO will affect other ops than shape-ing?
-        collapseBucketLayer();
+        if (isDrawPencil) {
+          collapseBucketLayer();
+        }
     }
 });
 stage.on('mouseleave', (evt) => {
@@ -746,7 +761,7 @@ function directionAngle(dx, dy) {
 
 let pencilPrevPos = null;
 // Mousemove event is cloning
-// Draw on stage
+// Draw on stage using pencil
 stage.on('mousemove', (evt) => {
     if (!mousemove && evt.target?.attrs?.id === 'stage') {
         return;
