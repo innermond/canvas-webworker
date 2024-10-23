@@ -723,21 +723,24 @@ stage.on('mouseup', (kevt) => {
             pencilGhost.destroy();
         }
         // TODO will affect other ops than shape-ing?
-        //collapseBucketLayer();
+        collapseBucketLayer();
     }
 });
-stage.on('mouseleave', collapseDraw);
-//// FIXME
-bucketLayer.on('mouseleave', () => {
+stage.on('mouseleave', (evt) => {
+    mousemove = false;
     pencilPrevPos = null;
+    const pencilGhost = stage.findOne('#pencilGhost');
+    if (pencilGhost) {
+        pencilGhost.destroy();
+    }
+    collapseDraw(evt);
 });
 
 function directionAngle(dx, dy) {
   const radians = Math.atan2(dx, dy);
-  let grades = radians*(180/Math.PI);
-  if (grades < 0) {
-    grades += 360;
-  }
+  // Compensate how JS references angle measurement 
+  // with how this it is done in canvas's context
+  let grades = 90-radians*(180/Math.PI);
   return [grades, radians];
 }
 
@@ -778,7 +781,8 @@ stage.on('mousemove', (evt) => {
       } 
 
       adjustPencilCenter();
-      const diffAng = ang - pencil.rotation();
+      const rot = pencil.rotation(); // rotation is cummulative
+      const diffAng = ang - rot%360;
       pencil.rotate(diffAng);
 
       numRectangles = MIN_NIB*Math.ceil(c / pencilSize);
@@ -787,8 +791,8 @@ stage.on('mousemove', (evt) => {
       const stepX = distanceX/numRectangles;
       const stepY = distanceY/numRectangles;
       for (let i = 1; i <= numRectangles; i++) {
-        const x = pencilPrevPos.x + stepX;
-        const y = pencilPrevPos.y + stepY;
+        const x = pencilPrevPos.x + i*stepX;
+        const y = pencilPrevPos.y + i*stepY;
 
         if (isFillClean && pencil) {
           pencil.fill('#FFFFFF');
@@ -799,20 +803,15 @@ stage.on('mousemove', (evt) => {
         bucketLayer.add(cloned);
 
         pos = { x, y };
-        pencilPrevPos = pos;
       }
+      pencilPrevPos = pos;
     }
 
     if (isFillClean && pencil) {
       pencil.fill('#FFFFFF');
     }
     if (!pencilPrevPos) {
-      const cloned = pencil.clone({
-        x: pos.x,
-        y: pos.y,
-      });
       pencilPrevPos = pos;
-      bucketLayer.add(cloned);
     }
 
     bucketLayer.batchDraw();
