@@ -46,17 +46,17 @@ function handleBucketMode(kevt) {
   // Event is triggered clicking on a transparent pixel of a flood image
   // Find coresponding image from imageLayer
   if (kevt.target?.parent === bucketLayer) {
-      // Check images on imageLayer - beneath bucketLayer
-      imageLayer.children.reverse().forEach(img => {
-          const { x, y } = img.getRelativePointerPosition();
-          const w = img.width();
-          const h = img.height();
-          const isInside = (0 < x && x < w && 0 < y && y < h);
-          if (isInside) {
-              fillBucket(img);
-          }
-      })
-      return;
+    // Check images on imageLayer - beneath bucketLayer
+    imageLayer.children.reverse().forEach(img => {
+        const { x, y } = img.getRelativePointerPosition();
+        const w = img.width();
+        const h = img.height();
+        const isInside = (0 < x && x < w && 0 < y && y < h);
+        if (isInside) {
+            fillBucket(img);
+        }
+    })
+    return;
   }
 
   fillBucket(kevt.target);
@@ -217,7 +217,6 @@ function handleStageDblClick() {
   document.getElementById('fillColorPicker').disabled = false;
   document.getElementById('deleteButton').disabled = false; // Enable delete button
 
-  // Redraw the imageLayer
   pathLayer.batchDraw();
 }
 
@@ -274,29 +273,29 @@ function handleSelectImageClick(kevt) {
 }
 
 function handleSelectMode(kevt) {
-    if (!isSelectImageMode) {
-      return true;
-    }
+  if (!isSelectImageMode) {
+    return true;
+  }
 
-    if (kevt.target === stage) return;
-    // Event is triggered clicking on a transparent pixel of a flood image
-    // Find coresponding image from imageLayer
-    if (kevt.target?.parent === bucketLayer) {
-        // Check images on imageLayer - beneath bucketLayer
-        imageLayer.children.reverse().forEach(img => {
-            const { x, y } = img.getRelativePointerPosition();
-            const w = img.width();
-            const h = img.height();
-            const isInside = (0 < x && x < w && 0 < y && y < h);
-            if (isInside) {
-                fillBucket(img);
-            }
-        })
-        return;
-    }
+  if (kevt.target === stage) return;
+  // Event is triggered clicking on a transparent pixel of a flood image
+  // Find coresponding image from imageLayer
+  if (kevt.target?.parent === bucketLayer) {
+    // Check images on imageLayer - beneath bucketLayer
+    imageLayer.children.reverse().forEach(img => {
+        const { x, y } = img.getRelativePointerPosition();
+        const w = img.width();
+        const h = img.height();
+        const isInside = (0 < x && x < w && 0 < y && y < h);
+        if (isInside) {
+            fillBucket(img);
+        }
+    })
+    return;
+  }
 
-    fillBucket(kevt.target);
-    kevt?.evt.stopImmediatePropagation();
+  fillBucket(kevt.target);
+  kevt?.evt.stopImmediatePropagation();
 }
 
 function collapseBucketLayer() {
@@ -334,7 +333,8 @@ function collapseBucketLayer() {
 }
 
 async function fillBucket(currentImage) {
-  if (!isBucketMode || !currentImage) return;
+  const bucketOrSelectImage = isBucketMode || isSelectImageMode;
+  if (!bucketOrSelectImage || !currentImage) return;
 
   lastClickPos = currentImage.getRelativePointerPosition();
 
@@ -369,7 +369,8 @@ async function fillBucket(currentImage) {
     imageData,
     startPos,
     fillColor,
-    tolerance: fillColorSensitivity // or any other tolerance value you want
+    tolerance: fillColorSensitivity,
+    isSelectImageMode,
   });
 
   // Handle the response from the web worker

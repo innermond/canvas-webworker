@@ -1,5 +1,5 @@
 self.onmessage = function(e) {
-    const { imageData, startPos, fillColor, tolerance } = e.data;
+    const { imageData, startPos, fillColor, tolerance, justContour } = e.data;
     const { data, width, height } = imageData;
 
     // TODO handle fillColor with alpha 

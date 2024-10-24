@@ -61,7 +61,7 @@ self.onmessage = function(e) {
    ]()
     .then(blob => {
       const dataURL = new FileReaderSync().readAsDataURL(blob);
-  self.postMessage({dataURL});
+      self.postMessage({dataURL});
     });
 };
 
