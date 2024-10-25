@@ -370,7 +370,7 @@ async function fillBucket(currentImage) {
     startPos,
     fillColor,
     tolerance: fillColorSensitivity,
-    isSelectImageMode,
+    justContour: isSelectImageMode,
   });
 
   // Handle the response from the web worker

@@ -17,65 +17,71 @@ self.onmessage = function(e) {
     const pixelStack = [{ x: startX, y: startY }];
     const modifiedPixels = []; // Array to keep track of modified pixel data
     const visited = new Set(); // Set to track visited pixel
+    const borderPixels = []; // Array to store border pixels
 
     // Initialize bounding box variables
     let minX = startX, minY = startY, maxX = startX, maxY = startY;
 
     while (pixelStack.length > 0) {
-        const { x, y } = pixelStack.pop();
+      const { x, y } = pixelStack.pop();
 
-        // Boundary check
-        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+      // Boundary check
+      if (x < 0 || x >= width || y < 0 || y >= height) continue;
 
-        const pixelIndex = (y * width + x) * 4;
+      const pixelIndex = (y * width + x) * 4;
 
-        // Check if this pixel has already been processed
-        const pixelKey = `${x},${y}`;
-        if (visited.has(pixelKey)) continue;
-        visited.add(pixelKey); // Mark the pixel as visited
+      // Check if this pixel has already been processed
+      const pixelKey = `${x},${y}`;
+      if (visited.has(pixelKey)) continue;
+      visited.add(pixelKey); // Mark the pixel as visited
 
-        const currentColor = {
-            r: data[pixelIndex],
-            g: data[pixelIndex + 1],
-            b: data[pixelIndex + 2],
-        };
+      const currentColor = {
+        r: data[pixelIndex],
+        g: data[pixelIndex + 1],
+        b: data[pixelIndex + 2],
+      };
 
-        // Check if the current pixel matches the start color within tolerance
-        const distance = colorDistance(currentColor, startColor);
-        if (distance <= tolerance) {
-            // Fill the pixel with the new color
-            data[pixelIndex] = newColorRgb.r;        // Red
-            data[pixelIndex + 1] = newColorRgb.g;    // Green
-            data[pixelIndex + 2] = newColorRgb.b;    // Blue
-            data[pixelIndex + 3] = 255;              // Set alpha to fully opaque
-
-            modifiedPixels.push({x, y});
-
+      // Check if the current pixel matches the start color within tolerance
+      const distance = colorDistance(currentColor, startColor);
+      if (distance <= tolerance) {
+        if (justContour) {
+          const isBorderPixel = checkIsBorder(x, y, width, height, data, startColor, tolerance);
+          if (isBorderPixel) {
+            borderPixels.push({ x, y });
             // Update bounding box
             minX = Math.min(minX, x);
             minY = Math.min(minY, y);
             maxX = Math.max(maxX, x);
             maxY = Math.max(maxY, y);
-
-            // Large image may overflow JS array limit - unsigned 4-bytes integer
-            if (pixelStack.length >= 2**32 - 5) {
-              throw new Error('stack overflow')
-            }
-
-            // Push neighboring pixels onto the stack
-            if (x > 0) {
-              pixelStack.push({ x: x - 1, y }); // Left
-            }
-            if (x < width - 1) {
-              pixelStack.push({ x: x + 1, y }); // Right
-            }
-            if (y > 0) {
-              pixelStack.push({ x, y: y - 1 }); // Up
-            }
-            if (y < height - 1) {
-              pixelStack.push({ x, y: y + 1 }); // Down
-            }
+          } 
+        } else {
+          modifiedPixels.push({x, y});
+          // Update bounding box
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
         }
+
+        // Large image may overflow JS array limit - unsigned 4-bytes integer
+        if (pixelStack.length >= 2**32 - 5) {
+          throw new Error('stack overflow')
+        }
+
+        // Push neighboring pixels onto the stack
+        if (x > 0) {
+          pixelStack.push({ x: x - 1, y }); // Left
+        }
+        if (x < width - 1) {
+          pixelStack.push({ x: x + 1, y }); // Right
+        }
+        if (y > 0) {
+          pixelStack.push({ x, y: y - 1 }); // Up
+        }
+        if (y < height - 1) {
+          pixelStack.push({ x, y: y + 1 }); // Down
+        }
+      }
     }
 
     const newWidth = maxX - minX + 1;
@@ -88,7 +94,7 @@ self.onmessage = function(e) {
 
     // Set only modified pixels in the new ImageData
     let index = 0;
-    modifiedPixels.forEach(pixel => {
+    (justContour ? borderPixels : modifiedPixels).forEach(pixel => {
         index = (pixel.y * width + pixel.x) * 4;
         floodImageData.data[index] = newColorRgb.r;     // Red
         floodImageData.data[index + 1] = newColorRgb.g; // Green
@@ -99,19 +105,53 @@ self.onmessage = function(e) {
 };
 
 // Utility functions
+
+// Function to check if a pixel is a border pixel
+function checkIsBorder(x, y, width, height, data, startColor, tolerance) {
+  const neighbors = [
+    { x: x - 1, y }, // Left
+    { x: x - 1, y: y - 1 }, // Up Left
+    { x: x + 1, y: y - 1 }, // Up Right
+    { x: x + 1, y }, // Right
+    { x: x - 1, Y: y + 1 }, // Down Left
+    { x: x + 1, Y: y + 1 }, // Down Right
+    { x, y: y - 1 }, // Up
+    { x, y: y + 1 }  // Down
+  ];
+
+  for (const neighbor of neighbors) {
+    if (neighbor.x >= 0 && neighbor.x < width && neighbor.y >= 0 && neighbor.y < height) {
+      const neighborIndex = (neighbor.y * width + neighbor.x) * 4;
+      const neighborColor = {
+        r: data[neighborIndex],
+        g: data[neighborIndex + 1],
+        b: data[neighborIndex + 2],
+      };
+      const distance = colorDistance(neighborColor, startColor);
+      if (distance > tolerance) {
+        // The neighbor is outside the region, so this pixel is on the border
+        return true;
+      }
+    }
+  }
+
+  // If all neighbors are within tolerance, this pixel is not a border pixel
+  return false;
+}
+
 function colorDistance(c1, c2) {
-    return Math.sqrt(
-        Math.pow(c1.r - c2.r, 2) +
-        Math.pow(c1.g - c2.g, 2) +
-        Math.pow(c1.b - c2.b, 2)
-    );
+  return Math.sqrt(
+    Math.pow(c1.r - c2.r, 2) +
+    Math.pow(c1.g - c2.g, 2) +
+    Math.pow(c1.b - c2.b, 2)
+  );
 }
 
 function hexToRgb(hex) {
-    const bigint = parseInt(hex.slice(1), 16);
-    return {
-        r: (bigint >> 16) & 255,
-        g: (bigint >> 8) & 255,
-        b: bigint & 255
-    };
+  const bigint = parseInt(hex.slice(1), 16);
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255
+  };
 }
