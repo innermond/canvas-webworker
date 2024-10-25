@@ -94,13 +94,33 @@ self.onmessage = function(e) {
 
     // Set only modified pixels in the new ImageData
     let index = 0;
-    (justContour ? borderPixels : modifiedPixels).forEach(pixel => {
+    if ( ! justContour) {
+      modifiedPixels.forEach(pixel => {
         index = (pixel.y * width + pixel.x) * 4;
         floodImageData.data[index] = newColorRgb.r;     // Red
         floodImageData.data[index + 1] = newColorRgb.g; // Green
         floodImageData.data[index + 2] = newColorRgb.b; // Blue
         floodImageData.data[index + 3] = 255; // Alpha
-    });
+      });
+    } else {
+      const black = {r: 0, g: 0, b: 0};
+      const white = {r: 255, g: 255, b: 255};
+      let antColor = black;
+      let swapAntColor = false;
+      borderPixels.forEach((pixel, inx) => {
+        inx++;
+        if (inx%3 === 0) {
+          swapAntColor = ! swapAntColor;
+        }
+        antColor = swapAntColor ? white : black;
+        index = (pixel.y * width + pixel.x) * 4;
+        floodImageData.data[index] = antColor.r;     // Red
+        floodImageData.data[index + 1] = antColor.g; // Green
+        floodImageData.data[index + 2] = antColor.b; // Blue
+        floodImageData.data[index + 3] = 255; // Alpha
+      });
+
+    }
     self.postMessage({ floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
 };
 

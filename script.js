@@ -281,6 +281,7 @@ function handleSelectMode(kevt) {
   }
 
   if (kevt.target === stage) return;
+  lastPos = stage.getRelativePointerPosition();
   // Event is triggered clicking on a transparent pixel of a flood image
   // Find coresponding image from imageLayer
   if (kevt.target?.parent === bucketLayer) {
@@ -291,7 +292,7 @@ function handleSelectMode(kevt) {
         const h = img.height();
         const isInside = (0 < x && x < w && 0 < y && y < h);
         if (isInside) {
-            fillBucket(img);
+          fillBucket(img);
         }
     })
     return;
@@ -299,6 +300,20 @@ function handleSelectMode(kevt) {
 
   fillBucket(kevt.target);
   kevt?.evt.stopImmediatePropagation();
+}
+
+function removeSelection() {
+  localPos = bucketLayer.getRelativePointerPosition();
+  const a = bucketLayer.children.length;
+  const cc = bucketLayer.find('.justContour');
+  cc.reverse().forEach(c => {
+    console.log('remove sel', c)
+    c.destroy();
+  });
+  const z = bucketLayer.children.length;
+  if (z !== a) {
+    bucketLayer.batchDraw();
+  }
 }
 
 function collapseBucketLayer() {
@@ -339,7 +354,7 @@ async function fillBucket(cobaiImage) {
   const bucketOrSelectImage = isBucketMode || isSelectImageMode;
   if (!bucketOrSelectImage || !cobaiImage) return;
 
-  lastClickPos =cobaiImage.getRelativePointerPosition();
+  lastClickPos = cobaiImage.getRelativePointerPosition();
 
   // Get raw native image behind currentImage
   const imageElement = cobaiImage.image();
@@ -391,26 +406,29 @@ async function fillBucket(cobaiImage) {
       height: floodBmp.height,
       image: floodBmp,
       globalCompositeOperation: gco(),
+      name: 'justContour',
     });
     currentImage = floodImage;
     bucketLayer.add(floodImage);
     bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
+    bucketImage = null;
+
     // TODO needless?
-    bucketImage.on('click', function(e) {
-      let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
-      const pos = this.getRelativePointerPosition();
-      // img is unscaled native image
-      const img = this.image();
-      // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
-      a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
-      // Cancel bubbling when a non-transparency pixel was found
-      // and painted aria protection is off
-      let isBubbling = a === 0; // bubble up when transparent
-      if (!isBubbling && !isDrawProtect) isBubbling = true; 
-      if (isFillClean) isBubbling = true;
-      e.cancelBubble = !isBubbling;
-    });
+    //bucketImage.on('click', function(e) {
+    //  let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
+    //  const pos = this.getRelativePointerPosition();
+    //  // img is unscaled native image
+    //  const img = this.image();
+    //  // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
+    //  a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
+    //  // Cancel bubbling when a non-transparency pixel was found
+    //  // and painted aria protection is off
+    //  let isBubbling = a === 0; // bubble up when transparent
+    //  if (!isBubbling && !isDrawProtect) isBubbling = true; 
+    //  if (isFillClean) isBubbling = true;
+    //  e.cancelBubble = !isBubbling;
+    //});
 
     document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
   };
@@ -1051,6 +1069,7 @@ function debug(canvas) {
 }
 
 // Attach event listeners
+stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
 stage.on('click', handleBucketMode);
 stage.on('click', handlePathMode);
