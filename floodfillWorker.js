@@ -123,7 +123,7 @@ function checkIsBorder(x, y, width, height, data, startColor, tolerance) {
     if (neighbor.x >= 0 && neighbor.x < width && neighbor.y >= 0 && neighbor.y < height) {
       const neighborIndex = (neighbor.y * width + neighbor.x) * 4;
       const neighborColor = {
-        r: data[neighborIndex],
+        r: data[neighborIndex + 0],
         g: data[neighborIndex + 1],
         b: data[neighborIndex + 2],
       };

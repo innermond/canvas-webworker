@@ -249,8 +249,11 @@ function handleFillImageClick() {
 
   isDrawPencil = false;
   isDrawPath = false;
+  isSelectImageMode = false;
+
   document.getElementById('newPathButton').classList.add('inactive');
   document.getElementById('drawPencil').classList.add('inactive');
+  document.getElementById('selectImageButton').classList.add('inactive');
 }
 
 let isSelectImageMode = false;
@@ -332,14 +335,14 @@ function collapseBucketLayer() {
   return bucketImage;
 }
 
-async function fillBucket(currentImage) {
+async function fillBucket(cobaiImage) {
   const bucketOrSelectImage = isBucketMode || isSelectImageMode;
-  if (!bucketOrSelectImage || !currentImage) return;
+  if (!bucketOrSelectImage || !cobaiImage) return;
 
-  lastClickPos = currentImage.getRelativePointerPosition();
+  lastClickPos =cobaiImage.getRelativePointerPosition();
 
   // Get raw native image behind currentImage
-  const imageElement = currentImage.image();
+  const imageElement = cobaiImage.image();
   // Native (unscaled) dimensions of image
   const width = imageElement.width;
   const height = imageElement.height;
@@ -353,7 +356,7 @@ async function fillBucket(currentImage) {
   imageCtx.drawImage(imageElement, 0, 0);
 
   // Get pos on a transformed currentImage (through stage's transformation)
-  const localPos = currentImage.getRelativePointerPosition();
+  const localPos = cobaiImage.getRelativePointerPosition();
   const startPos = {
     x: Math.floor(localPos.x),
     y: Math.floor(localPos.y)
@@ -389,12 +392,12 @@ async function fillBucket(currentImage) {
       image: floodBmp,
       globalCompositeOperation: gco(),
     });
+    currentImage = floodImage;
     bucketLayer.add(floodImage);
     bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
-
     // TODO needless?
-    /*bucketImage.on('click', function(e) {
+    bucketImage.on('click', function(e) {
       let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
       const pos = this.getRelativePointerPosition();
       // img is unscaled native image
@@ -407,7 +410,7 @@ async function fillBucket(currentImage) {
       if (!isBubbling && !isDrawProtect) isBubbling = true; 
       if (isFillClean) isBubbling = true;
       e.cancelBubble = !isBubbling;
-    });*/
+    });
 
     document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
   };
@@ -574,8 +577,13 @@ function handleNewPathClick() {
       return;
   }
   isDrawPencil = false;
-  document.getElementById('newPathButton').classList.remove('inactive');
+  isSelectImageMode = false;
+  isBucketMode = false;
+
   document.getElementById('drawPencil').classList.add('inactive');
+  document.getElementById('selectImageButton').classList.add('inactive');
+  document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('newPathButton').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
@@ -997,12 +1005,14 @@ function handleDrawPencilClick() {
     isDrawPath = false;
     isDragging = false;
     stage.stopDrag();
+    isSelectImageMode = false;
 
     document.getElementById('isDraggingCheckbox').checked = isDragging;
     document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
 
     document.getElementById('fillImageButton').classList.add('inactive');
     document.getElementById('newPathButton').classList.add('inactive');
+    document.getElementById('selectImageButton').classList.add('inactive');
   }
 
   document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
