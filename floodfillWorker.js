@@ -121,7 +121,7 @@ self.onmessage = function(e) {
       });
 
     }
-    self.postMessage({ floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
+    self.postMessage({ justContour, floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
 };
 
 // Utility functions

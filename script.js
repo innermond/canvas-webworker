@@ -16,6 +16,10 @@ var bucketLayer = new Konva.Layer({
     id: 'bucket',
 });
 stage.add(bucketLayer);
+var justContourLayer = new Konva.Layer({
+    id: 'justContour',
+});
+stage.add(justContourLayer);
 var pathLayer = new Konva.Layer({
     id: 'path',
 });
@@ -37,7 +41,7 @@ var pencilSize = 30;
 
 function handleBucketMode(kevt) {
   if (!isBucketMode) {
-    return true;
+    return;
   }
 
   if (kevt.target === stage) return;
@@ -48,13 +52,13 @@ function handleBucketMode(kevt) {
   if (kevt.target?.parent === bucketLayer) {
     // Check images on imageLayer - beneath bucketLayer
     imageLayer.children.reverse().forEach(img => {
-        const { x, y } = img.getRelativePointerPosition();
-        const w = img.width();
-        const h = img.height();
-        const isInside = (0 < x && x < w && 0 < y && y < h);
-        if (isInside) {
-            fillBucket(img);
-        }
+      const { x, y } = img.getRelativePointerPosition();
+      const w = img.width();
+      const h = img.height();
+      const isInside = (0 < x && x < w && 0 < y && y < h);
+      if (isInside) {
+        fillBucket(img);
+      }
     })
     return;
   }
@@ -242,7 +246,7 @@ function handleFillImageClick() {
   isBucketMode = !isBucketMode;
   // When filling mode begins it requires you 
   // to choose a starting color (by position) from image
-  document.getElementById('fillImageButton').classList.toggle('inactive'); // Enable fill image button
+  document.getElementById('fillImageButton').classList[isBucketMode ? 'remove' : 'add']('inactive'); // Enable fill image button
   if (! isBucketMode) {
     return;
   }
@@ -275,12 +279,61 @@ function handleSelectImageClick(kevt) {
   document.getElementById('fillImageButton').classList.add('inactive');
 }
 
+function fillSelectionImageClick() {
+  console.log(lastPos)
+  if (lastPos) {
+    const {x, y} = lastPos;
+    removeSelection();
+    let c = bucketLayer.getNativeCanvasElement();
+    let a = c.getContext('2d').getImageData(x, y, 1, 1).data[3];
+    if (a !== 0) {
+      const imageData = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+      const startPos = {
+        x: Math.floor(lastPos.x),
+        y: Math.floor(lastPos.y),
+      };
+      floodFillWorker.postMessage({
+        imageData,
+        startPos,
+        fillColor,
+        tolerance: fillColorSensitivity,
+      });
+      return;
+    }
+    c = imageLayer.getNativeCanvasElement();
+    a = c.getContext('2d').getImageData(x, y, 1, 1).data[3];
+    if (a !== 0) {
+      const imageData = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+      const startPos = {
+        x: Math.floor(lastPos.x),
+        y: Math.floor(lastPos.y),
+      };
+      floodFillWorker.postMessage({
+        imageData,
+        startPos,
+        fillColor,
+        tolerance: fillColorSensitivity,
+      });
+    }
+  }
+}
+
+function removeSelection() {
+  document.getElementById('fillSelectionImageButton').classList.add('inactive');
+
+  const a = justContourLayer.children.length;
+  if (a > 0) {
+    justContourLayer.destroyChildren();
+    justContourLayer.batchDraw();
+  }
+}
+
 function handleSelectMode(kevt) {
   if (!isSelectImageMode) {
     return true;
   }
-
   if (kevt.target === stage) return;
+
   lastPos = stage.getRelativePointerPosition();
   // Event is triggered clicking on a transparent pixel of a flood image
   // Find coresponding image from imageLayer
@@ -298,21 +351,10 @@ function handleSelectMode(kevt) {
     return;
   }
 
-  fillBucket(kevt.target);
-  kevt?.evt.stopImmediatePropagation();
-}
-
-function removeSelection() {
-  localPos = bucketLayer.getRelativePointerPosition();
-  const a = bucketLayer.children.length;
-  const cc = bucketLayer.find('.justContour');
-  cc.reverse().forEach(c => {
-    console.log('remove sel', c)
-    c.destroy();
-  });
-  const z = bucketLayer.children.length;
-  if (z !== a) {
-    bucketLayer.batchDraw();
+  // TODO what is the kevt.target that have parent null
+  if (kevt.target?.parent) {
+    fillBucket(kevt.target);
+    kevt?.evt.stopImmediatePropagation();
   }
 }
 
@@ -352,7 +394,7 @@ function collapseBucketLayer() {
 
 async function fillBucket(cobaiImage) {
   const bucketOrSelectImage = isBucketMode || isSelectImageMode;
-  if (!bucketOrSelectImage || !cobaiImage) return;
+  if (!bucketOrSelectImage || !cobaiImage || !cobaiImage?.parent) return;
 
   lastClickPos = cobaiImage.getRelativePointerPosition();
 
@@ -374,7 +416,7 @@ async function fillBucket(cobaiImage) {
   const localPos = cobaiImage.getRelativePointerPosition();
   const startPos = {
     x: Math.floor(localPos.x),
-    y: Math.floor(localPos.y)
+    y: Math.floor(localPos.y),
   };
 
   const bucketImage = await collapseBucketLayer();
@@ -395,7 +437,7 @@ async function fillBucket(cobaiImage) {
   floodFillWorker.onmessage = async function(e) {
     // Receive a widthxheight image that has bucket zone surrounded by transparency
     // Image is just to be laid out 
-    const { floodImageData, x, y, w, h, } = e.data;
+    const { justContour, floodImageData, x, y, w, h, } = e.data;
 
     // Polite mode: take into account already draw pixels
     const floodBmp = await createImageBitmap(floodImageData)
@@ -406,14 +448,45 @@ async function fillBucket(cobaiImage) {
       height: floodBmp.height,
       image: floodBmp,
       globalCompositeOperation: gco(),
-      name: 'justContour',
     });
-    currentImage = floodImage;
-    bucketLayer.add(floodImage);
-    bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
 
-    bucketImage = null;
+    if ( ! justContour) {
+      currentImage = floodImage;
+      bucketLayer.add(floodImage);
+      bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
+    } else {
 
+      justContourLayer.add(floodImage);
+      justContourLayer.batchDraw();
+
+      let zero;
+      requestAnimationFrame(start);
+      function start(t) {
+        zero = t;
+        animate(t)
+      }
+      let applyInvert = true;
+      async function animate(t) {
+        if ( ! floodImage?.parent) {
+          return;
+        }
+
+        const d = (t - zero) / 150;
+        if (d > 1) {
+          if (applyInvert) {
+            floodImage.cache();
+            floodImage.filters([Konva.Filters.Invert]);
+          } else {
+            floodImage.clearCache();
+            floodImage.filters([]);
+          }
+          applyInvert = ! applyInvert;
+          requestAnimationFrame(t => start(t));
+        } else {
+          requestAnimationFrame(t => animate(t));
+        }
+      };
+    }
     // TODO needless?
     //bucketImage.on('click', function(e) {
     //  let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
@@ -429,7 +502,7 @@ async function fillBucket(cobaiImage) {
     //  if (isFillClean) isBubbling = true;
     //  e.cancelBubble = !isBubbling;
     //});
-
+    document.getElementById('fillSelectionImageButton').classList.remove('inactive');
     document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
   };
 }
@@ -792,7 +865,7 @@ stage.on('mousedown', (evt) => {
     return;
   }
   if (!isDrawPencil) {
-    return true;
+    return;
   }
 
   evt.cancelBubble = true;
@@ -1017,23 +1090,73 @@ function createPencilShape(pencilShape = 'rectangle') {
 }
 
 function handleDrawPencilClick() {
+  removeSelection();
+
   isDrawPencil = !isDrawPencil;
-  if (isDrawPencil) {
-    isBucketMode = false;
-    isDrawPath = false;
-    isDragging = false;
-    stage.stopDrag();
-    isSelectImageMode = false;
-
-    document.getElementById('isDraggingCheckbox').checked = isDragging;
-    document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
-
-    document.getElementById('fillImageButton').classList.add('inactive');
-    document.getElementById('newPathButton').classList.add('inactive');
-    document.getElementById('selectImageButton').classList.add('inactive');
+  if (isDrawPencil === false ) {
+    document.getElementById('drawPencil').classList.add('inactive');
+    return;
   }
 
-  document.getElementById('drawPencil').classList.toggle('inactive'); // Enable fill image button
+  isBucketMode = false;
+  isDrawPath = false;
+  isDragging = false;
+  stage.stopDrag();
+  isSelectImageMode = false;
+
+  document.getElementById('isDraggingCheckbox').checked = isDragging;
+  document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
+
+  document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('newPathButton').classList.add('inactive');
+  document.getElementById('selectImageButton').classList.add('inactive');
+
+  document.getElementById('drawPencil').classList.remove('inactive');
+}
+
+function triggerClickAtPosition(stage, x, y) {
+  // Find the node at the specified position
+  const targetNode = stage.getIntersection({ x, y });
+
+  if (targetNode) {
+    // Create a synthetic click event
+    const clickEvent = {
+      type: 'click',
+      target: targetNode,
+      evt: {
+        clientX: x,
+        clientY: y,
+        offsetX: x,
+        offsetY: y,
+        isSelection: true,
+      },
+    };
+
+    isBucketMode = true;
+    // Trigger the click event on the found node
+    targetNode.fire('click', clickEvent);
+  }
+}
+
+function triggerClickOnStage(stage, x, y) {
+    const canvasElement = stage.getNativeCanvasElement();
+    //const canvasElement = bucketLayer.getNativeCanvasElement();
+
+    let clickEvent = new MouseEvent('mousedown', {
+        clientX: x,
+        clientY: y,
+        bubbles: true,
+        cancelable: true,
+    });
+    canvasElement.dispatchEvent(clickEvent);
+    clickEvent = new MouseEvent('mouseup', {
+        clientX: x,
+        clientY: y,
+        bubbles: true,
+        cancelable: true,
+    });
+  isBucketMode = true;
+    canvasElement.dispatchEvent(clickEvent);
 }
 
 function debug(canvas) {
@@ -1076,9 +1199,12 @@ stage.on('click', handlePathMode);
 stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
+justContourLayer.on('click', () => console.log('just'))
+
 document.getElementById('fillButton').addEventListener('click', handleFillClick);
 
 document.getElementById('selectImageButton').addEventListener('click', handleSelectImageClick);
+document.getElementById('fillSelectionImageButton').addEventListener('click', fillSelectionImageClick);
 document.getElementById('fillImageButton').addEventListener('click', handleFillImageClick);
 document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityClick);
 document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
