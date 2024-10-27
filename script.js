@@ -214,6 +214,64 @@ function handleStageDblClick() {
   currentPath.fill(fillColor);
   currentPath.strokeWidth(0);
 
+  const vertices = getVerticesFromPathData(pathData);
+  // Create circle elements for vertices, and add to layer
+  const vertexCircles = vertices.map((vertex, index) => {
+    const circle = new Konva.Circle({
+      x: vertex.x,
+      y: vertex.y,
+      radius: 10,
+      fill: 'red',
+      visible: false,  // Hide initially
+    });
+  
+    // Event to update path when circle is dragged
+    circle.on('dragmove', () => {
+      // Update vertex position in vertices array
+      vertices[index] = { x: circle.x(), y: circle.y() };
+
+      // Generate new path data and update path
+      const newPathData = generatePathDataFromVertices(vertices);
+      currentPath.data(newPathData);
+
+      pathLayer.batchDraw();
+    });
+    circle.on('mousedown', () => {
+      circle.draggable(true);
+      circle.visible(true);
+    });
+    circle.on('mouseup', () => {
+      circle.draggable(false);
+      circle.visible(false);
+    });
+
+    pathLayer.add(circle);
+    return circle;
+  });
+
+  // Update circle positions on path move
+  currentPath.on('dragmove', () => {
+    const pathPos = currentPath.position(); // Get current path position
+    vertices.forEach((vertex, index) => {
+      vertexCircles[index].position({
+        x: vertex.x + pathPos.x,
+        y: vertex.y + pathPos.y,
+      });
+    });
+    pathLayer.batchDraw();
+  });
+  
+  currentPath.on('mouseover', () => {
+    vertexCircles.forEach((circle) => circle.show());
+    pathLayer.batchDraw();
+  });
+
+  // Hide vertices on mouseout
+  currentPath.on('mouseout', () => {
+    vertexCircles.forEach((circle) => circle.hide());
+    pathLayer.batchDraw();
+  });
+
   resetPathState();
 
   // Enable the "Fill Path" button and color picker after the path is closed
@@ -223,6 +281,48 @@ function handleStageDblClick() {
 
   pathLayer.batchDraw();
 }
+
+function generatePathDataFromVertices(vertices) {
+  let pathData = `M${vertices[0].x},${vertices[0].y}`;
+  for (let i = 1; i < vertices.length; i++) {
+    pathData += ` L${vertices[i].x},${vertices[i].y}`;
+  }
+  pathData += ' Z';  // Close path if needed
+  return pathData;
+}
+
+function getVerticesFromPathData(pathData) {
+  const vertices = [];
+  const commands = pathData.match(/[a-zA-Z][^a-zA-Z]*/g); // Split by command characters
+
+  let currentX = 0;
+  let currentY = 0;
+
+  commands.forEach(command => {
+    const type = command[0];
+    const coords = command.slice(1).trim().split(/[\s,]+/).map(Number);
+
+    switch (type) {
+      case 'M': // Move to
+      case 'L': // Line to
+        for (let i = 0; i < coords.length; i += 2) {
+          currentX = coords[i];
+          currentY = coords[i + 1];
+          vertices.push({ x: currentX, y: currentY });
+        }
+        break;
+
+      case 'Z': // Close path
+        if (vertices.length > 0) {
+          vertices.push(vertices[0]); // Connect to start point if closed
+        }
+        break;
+    }
+  });
+
+  return vertices;
+}
+
 
 // Function to handle the "Fill Path" button click
 function handleFillClick() {
@@ -290,21 +390,6 @@ floodFillWorker.onmessage = async function(e) {
       }
     };
   }
-  // TODO needless?
-  //bucketImage.on('click', function(e) {
-  //  let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
-  //  const pos = this.getRelativePointerPosition();
-  //  // img is unscaled native image
-  //  const img = this.image();
-  //  // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
-  //  a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
-  //  // Cancel bubbling when a non-transparency pixel was found
-  //  // and painted aria protection is off
-  //  let isBubbling = a === 0; // bubble up when transparent
-  //  if (!isBubbling && !isDrawProtect) isBubbling = true; 
-  //  if (isFillClean) isBubbling = true;
-  //  e.cancelBubble = !isBubbling;
-  //});
   document.getElementById('fillSelectionImageButton').classList.remove('inactive');
   document.getElementById('deleteButton').disabled = false;
 };
@@ -332,7 +417,7 @@ function handleFillImageClick() {
 
 let isSelectImageMode = false;
 
-function handleSelectImageClick(kevt) {
+function handleSelectImageClick() {
   isSelectImageMode = ! isSelectImageMode;
   document.getElementById('selectImageButton').classList.toggle('inactive');
 
@@ -349,7 +434,7 @@ function handleSelectImageClick(kevt) {
   document.getElementById('fillImageButton').classList.add('inactive');
 }
 
-async function fillSelectionImageClick(evt) {
+async function fillSelectionImageClick() {
   if (isSelectImageMode === false) {
     return;
   }
