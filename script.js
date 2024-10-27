@@ -70,10 +70,13 @@ function handleBucketMode(kevt) {
 // Function to handle mouse click to add points to the path
 function handlePathMode(kevt) {
   if (!isDrawPath) {
-    return true;
+    return;
   }
 
   var pos = stage.getRelativePointerPosition();
+  if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y && pathData !== '') {
+    return;
+  }
   lastPos = pos;
 
   let currentPath;
@@ -82,7 +85,7 @@ function handlePathMode(kevt) {
       currentPath = new Konva.Path({
           data: '',
           stroke: 'green',
-          strokeWidth: 3,
+          strokeWidth: 1,
           fill: '',
           id: currentPathId,
       });
@@ -126,7 +129,7 @@ function handlePathMode(kevt) {
         currentPathId = this.getId(); // Set this path as the current path
         this.selected = !this?.selected;
         if (this?.selected) {
-          this.strokeWidth(2);
+          this.strokeWidth(1);
           this.draggable(true);
         } else {
           this.strokeWidth(0);
@@ -152,7 +155,7 @@ function handlePathMode(kevt) {
           evt.cancelBubble = false;
         }
       });
-      currentPath.on('mousemove', function(evt) {
+      currentPath.on('dragmove', function(evt) {
         evt.cancelBubble = true;
         if (isDragging && !this.selected) {
           evt.cancelBubble = false;
@@ -227,6 +230,9 @@ function handleStageDblClick() {
   
     // Event to update path when circle is dragged
     circle.on('dragmove', () => {
+      if ( ! circle.draggable()) {
+        return;
+      }
       // Update vertex position in vertices array
       vertices[index] = { x: circle.x(), y: circle.y() };
 
@@ -261,13 +267,13 @@ function handleStageDblClick() {
     pathLayer.batchDraw();
   });
   
-  currentPath.on('mouseover', () => {
+  currentPath.on('mouseenter', () => {
     vertexCircles.forEach((circle) => circle.show());
     pathLayer.batchDraw();
   });
 
   // Hide vertices on mouseout
-  currentPath.on('mouseout', () => {
+  currentPath.on('mouseleave', () => {
     vertexCircles.forEach((circle) => circle.hide());
     pathLayer.batchDraw();
   });
@@ -706,7 +712,7 @@ var previewLine = new Konva.Line({
   id: 'previewLine',
   points: [],
   stroke: 'green',
-  strokeWidth: 2,
+  strokeWidth: 1,
   lineCap: 'round',
   dash: [10, 5], // Dashed line to distinguish from the actual path
 });
@@ -721,7 +727,7 @@ function restorePreviewLine() {
   previewLine = new Konva.Line({
     points: [],
     stroke: 'green',
-    strokeWidth: 2,
+    strokeWidth: 1,
     lineCap: 'round',
     dash: [10, 5], // Dashed line to distinguish from the actual path
   });
@@ -939,7 +945,7 @@ stage.on('mousedown', (evt) => {
     resetPathState();
   }
 
-  // Must be first
+  // TODO: Must be first or not at all???
   const pos = stage.getRelativePointerPosition();
   lastPos = pos;
 
@@ -967,7 +973,7 @@ stage.on('mousedown', (evt) => {
   const cloned = pencil.clone({
     x: pos.x, y: pos.y,
     id: 'pencilGhost',
-    fill: 'transparent', stroke: fillColor, strokeWidth: 2,
+    fill: 'transparent', stroke: fillColor, strokeWidth: 1,
     globalCompositeOperation: 'source-over',
   });
   bucketLayer.add(cloned);
