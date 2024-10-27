@@ -238,6 +238,76 @@ function handleFillClick() {
 // Create a new web worker
 const floodFillWorker = new Worker('floodfillWorker.js');
 
+  // Handle the response from the web worker
+floodFillWorker.onmessage = async function(e) {
+  // Receive a widthxheight image that has bucket zone surrounded by transparency
+  // Image is just to be laid out 
+  const { justContour, floodImageData, x, y, w, h, } = e.data;
+
+  // Polite mode: take into account already draw pixels
+  const floodBmp = await createImageBitmap(floodImageData)
+  const floodImage = new Konva.Image({
+    x: 0, y: 0,
+    width: floodBmp.width,
+    height: floodBmp.height,
+    image: floodBmp,
+    globalCompositeOperation: gco(),
+  });
+
+  if ( ! justContour) {
+    currentImage = floodImage;
+    bucketLayer.add(floodImage);
+    bucketLayer.batchDraw();
+  } else {
+    justContourLayer.add(floodImage);
+    justContourLayer.batchDraw();
+
+    let zero;
+    requestAnimationFrame(start);
+    function start(t) {
+      zero = t;
+      animate(t)
+    }
+    let applyInvert = true;
+    async function animate(t) {
+      if ( ! floodImage?.parent) {
+        return;
+      }
+
+      const d = (t - zero) / 150;
+      if (d > 1) {
+        if (applyInvert) {
+          floodImage.cache();
+          floodImage.filters([Konva.Filters.Invert]);
+        } else {
+          floodImage.clearCache();
+          floodImage.filters([]);
+        }
+        applyInvert = ! applyInvert;
+        requestAnimationFrame(t => start(t));
+      } else {
+        requestAnimationFrame(t => animate(t));
+      }
+    };
+  }
+  // TODO needless?
+  //bucketImage.on('click', function(e) {
+  //  let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
+  //  const pos = this.getRelativePointerPosition();
+  //  // img is unscaled native image
+  //  const img = this.image();
+  //  // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
+  //  a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
+  //  // Cancel bubbling when a non-transparency pixel was found
+  //  // and painted aria protection is off
+  //  let isBubbling = a === 0; // bubble up when transparent
+  //  if (!isBubbling && !isDrawProtect) isBubbling = true; 
+  //  if (isFillClean) isBubbling = true;
+  //  e.cancelBubble = !isBubbling;
+  //});
+  document.getElementById('fillSelectionImageButton').classList.remove('inactive');
+  document.getElementById('deleteButton').disabled = false;
+};
 // It control if flood filling is allowed
 let isBucketMode = false;
 
@@ -279,42 +349,33 @@ function handleSelectImageClick(kevt) {
   document.getElementById('fillImageButton').classList.add('inactive');
 }
 
-function fillSelectionImageClick() {
-  console.log(lastPos)
+async function fillSelectionImageClick(evt) {
+  if (isSelectImageMode === false) {
+    return;
+  }
+  await fillSelectionImage(false);
+}
+
+async function fillSelectionImage(justContour=false) {
   if (lastPos) {
     const {x, y} = lastPos;
+    const startPos = {
+      x: Math.floor(x),
+      y: Math.floor(y),
+    };
     removeSelection();
-    let c = bucketLayer.getNativeCanvasElement();
-    let a = c.getContext('2d').getImageData(x, y, 1, 1).data[3];
-    if (a !== 0) {
-      const imageData = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-      const startPos = {
-        x: Math.floor(lastPos.x),
-        y: Math.floor(lastPos.y),
-      };
-      floodFillWorker.postMessage({
-        imageData,
-        startPos,
-        fillColor,
-        tolerance: fillColorSensitivity,
-      });
-      return;
+    const img = getAsRawImage(stage);
+    const imageData = await getImageDataComposedWithBucket(img);
+    const msg = {
+      imageData,
+      startPos,
+      fillColor,
+      tolerance: fillColorSensitivity,
+    };
+    if (justContour) {
+      msg.justContour = true;
     }
-    c = imageLayer.getNativeCanvasElement();
-    a = c.getContext('2d').getImageData(x, y, 1, 1).data[3];
-    if (a !== 0) {
-      const imageData = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-      const startPos = {
-        x: Math.floor(lastPos.x),
-        y: Math.floor(lastPos.y),
-      };
-      floodFillWorker.postMessage({
-        imageData,
-        startPos,
-        fillColor,
-        tolerance: fillColorSensitivity,
-      });
-    }
+    floodFillWorker.postMessage(msg);
   }
 }
 
@@ -335,37 +396,18 @@ function handleSelectMode(kevt) {
   if (kevt.target === stage) return;
 
   lastPos = stage.getRelativePointerPosition();
-  // Event is triggered clicking on a transparent pixel of a flood image
-  // Find coresponding image from imageLayer
-  if (kevt.target?.parent === bucketLayer) {
-    // Check images on imageLayer - beneath bucketLayer
-    imageLayer.children.reverse().forEach(img => {
-        const { x, y } = img.getRelativePointerPosition();
-        const w = img.width();
-        const h = img.height();
-        const isInside = (0 < x && x < w && 0 < y && y < h);
-        if (isInside) {
-          fillBucket(img);
-        }
-    })
-    return;
-  }
-
-  // TODO what is the kevt.target that have parent null
-  if (kevt.target?.parent) {
-    fillBucket(kevt.target);
-    kevt?.evt.stopImmediatePropagation();
-  }
+  fillSelectionImage(true);
+  kevt?.evt.stopImmediatePropagation();
 }
 
-function collapseBucketLayer() {
+function getAsRawImage(layer) {
   Konva.autoDrawEnabled = false;
 
   const { x, y, scaleX, scaleY, width, height, } = stage.attrs;
   const old = { x, y, scaleX, scaleY, width, height };
 
-  const w = bucketLayer.width();
-  const h = bucketLayer.height();
+  const w = layer.width();
+  const h = layer.height();
   // Reset stage (no skew or rotation)
   stage.setAttrs({
     x: 0, y: 0,
@@ -373,12 +415,12 @@ function collapseBucketLayer() {
     width: w, height: h,
   });
 
-  const bucketCanvas = bucketLayer.toCanvas();
-  const bucketImage = new Konva.Image({
+  const canvas = layer.toCanvas();
+  const image = new Konva.Image({
     x: 0, y: 0,
     width: w,
     height: h,
-    image: bucketCanvas,
+    image: canvas,
   });
 
   // Transform back
@@ -386,10 +428,38 @@ function collapseBucketLayer() {
 
   Konva.autoDrawEnabled = true;
 
+  return image;
+}
+
+function collapseBucketLayer() {
+  const bucketImage = getAsRawImage(bucketLayer);
   bucketLayer.destroyChildren();
   bucketLayer.add(bucketImage);
 
   return bucketImage;
+}
+
+async function getImageDataComposedWithBucket(kimage) {
+  // Get raw native image behind currentImage
+  const imageElement = kimage.image();
+  // Native (unscaled) dimensions of image
+  const width = imageElement.width;
+  const height = imageElement.height;
+
+  // Get native image data to be sent outside to the worker
+  const imageCanvas = document.createElement('canvas');
+  imageCanvas.width = width;
+  imageCanvas.height = height;
+  const imageCtx = imageCanvas.getContext('2d');
+  // fiil our imageCanvas with native imageElement
+  imageCtx.drawImage(imageElement, 0, 0);
+
+  const bucketImage = getAsRawImage(bucketLayer);
+  const bucketBmp = await createImageBitmap(bucketImage.image());
+  imageCtx.drawImage(bucketBmp, 0, 0,);
+  const imageData = imageCtx.getImageData(0, 0, width, height);
+
+  return imageData;
 }
 
 async function fillBucket(cobaiImage) {
@@ -433,78 +503,6 @@ async function fillBucket(cobaiImage) {
     justContour: isSelectImageMode,
   });
 
-  // Handle the response from the web worker
-  floodFillWorker.onmessage = async function(e) {
-    // Receive a widthxheight image that has bucket zone surrounded by transparency
-    // Image is just to be laid out 
-    const { justContour, floodImageData, x, y, w, h, } = e.data;
-
-    // Polite mode: take into account already draw pixels
-    const floodBmp = await createImageBitmap(floodImageData)
-
-    const floodImage = new Konva.Image({
-      x: 0, y: 0,
-      width: floodBmp.width,
-      height: floodBmp.height,
-      image: floodBmp,
-      globalCompositeOperation: gco(),
-    });
-
-    if ( ! justContour) {
-      currentImage = floodImage;
-      bucketLayer.add(floodImage);
-      bucketLayer.batchDraw(); // Redraw the imageLayer to show the image
-    } else {
-
-      justContourLayer.add(floodImage);
-      justContourLayer.batchDraw();
-
-      let zero;
-      requestAnimationFrame(start);
-      function start(t) {
-        zero = t;
-        animate(t)
-      }
-      let applyInvert = true;
-      async function animate(t) {
-        if ( ! floodImage?.parent) {
-          return;
-        }
-
-        const d = (t - zero) / 150;
-        if (d > 1) {
-          if (applyInvert) {
-            floodImage.cache();
-            floodImage.filters([Konva.Filters.Invert]);
-          } else {
-            floodImage.clearCache();
-            floodImage.filters([]);
-          }
-          applyInvert = ! applyInvert;
-          requestAnimationFrame(t => start(t));
-        } else {
-          requestAnimationFrame(t => animate(t));
-        }
-      };
-    }
-    // TODO needless?
-    //bucketImage.on('click', function(e) {
-    //  let a = 0; // Assume transparency, so the event will bubble to trigger the flood 
-    //  const pos = this.getRelativePointerPosition();
-    //  // img is unscaled native image
-    //  const img = this.image();
-    //  // getImageData is raw data, not scaled but pos.x, pos.y are scaled so must be unscaled
-    //  a = img.getContext('2d').getImageData(pos.x, pos.y, 1, 1).data[3];
-    //  // Cancel bubbling when a non-transparency pixel was found
-    //  // and painted aria protection is off
-    //  let isBubbling = a === 0; // bubble up when transparent
-    //  if (!isBubbling && !isDrawProtect) isBubbling = true; 
-    //  if (isFillClean) isBubbling = true;
-    //  e.cancelBubble = !isBubbling;
-    //});
-    document.getElementById('fillSelectionImageButton').classList.remove('inactive');
-    document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
-  };
 }
 
 // Function to get pixel color from the image at a given position
@@ -620,29 +618,29 @@ function handleRedoClick() {
 
 // Create a temporary line for the preview (while moving the mouse)
 var previewLine = new Konva.Line({
-    id: 'previewLine',
+  id: 'previewLine',
+  points: [],
+  stroke: 'green',
+  strokeWidth: 2,
+  lineCap: 'round',
+  dash: [10, 5], // Dashed line to distinguish from the actual path
+});
+pathLayer.add(previewLine);
+
+function restorePreviewLine() {
+  const foundLine = pathLayer.findOne('#previewLine');
+  if (foundLine) {
+    return;
+  }
+
+  previewLine = new Konva.Line({
     points: [],
     stroke: 'green',
     strokeWidth: 2,
     lineCap: 'round',
     dash: [10, 5], // Dashed line to distinguish from the actual path
-});
-pathLayer.add(previewLine);
-
-function restorePreviewLine() {
-    const foundLine = pathLayer.findOne('#previewLine');
-    if (foundLine) {
-        return;
-    }
-
-    previewLine = new Konva.Line({
-        points: [],
-        stroke: 'green',
-        strokeWidth: 2,
-        lineCap: 'round',
-        dash: [10, 5], // Dashed line to distinguish from the actual path
-    });
-    pathLayer.add(previewLine);
+  });
+  pathLayer.add(previewLine);
 }
 
 // Variable to store the current path data
@@ -1114,56 +1112,10 @@ function handleDrawPencilClick() {
   document.getElementById('drawPencil').classList.remove('inactive');
 }
 
-function triggerClickAtPosition(stage, x, y) {
-  // Find the node at the specified position
-  const targetNode = stage.getIntersection({ x, y });
-
-  if (targetNode) {
-    // Create a synthetic click event
-    const clickEvent = {
-      type: 'click',
-      target: targetNode,
-      evt: {
-        clientX: x,
-        clientY: y,
-        offsetX: x,
-        offsetY: y,
-        isSelection: true,
-      },
-    };
-
-    isBucketMode = true;
-    // Trigger the click event on the found node
-    targetNode.fire('click', clickEvent);
-  }
-}
-
-function triggerClickOnStage(stage, x, y) {
-    const canvasElement = stage.getNativeCanvasElement();
-    //const canvasElement = bucketLayer.getNativeCanvasElement();
-
-    let clickEvent = new MouseEvent('mousedown', {
-        clientX: x,
-        clientY: y,
-        bubbles: true,
-        cancelable: true,
-    });
-    canvasElement.dispatchEvent(clickEvent);
-    clickEvent = new MouseEvent('mouseup', {
-        clientX: x,
-        clientY: y,
-        bubbles: true,
-        cancelable: true,
-    });
-  isBucketMode = true;
-    canvasElement.dispatchEvent(clickEvent);
-}
-
 function debug(canvas) {
-  if ([HTMLImageElement].includes(canvas.constructor)) {
-    document.body.appendChild(canvas)
-    return
-  }
+  const el =document.querySelector('#debug > *:first-child');
+  canvas.style = "";
+  
   if ([ImageBitmap].includes(canvas.constructor)) {
     const imageBitmap = canvas;
     var canvas = document.createElement('canvas');
@@ -1179,16 +1131,25 @@ function debug(canvas) {
     // 4. Create a new Image object
     var newImage = new Image();
     newImage.src = dataURL;
-    document.body.appendChild(newImage)
+    el.parentNode.replaceChild(newImage, el);
     return
   }
-  const tpl = `<div style="position: relative">
-  <canvas/>
-</div>`;
-  document.body.insertAdjacentHTML('beforeend', tpl);
-  const el = document.body.lastElementChild.firstElementChild;
-  canvas.style = "";
-  el.parentNode.replaceChild(canvas, el);
+
+  const cloned = canvas.cloneNode(true);
+  cloned.id += 'cloned';
+  
+  if ([HTMLImageElement].includes(canvas.constructor)) {
+    el.parentNode.replaceChild(cloned, el);
+    return
+  }
+  if ([HTMLCanvasElement].includes(canvas.constructor)) {
+    el.parentNode.replaceChild(cloned, el);
+    return
+  }
+  
+  const img = canvas.image().cloneNode(true);
+  img.id += 'cloned';
+  el.parentNode.replaceChild(img, el);
 }
 
 // Attach event listeners

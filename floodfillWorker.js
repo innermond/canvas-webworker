@@ -1,7 +1,6 @@
 self.onmessage = function(e) {
     const { imageData, startPos, fillColor, tolerance, justContour } = e.data;
     const { data, width, height } = imageData;
-
     // TODO handle fillColor with alpha 
     const newColorRgb = hexToRgb(fillColor);
     const startX = startPos.x;
@@ -121,7 +120,12 @@ self.onmessage = function(e) {
       });
 
     }
-    self.postMessage({ justContour, floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,});
+
+    const msg = { floodImageData, x: minX, y: minY, w: newWidth, h: newHeight,};
+    if (justContour) {
+      msg.justContour = true;
+    }
+    self.postMessage(msg);
 };
 
 // Utility functions
