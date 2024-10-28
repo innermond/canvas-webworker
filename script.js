@@ -74,6 +74,7 @@ function handlePathMode(kevt) {
   }
 
   var pos = stage.getRelativePointerPosition();
+  var ipos = stage.getPointerPosition();
   if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y && pathData !== '') {
     return;
   }
@@ -86,86 +87,86 @@ function handlePathMode(kevt) {
 
   let currentPath;
   if (!currentPathId) {
-      currentPathId = `path${Math.random().toString(36).slice(2)}`;
-      currentPath = new Konva.Path({
-          data: '',
-          stroke: 'green',
-          strokeWidth: 1,
-          fill: '',
-          id: currentPathId,
-      });
-      pathData = '';
-      pathLayer.add(currentPath);
-      
-      currentPath.on('click', function(evt) {
-        evt.cancelBubble = true;
-        // Click on unclosed curve does none
-        if (this.data().endsWith('Z') === false) {
+    currentPathId = `path${Math.random().toString(36).slice(2)}`;
+    currentPath = new Konva.Path({
+      data: '',
+      stroke: 'green',
+      strokeWidth: 1,
+      fill: '',
+      id: currentPathId,
+    });
+    pathData = '';
+    pathLayer.add(currentPath);
+    
+    currentPath.on('click', function(evt) {
+      evt.cancelBubble = true;
+      // Click on unclosed curve does none
+      if (this.data().endsWith('Z') === false) {
+        return;
+      }
+      // Another path is currently drawing but we clicked on already closed path
+      if (currentPathId !== null && this.getId() !== currentPathId) {
+        const previousPath = pathLayer.findOne(`#${currentPathId}`);
+        // Prev path is currently drawing
+        if (previousPath.data().endsWith('Z') === false) {
+          evt.cancelBubble = false;
           return;
-        }
-        // Another path is currently drawing but we clicked on already closed path
-        if (currentPathId !== null && this.getId() !== currentPathId) {
-          const previousPath = pathLayer.findOne(`#${currentPathId}`);
-          // Prev path is currently drawing
-          if (previousPath.data().endsWith('Z') === false) {
-            evt.cancelBubble = false;
-            return;
-          } else {
-            // Reset prev path
-            previousPath.strokeWidth(0);
-            previousPath.draggable(false);
-            previousPath.selected = false;
-            // Current path is this one closed just clicked
-            currentPathId = this.getId();
-          }
-        }
-
-        if (!currentPathId) {
-          currentPathId = this.getId();
-        }
-        // Reset previous path stroke
-        if (currentPathId !== this.getId()) {
-          const previousPath = pathLayer.findOne(`#${currentPathId}`);
+        } else {
+          // Reset prev path
           previousPath.strokeWidth(0);
           previousPath.draggable(false);
           previousPath.selected = false;
+          // Current path is this one closed just clicked
+          currentPathId = this.getId();
         }
+      }
 
-        currentPathId = this.getId(); // Set this path as the current path
-        this.selected = !this?.selected;
-        if (this?.selected) {
-          this.strokeWidth(1);
-          this.draggable(true);
-        } else {
-          this.strokeWidth(0);
-          this.draggable(false);
-        }
-        pathLayer.batchDraw();
-        lastPos = null; // Reset last position for drawing
+      if (!currentPathId) {
+        currentPathId = this.getId();
+      }
+      // Reset previous path stroke
+      if (currentPathId !== this.getId()) {
+        const previousPath = pathLayer.findOne(`#${currentPathId}`);
+        previousPath.strokeWidth(0);
+        previousPath.draggable(false);
+        previousPath.selected = false;
+      }
 
-        // Update button states
-        document.getElementById('deleteButton').disabled = false; // Enable the delete button
-        document.getElementById('fillButton').disabled = false; // Enable the fill button
-        document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
-      });
-      currentPath.on('mousedown', function(evt) {
-        evt.cancelBubble = true;
-        if (isDragging && !this.selected) {
-          evt.cancelBubble = false;
-        }
-      });
-      currentPath.on('mouseup', function(evt) {
-        evt.cancelBubble = true;
-        if (isDragging && !this.selected) {
-          evt.cancelBubble = false;
-        }
-      });
-      currentPath.on('dragmove', function(evt) {
-        evt.cancelBubble = true;
-        if (isDragging && !this.selected) {
-          evt.cancelBubble = false;
-        }
-      });
+      currentPathId = this.getId(); // Set this path as the current path
+      this.selected = !this?.selected;
+      if (this?.selected) {
+        this.strokeWidth(1);
+        this.draggable(true);
+      } else {
+        this.strokeWidth(0);
+        this.draggable(false);
+      }
+      pathLayer.batchDraw();
+      lastPos = null; // Reset last position for drawing
+
+      // Update button states
+      document.getElementById('deleteButton').disabled = false; // Enable the delete button
+      document.getElementById('fillButton').disabled = false; // Enable the fill button
+      document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
+    });
+    currentPath.on('mousedown', function(evt) {
+      evt.cancelBubble = true;
+      if (isDragging && !this.selected) {
+        evt.cancelBubble = false;
+      }
+    });
+    currentPath.on('mouseup', function(evt) {
+      evt.cancelBubble = true;
+      if (isDragging && !this.selected) {
+        evt.cancelBubble = false;
+      }
+    });
+    currentPath.on('dragmove', function(evt) {
+      evt.cancelBubble = true;
+      if (isDragging && !this.selected) {
+        evt.cancelBubble = false;
+      }
+    });
   } else {
     currentPath = pathLayer.findOne(`#${currentPathId}`);
   }
@@ -183,12 +184,16 @@ function handlePathMode(kevt) {
     return;
   }
 
+  // untransform
+  //const itr = stage.getAbsoluteTransform().copy().invert();
+  //const ipos = itr.point(pos);
+
   if (pathData === '') {
       // M'ove command
-      pathData += `M${pos.x},${pos.y}`;
+      pathData += `M${ipos.x},${ipos.y}`;
   } else {
       // Add line to ('L') for subsequent clicks
-      pathData += ` L${pos.x},${pos.y}`;
+      pathData += ` L${ipos.x},${ipos.y}`;
   }
 
   //// Update the path data
@@ -199,7 +204,7 @@ function handlePathMode(kevt) {
 
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
-  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
+  if (!currentPathId || isEditPath || !lastPos) return; // Don't preview if no path or no previous point
   if (isBucketMode) return;
   if (isDrawPencil) return;
   if (isDragging) return;
@@ -242,8 +247,12 @@ function handleStageDblClick() {
       if ( ! circle.draggable()) {
         return;
       }
+    //const itr = stage.getAbsoluteTransform().copy().invert();
+    let point = circle.getAbsolutePosition(stage);
+    //let point = circle.position();
+    //point = itr.point(point);
       // Update vertex position in vertices array
-      vertices[index] = { x: circle.x(), y: circle.y() };
+      vertices[index] = point;
 
       // Generate new path data and update path
       const newPathData = generatePathDataFromVertices(vertices);
@@ -283,12 +292,18 @@ function handleStageDblClick() {
   });
   
   currentPath.on('mouseenter', () => {
+    if (! isEditPath) {
+      return;
+    }
     vertexCircles.forEach((circle) => circle.show());
     pathLayer.batchDraw();
   });
 
   // Hide vertices on mouseout
   currentPath.on('mouseleave', () => {
+    if (! isEditPath) {
+      return;
+    }
     vertexCircles.forEach((circle) => circle.hide());
     pathLayer.batchDraw();
   });
@@ -762,16 +777,18 @@ function handleNewPathClick() {
 
   isDrawPath = !isDrawPath;
   if (isDrawPath === false) {
-      document.getElementById('newPathButton').classList.add('inactive');
-      return;
+    document.getElementById('newPathButton').classList.add('inactive');
+    return;
   }
   isDrawPencil = false;
   isSelectImageMode = false;
   isBucketMode = false;
+  isEditPath = false;
 
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
   document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('editPathButton').classList.add('inactive');
   document.getElementById('newPathButton').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
@@ -779,6 +796,33 @@ function handleNewPathClick() {
   document.getElementById('deleteButton').disabled = true;
 }
 
+var isEditPath = false;
+// Function to handle the "Add New Path" button click
+function handleEditPathClick() {
+  if (isDrawPath === false) {
+    return;
+  }
+
+  isEditPath = !isEditPath;
+  if (isEditPath === false) {
+    document.getElementById('editPathButton').classList.add('inactive');
+    return;
+  }
+  isDrawPencil = false;
+  isSelectImageMode = false;
+  isBucketMode = false;
+  isDrawPath = false;
+
+  document.getElementById('drawPencil').classList.add('inactive');
+  document.getElementById('selectImageButton').classList.add('inactive');
+  document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('newPathButton').classList.add('inactive');
+  document.getElementById('editPathButton').classList.remove('inactive');
+  // Disable the fill button, color picker, and delete button since we are starting a new path
+  document.getElementById('fillButton').disabled = true;
+  document.getElementById('fillColorPicker').disabled = true;
+  document.getElementById('deleteButton').disabled = true;
+}
 var lastClickPos = null; // Global variable to store the last clicked position on the image
 var imageScaleX, imageScaleY; // Variables to store the scaling factors
 
@@ -1260,8 +1304,6 @@ stage.on('click', handlePathMode);
 stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
-justContourLayer.on('click', () => console.log('just'))
-
 document.getElementById('fillButton').addEventListener('click', handleFillClick);
 
 document.getElementById('selectImageButton').addEventListener('click', handleSelectImageClick);
@@ -1304,5 +1346,6 @@ document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllCl
 document.getElementById('undoButton').addEventListener('click', handleUndoClick);
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
+document.getElementById('editPathButton').addEventListener('click', handleEditPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
