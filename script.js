@@ -79,6 +79,11 @@ function handlePathMode(kevt) {
   }
   lastPos = pos;
 
+  // double click
+  if (kevt.evt.detail > 1) {
+    return;
+  } 
+
   let currentPath;
   if (!currentPathId) {
       currentPathId = `path${Math.random().toString(36).slice(2)}`;
@@ -165,6 +170,10 @@ function handlePathMode(kevt) {
     currentPath = pathLayer.findOne(`#${currentPathId}`);
   }
 
+  if (! currentPath) {
+    return;
+  }
+
   // Closed path has no need to add new point
   if (currentPath.data().endsWith('Z')) {
     currentPath.strokeWidth(0);
@@ -242,13 +251,19 @@ function handleStageDblClick() {
 
       pathLayer.batchDraw();
     });
-    circle.on('mousedown', () => {
-      circle.draggable(true);
+    circle.on('mouseenter', () => {
       circle.visible(true);
     });
-    circle.on('mouseup', () => {
-      circle.draggable(false);
+    circle.on('mousedown', () => {
+      circle.startDrag();
+      circle.draggable(true);
+    });
+    circle.on('mouseleave', () => {
       circle.visible(false);
+    });
+    circle.on('mouseup', () => {
+      circle.stopDrag();
+      circle.draggable(false);
     });
 
     pathLayer.add(circle);
@@ -293,7 +308,7 @@ function generatePathDataFromVertices(vertices) {
   for (let i = 1; i < vertices.length; i++) {
     pathData += ` L${vertices[i].x},${vertices[i].y}`;
   }
-  pathData += ' Z';  // Close path if needed
+  pathData += ' Z';
   return pathData;
 }
 
@@ -315,12 +330,6 @@ function getVerticesFromPathData(pathData) {
           currentX = coords[i];
           currentY = coords[i + 1];
           vertices.push({ x: currentX, y: currentY });
-        }
-        break;
-
-      case 'Z': // Close path
-        if (vertices.length > 0) {
-          vertices.push(vertices[0]); // Connect to start point if closed
         }
         break;
     }
@@ -945,10 +954,6 @@ stage.on('mousedown', (evt) => {
     resetPathState();
   }
 
-  // TODO: Must be first or not at all???
-  const pos = stage.getRelativePointerPosition();
-  lastPos = pos;
-
   if (isDragging === true) {
     stage.startDrag();
     return;
@@ -956,6 +961,10 @@ stage.on('mousedown', (evt) => {
   if (!isDrawPencil) {
     return;
   }
+
+  // TODO: Must be first or not at all???
+  const pos = stage.getRelativePointerPosition();
+  lastPos = pos;
 
   evt.cancelBubble = true;
   mousemove = true;
