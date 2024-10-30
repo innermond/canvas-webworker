@@ -74,7 +74,6 @@ function handlePathMode(kevt) {
   }
 
   var pos = stage.getRelativePointerPosition();
-  var ipos = stage.getPointerPosition();
   if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y && pathData !== '') {
     return;
   }
@@ -184,16 +183,12 @@ function handlePathMode(kevt) {
     return;
   }
 
-  // untransform
-  //const itr = stage.getAbsoluteTransform().copy().invert();
-  //const ipos = itr.point(pos);
-
   if (pathData === '') {
       // M'ove command
-      pathData += `M${ipos.x},${ipos.y}`;
+      pathData += `M${pos.x},${pos.y}`;
   } else {
       // Add line to ('L') for subsequent clicks
-      pathData += ` L${ipos.x},${ipos.y}`;
+      pathData += ` L${pos.x},${pos.y}`;
   }
 
   //// Update the path data
@@ -241,18 +236,19 @@ function handleStageDblClick() {
       fill: 'red',
       visible: false,  // Hide initially
     });
-  
+ 
     // Event to update path when circle is dragged
     circle.on('dragmove', () => {
       if ( ! circle.draggable()) {
         return;
       }
-    //const itr = stage.getAbsoluteTransform().copy().invert();
-    let point = circle.getAbsolutePosition(stage);
+    let point = circle.getAbsolutePosition();
+    const itr = currentPath.getAbsoluteTransform().copy().invert();
+    point = itr.point(point);
     //let point = circle.position();
-    //point = itr.point(point);
       // Update vertex position in vertices array
-      vertices[index] = point;
+      vertices[index].x = point.x;
+      vertices[index].y = point.y;
 
       // Generate new path data and update path
       const newPathData = generatePathDataFromVertices(vertices);
@@ -281,11 +277,12 @@ function handleStageDblClick() {
 
   // Update circle positions on path move
   currentPath.on('dragmove', () => {
-    const pathPos = currentPath.position(); // Get current path position
+    const itr = currentPath.getAbsoluteTransform();
     vertices.forEach((vertex, index) => {
-      vertexCircles[index].position({
-        x: vertex.x + pathPos.x,
-        y: vertex.y + pathPos.y,
+      const p = itr.point(vertex);
+      vertexCircles[index].absolutePosition({
+        x: p.x,
+        y: p.y,
       });
     });
     pathLayer.batchDraw();
@@ -735,7 +732,7 @@ function handleRedoClick() {
 var previewLine = new Konva.Line({
   id: 'previewLine',
   points: [],
-  stroke: 'green',
+  stroke: 'white',
   strokeWidth: 1,
   lineCap: 'round',
   dash: [10, 5], // Dashed line to distinguish from the actual path
