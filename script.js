@@ -67,6 +67,9 @@ function handleBucketMode(kevt) {
   kevt?.evt.stopImmediatePropagation();
 }
 
+const STROKE_WIDTH = 2;
+const PATH_OPACITY = 0.4;
+
 // Function to handle mouse click to add points to the path
 function handlePathMode(kevt) {
   if (!isDrawPath) {
@@ -89,8 +92,9 @@ function handlePathMode(kevt) {
     currentPathId = `path${Math.random().toString(36).slice(2)}`;
     currentPath = new Konva.Path({
       data: '',
-      stroke: 'green',
-      strokeWidth: 1,
+      stroke: 'white',
+      strokeWidth: STROKE_WIDTH,
+      dash: [10, 5],
       fill: '',
       id: currentPathId,
     });
@@ -134,12 +138,21 @@ function handlePathMode(kevt) {
       currentPathId = this.getId(); // Set this path as the current path
       this.selected = !this?.selected;
       if (this?.selected) {
-        this.strokeWidth(1);
+        this.strokeWidth(STROKE_WIDTH);
         this.draggable(true);
       } else {
         this.strokeWidth(0);
         this.draggable(false);
       }
+
+    animation01(() => !currentPath.selected, (applyInvert) => {
+      if (applyInvert) {
+        currentPath.dash([5, 10]);
+      } else {
+        currentPath.dash([10, 5]);
+      }
+      currentPath.dashOffset(currentPath.dashOffset() + 5);
+    });
       pathLayer.batchDraw();
       lastPos = null; // Reset last position for drawing
 
@@ -153,12 +166,16 @@ function handlePathMode(kevt) {
       if (isDragging && !this.selected) {
         evt.cancelBubble = false;
       }
+      if (currentPath.selected) {
+        document.body.style.cursor = 'grab';
+      }
     });
     currentPath.on('mouseup', function(evt) {
       evt.cancelBubble = true;
       if (isDragging && !this.selected) {
         evt.cancelBubble = false;
       }
+      document.body.style.cursor = 'default';
     });
     currentPath.on('dragmove', function(evt) {
       evt.cancelBubble = true;
@@ -232,7 +249,7 @@ function handleStageDblClick() {
     const circle = new Konva.Circle({
       x: vertex.x,
       y: vertex.y,
-      radius: 10,
+      radius: 5,
       fill: 'red',
       visible: false,  // Hide initially
     });
@@ -262,6 +279,11 @@ function handleStageDblClick() {
     circle.on('mousedown', () => {
       circle.startDrag();
       circle.draggable(true);
+      circle.fill('');
+      circle.strokeWidth(1);
+      circle.stroke('red');
+      currentPath?.opacity(PATH_OPACITY);
+      document.body.style.cursor = 'none';
     });
     circle.on('mouseleave', () => {
       circle.visible(false);
@@ -269,6 +291,11 @@ function handleStageDblClick() {
     circle.on('mouseup', () => {
       circle.stopDrag();
       circle.draggable(false);
+      circle.fill('red');
+      circle.strokeWidth(0);
+      circle.stroke('');
+      currentPath?.opacity(1);
+      document.body.style.cursor = 'default';
     });
 
     pathLayer.add(circle);
@@ -389,37 +416,50 @@ floodFillWorker.onmessage = async function(e) {
     justContourLayer.add(floodImage);
     justContourLayer.batchDraw();
 
-    let zero;
-    requestAnimationFrame(start);
-    function start(t) {
-      zero = t;
-      animate(t)
-    }
-    let applyInvert = true;
-    async function animate(t) {
+    animation01(() => {
       if ( ! floodImage?.parent) {
-        return;
+        return true;
       }
-
-      const d = (t - zero) / 150;
-      if (d > 1) {
-        if (applyInvert) {
-          floodImage.cache();
-          floodImage.filters([Konva.Filters.Invert]);
-        } else {
-          floodImage.clearCache();
-          floodImage.filters([]);
-        }
-        applyInvert = ! applyInvert;
-        requestAnimationFrame(t => start(t));
+      return false;
+    }, (applyInvert) => {
+      if (applyInvert) {
+        floodImage.cache();
+        floodImage.filters([Konva.Filters.Invert]);
       } else {
-        requestAnimationFrame(t => animate(t));
+        floodImage.clearCache();
+        floodImage.filters([]);
       }
-    };
+    });
   }
+
   document.getElementById('fillSelectionImageButton').classList.remove('inactive');
   document.getElementById('deleteButton').disabled = false;
 };
+
+function animation01(exitFn, animationFn, atMillisec=150) {
+  let zero;
+  requestAnimationFrame(start);
+  function start(t) {
+    zero = t;
+    animate(t)
+  }
+  let applyInvert = true;
+  async function animate(t) {
+    if (exitFn()) {
+      return;
+    }
+
+    const d = (t - zero) / atMillisec;
+    if (d > 1) {
+      animationFn(applyInvert);
+      applyInvert = ! applyInvert;
+      requestAnimationFrame(t => start(t));
+    } else {
+      requestAnimationFrame(t => animate(t));
+    }
+  };
+}
+
 // It control if flood filling is allowed
 let isBucketMode = false;
 
@@ -750,7 +790,7 @@ function restorePreviewLine() {
     stroke: 'green',
     strokeWidth: 1,
     lineCap: 'round',
-    dash: [10, 5], // Dashed line to distinguish from the actual path
+    dash: [10, 5], // Dashed line
   });
   pathLayer.add(previewLine);
 }
@@ -931,7 +971,6 @@ function handleZoom(evt) {
     let oldPosition = stage.position();
 
     // Scale the stage (uniformly for both x and y)
-    // TODO copy here bucker and draw before they are posibly altered by zoom
     stage.scale({ x: zoomScale, y: zoomScale });
 
     // Calculate the new position after zooming, to keep the center in the same place
@@ -940,10 +979,7 @@ function handleZoom(evt) {
         y: stageCenter.y - (stageCenter.y - oldPosition.y) * (zoomScale / oldScale)
     };
 
-    // Apply the new position to the stage
     stage.position(newPos);
-
-    // Update the stage
     stage.batchDraw();
 
     document.getElementById('zoomButton').value = z;
@@ -1048,37 +1084,37 @@ const collapseDraw = (evt) => {
 //document.body.addEventListener('click', () => console.log('document click'));
 document.body.addEventListener('mouseup', collapseDraw);
 stage.on('mouseup', (kevt) => {
-    mousemove = false;
-    pencilPrevPos = null;
+  mousemove = false;
+  pencilPrevPos = null;
 
-    if (isDragging === true) {
-        stage.stopDrag();
-    }
+  if (isDragging === true) {
+    stage.stopDrag();
+  }
 
-    kevt?.evt?.stopImmediatePropagation();
-    if (kevt?.evt?.cancelBubble) {
-        kevt.evt.cancelBubble = true;
-    }
-    //
-    if (!isBucketMode) {
-        const pencilGhost = stage.findOne('#pencilGhost');
-        if (pencilGhost) {
-            pencilGhost.destroy();
-        }
-        // TODO will affect other ops than shape-ing?
-        if (isDrawPencil) {
-          collapseBucketLayer();
-        }
-    }
-});
-stage.on('mouseleave', (evt) => {
-    mousemove = false;
-    pencilPrevPos = null;
+  kevt?.evt?.stopImmediatePropagation();
+  if (kevt?.evt?.cancelBubble) {
+    kevt.evt.cancelBubble = true;
+  }
+  //
+  if (!isBucketMode) {
     const pencilGhost = stage.findOne('#pencilGhost');
     if (pencilGhost) {
-        pencilGhost.destroy();
+      pencilGhost.destroy();
     }
-    collapseDraw(evt);
+    // TODO will affect other ops than shape-ing?
+    if (isDrawPencil) {
+      collapseBucketLayer();
+    }
+  }
+});
+stage.on('mouseleave', (evt) => {
+  mousemove = false;
+  pencilPrevPos = null;
+  const pencilGhost = stage.findOne('#pencilGhost');
+  if (pencilGhost) {
+    pencilGhost.destroy();
+  }
+  collapseDraw(evt);
 });
 
 function directionAngle(dx, dy) {
@@ -1093,73 +1129,73 @@ let pencilPrevPos = null;
 // Mousemove event is cloning
 // Draw on stage using pencil
 stage.on('mousemove', (evt) => {
-    if (!mousemove && evt.target?.attrs?.id === 'stage') {
-        return;
-    }
-    if (!isDrawPencil) return;
-    if (!mousemove) return;
-    if (!pencil) return;
-    if (isDragging) return;
+  if (!mousemove && evt.target?.attrs?.id === 'stage') {
+    return;
+  }
+  if (!isDrawPencil) return;
+  if (!mousemove) return;
+  if (!pencil) return;
+  if (isDragging) return;
 
-    evt.cancelBubble = true;
+  evt.cancelBubble = true;
 
-    // Get the current mouse position
-    let pos = stage.getRelativePointerPosition();
+  // Get the current mouse position
+  let pos = stage.getRelativePointerPosition();
 
-    if (pencilPrevPos) {
-      // Calculate the total distance between the two points
-      const distanceX = pos.x - pencilPrevPos.x;
-      const distanceY = pos.y - pencilPrevPos.y;
-      // angle
-      const [ang] = directionAngle(distanceX, distanceY);
-      const MIN_NIB = 5;
-      let numRectangles = MIN_NIB;
+  if (pencilPrevPos) {
+    // Calculate the total distance between the two points
+    const distanceX = pos.x - pencilPrevPos.x;
+    const distanceY = pos.y - pencilPrevPos.y;
+    // angle
+    const [ang] = directionAngle(distanceX, distanceY);
+    const MIN_NIB = 5;
+    let numRectangles = MIN_NIB;
 
-      const a = Math.abs(distanceX);
-      const b = Math.abs(distanceY);
-      const c = Math.sqrt(a ** 2 + b ** 2);
-      if (c < pencilSize/MIN_NIB) {
-        return;
-      } 
-      if (c < pencilSize) {
-        numRectangles = MIN_NIB;
-      } 
+    const a = Math.abs(distanceX);
+    const b = Math.abs(distanceY);
+    const c = Math.sqrt(a ** 2 + b ** 2);
+    if (c < pencilSize/MIN_NIB) {
+      return;
+    } 
+    if (c < pencilSize) {
+      numRectangles = MIN_NIB;
+    } 
 
-      adjustPencilCenter();
-      const rot = pencil.rotation(); // rotation is cummulative
-      const diffAng = ang - rot%360;
-      pencil.rotate(diffAng);
+    adjustPencilCenter();
+    const rot = pencil.rotation(); // rotation is cummulative
+    const diffAng = ang - rot%360;
+    pencil.rotate(diffAng);
 
-      numRectangles = MIN_NIB*Math.ceil(c / pencilSize);
-      // Calculate the step for each rectangle along the line
-      // Place rectangles at evenly spaced positions
-      const stepX = distanceX/numRectangles;
-      const stepY = distanceY/numRectangles;
-      for (let i = 1; i <= numRectangles; i++) {
-        const x = pencilPrevPos.x + i*stepX;
-        const y = pencilPrevPos.y + i*stepY;
+    numRectangles = MIN_NIB*Math.ceil(c / pencilSize);
+    // Calculate the step for each rectangle along the line
+    // Place rectangles at evenly spaced positions
+    const stepX = distanceX/numRectangles;
+    const stepY = distanceY/numRectangles;
+    for (let i = 1; i <= numRectangles; i++) {
+      const x = pencilPrevPos.x + i*stepX;
+      const y = pencilPrevPos.y + i*stepY;
 
-        if (isFillClean && pencil) {
-          pencil.fill('#FFFFFF');
-        }
-        const cloned = pencil.clone({
-          x, y,
-        });
-        bucketLayer.add(cloned);
-
-        pos = { x, y };
+      if (isFillClean && pencil) {
+        pencil.fill('#FFFFFF');
       }
-      pencilPrevPos = pos;
-    }
+      const cloned = pencil.clone({
+        x, y,
+      });
+      bucketLayer.add(cloned);
 
-    if (isFillClean && pencil) {
-      pencil.fill('#FFFFFF');
+      pos = { x, y };
     }
-    if (!pencilPrevPos) {
-      pencilPrevPos = pos;
-    }
+    pencilPrevPos = pos;
+  }
 
-    bucketLayer.batchDraw();
+  if (isFillClean && pencil) {
+    pencil.fill('#FFFFFF');
+  }
+  if (!pencilPrevPos) {
+    pencilPrevPos = pos;
+  }
+
+  bucketLayer.batchDraw();
 });
 
 let isDrawProtect = false;
@@ -1197,35 +1233,35 @@ function handlePencilShape(evt) {
 }
 
 function createPencilShape(pencilShape = 'rectangle') {
-    switch (pencilShape) {
-        case 'circle':
-            pencil = new Konva.Circle({
-                offsetX: 0,
-                offsetY: 0,
-                width: pencilSize,
-                height: pencilSize,
-                fill: fillColor,
-            });
-            break;
-        case 'rhomb':
-            pencil = new Konva.Rect({
-                offsetX: pencilSize * 0.5,
-                offsetY: pencilSize * 0.5,
-                width: pencilSize,
-                height: pencilSize,
-                rotation: 45,
-                fill: fillColor,
-            });
-            break;
-        default:
-            pencil = new Konva.Rect({
-                offsetX: pencilSize * 0.5,
-                offsetY: pencilSize * 0.5,
-                width: pencilSize,
-                height: pencilSize,
-                fill: fillColor,
-            });
-    }
+  switch (pencilShape) {
+    case 'circle':
+      pencil = new Konva.Circle({
+        offsetX: 0,
+        offsetY: 0,
+        width: pencilSize,
+        height: pencilSize,
+        fill: fillColor,
+      });
+      break;
+    case 'rhomb':
+      pencil = new Konva.Rect({
+        offsetX: pencilSize * 0.5,
+        offsetY: pencilSize * 0.5,
+        width: pencilSize,
+        height: pencilSize,
+        rotation: 45,
+        fill: fillColor,
+      });
+      break;
+    default:
+      pencil = new Konva.Rect({
+        offsetX: pencilSize * 0.5,
+        offsetY: pencilSize * 0.5,
+        width: pencilSize,
+        height: pencilSize,
+        fill: fillColor,
+      });
+  }
 }
 
 function handleDrawPencilClick() {
