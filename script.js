@@ -136,6 +136,22 @@ function handlePathMode(kevt) {
       }
 
       currentPathId = this.getId(); // Set this path as the current path
+      pathData = this.getAttr('data');
+      currentPath = this;
+
+      if (isAddNode && this.selected) {
+        let clickPoint = this.getRelativePointerPosition();
+        const itr = stage.getAbsoluteTransform().copy().invert();
+        clickPoint = itr.point(clickPoint);
+        clickPoint.x = Math.floor(clickPoint.x);
+        clickPoint.y = Math.floor(clickPoint.y);
+        const vertices = getVerticesFromPathData(pathData);
+        insertPathPoint(vertices, clickPoint);
+        pathData = generatePathDataFromVertices(vertices);
+        this.setAttr('data', pathData);
+        pathLayer.batchDraw();
+        return;
+      }
       this.selected = !this?.selected;
       if (this?.selected) {
         this.strokeWidth(STROKE_WIDTH);
@@ -145,14 +161,15 @@ function handlePathMode(kevt) {
         this.draggable(false);
       }
 
-    animation01(() => !currentPath.selected, (applyInvert) => {
-      if (applyInvert) {
-        currentPath.dash([5, 10]);
-      } else {
-        currentPath.dash([10, 5]);
-      }
-      currentPath.dashOffset(currentPath.dashOffset() + 5);
-    });
+      animation01(() => !currentPath.selected, (applyInvert) => {
+        if (applyInvert) {
+          currentPath.dash([5, 10]);
+        } else {
+          currentPath.dash([10, 5]);
+        }
+        currentPath.dashOffset(currentPath.dashOffset() + 5);
+      });
+
       pathLayer.batchDraw();
       lastPos = null; // Reset last position for drawing
 
@@ -808,7 +825,7 @@ function resetPathState() {
 }
 
 var isDrawPath = false;
-// Function to handle the "Add New Path" button click
+
 function handleNewPathClick() {
   resetPathState();
 
@@ -860,9 +877,21 @@ function handleEditPathClick() {
   document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('deleteButton').disabled = true;
 }
+
+
+let isAddNode = false;
+function handleNewPathNodeClick() {
+  if (! currentPathId) {
+    return;
+  }
+
+  isAddNode = ! isAddNode;
+
+  document.getElementById('newPathNodeButton').classList[isAddNode ? 'remove' : 'add']('inactive');
+}
+
 var lastClickPos = null; // Global variable to store the last clicked position on the image
 var imageScaleX, imageScaleY; // Variables to store the scaling factors
-
 
 // Function to handle image upload
 function handleImageUpload(e) {
@@ -1289,6 +1318,91 @@ function handleDrawPencilClick() {
   document.getElementById('drawPencil').classList.remove('inactive');
 }
 
+function distance(point1, point2) {
+  const dx = point1.x - point2.x;
+  const dy = point1.y - point2.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function findClosestPoint(points, clickPoint) {
+  let minDist = Infinity;
+  let closestIndex = -1;
+
+  points.forEach((point, index) => {
+    const dist = distance(point, clickPoint);
+    if (dist < minDist) {
+      minDist = dist;
+      closestIndex = index;
+    }
+  });
+
+  return closestIndex;
+}
+
+function stepTowardsPoint(pointA, pointB, stepSize) {
+  const dx = pointB.x - pointA.x;
+  const dy = pointB.y - pointA.y;
+  const distanceAB = Math.sqrt(dx * dx + dy * dy);
+
+  return {
+    x: pointA.x + (dx / distanceAB) * stepSize,
+    y: pointA.y + (dy / distanceAB) * stepSize,
+  };
+}
+
+// Function to project a point onto a segment (p1, p2)
+function projectPointOntoSegment(p1, p2, clickPoint) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  // Calculate t, the parameter of the projection point along the line
+  const t = ((clickPoint.x - p1.x) * dx + (clickPoint.y - p1.y) * dy) / (dx * dx + dy * dy);
+
+  // Clamp t to [0, 1] to stay within the segment bounds
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  // Calculate the projection point along the segment
+  const projectedPoint = {
+    x: p1.x + clampedT * dx,
+    y: p1.y + clampedT * dy
+  };
+  projectedPoint.x = Math.floor(projectedPoint.x);
+  projectedPoint.y = Math.floor(projectedPoint.y);
+
+  return projectedPoint;
+}
+
+function insertPathPoint(points, clickPoint) {
+  const closestIndex = findClosestPoint(points, clickPoint);
+  const previousIndex = closestIndex > 0 ? closestIndex - 1 : (closestIndex === 0 ? points.length - 1 : null);
+  const nextIndex = closestIndex < points.length - 1 ? closestIndex + 1 : null;
+
+  let distanceToPreviousSegment = Infinity;
+  let distanceToNextSegment = Infinity;
+
+  const stepSize = 1;
+  if (previousIndex !== null) {
+    const stepToPrevious = stepTowardsPoint(points[closestIndex], points[previousIndex], stepSize);
+    distanceToPreviousSegment = distance(stepToPrevious, clickPoint);
+  }
+
+  if (nextIndex !== null) {
+    const stepToNext = stepTowardsPoint(points[closestIndex], points[nextIndex], stepSize);
+    distanceToNextSegment = distance(stepToNext, clickPoint);
+  }
+
+  const endPointIndex = distanceToPreviousSegment < distanceToNextSegment ? previousIndex : nextIndex;
+  const endPoint = points[endPointIndex];
+  const startPoint = points[closestIndex];
+
+  const pointPath = projectPointOntoSegment(startPoint, endPoint, clickPoint);
+
+  const orderIndex = [closestIndex, endPointIndex].sort();
+  
+  points.splice(orderIndex[0], 0, pointPath);
+  pathLayer.batchDraw();
+}
+
 function debug(canvas) {
   const el =document.querySelector('#debug > *:first-child');
   canvas.style = "";
@@ -1379,6 +1493,7 @@ document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllCl
 document.getElementById('undoButton').addEventListener('click', handleUndoClick);
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
+document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
 document.getElementById('editPathButton').addEventListener('click', handleEditPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
