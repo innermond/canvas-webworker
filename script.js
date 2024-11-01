@@ -137,7 +137,6 @@ function handlePathMode(kevt) {
 
       currentPathId = this.getId(); // Set this path as the current path
       pathData = this.getAttr('data');
-      currentPath = this;
 
       if (isAddNode && this.selected) {
         let clickPoint = this.getRelativePointerPosition();
@@ -146,9 +145,14 @@ function handlePathMode(kevt) {
         clickPoint.x = Math.floor(clickPoint.x);
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
-        insertPathPoint(vertices, clickPoint);
+        const [newPoint, index] = createPathPoint(vertices, clickPoint);
+        createHandleCircle(this, newPoint, index);
+        vertices.splice(index, 0, newPoint);
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
+        // update circle handlers
+        // TODO does it work?
+        Array.from(pathLayer.find('.handle')).slice(index).forEach(c => c.setAttr('index', 1+c.attrs.index));
         pathLayer.batchDraw();
         return;
       }
@@ -161,13 +165,13 @@ function handlePathMode(kevt) {
         this.draggable(false);
       }
 
-      animation01(() => !currentPath.selected, (applyInvert) => {
+      animation01(() => !this.selected, (applyInvert) => {
         if (applyInvert) {
-          currentPath.dash([5, 10]);
+          this.dash([5, 10]);
         } else {
-          currentPath.dash([10, 5]);
+          this.dash([10, 5]);
         }
-        currentPath.dashOffset(currentPath.dashOffset() + 5);
+        this.dashOffset(this.dashOffset() + 5);
       });
 
       pathLayer.batchDraw();
@@ -245,83 +249,92 @@ function previewCurrentLine(evt) {
   pathLayer.batchDraw();
 }
 
+function createHandleCircle(currentPath, vertex, index) {
+  const circle = new Konva.Circle({
+    x: vertex.x,
+    y: vertex.y,
+    radius: 5,
+    fill: 'red',
+    visible: false,  // Hide initially
+    name: 'handle',
+    index,
+  });
+
+  // Event to update path when circle is dragged
+  circle.on('dragmove', () => {
+    if ( ! circle.draggable()) {
+      return;
+    }
+    let point = circle.getAbsolutePosition();
+    const itr = currentPath.getAbsoluteTransform().copy().invert();
+    point = itr.point(point);
+    // Update vertex position in vertices array
+    const index = circle.attrs.index;
+    const vertices = getVerticesFromPathData(currentPath.data());
+    vertices[index].x = point.x;
+    vertices[index].y = point.y;
+
+    // Generate new path data and update path
+    const newPathData = generatePathDataFromVertices(vertices);
+    currentPath.setAttr('data', newPathData);
+
+    pathLayer.batchDraw();
+  });
+  circle.on('mouseenter', () => {
+    circle.visible(true);
+  });
+  circle.on('mousedown', () => {
+    circle.startDrag();
+    circle.draggable(true);
+    circle.fill('');
+    circle.strokeWidth(1);
+    circle.stroke('red');
+    currentPath?.opacity(PATH_OPACITY);
+    document.body.style.cursor = 'none';
+  });
+  circle.on('mouseleave', () => {
+    circle.visible(false);
+  });
+  circle.on('mouseup', () => {
+    circle.stopDrag();
+    circle.draggable(false);
+    circle.fill('red');
+    circle.strokeWidth(0);
+    circle.stroke('');
+    currentPath?.opacity(1);
+    document.body.style.cursor = 'default';
+  });
+
+  pathLayer.add(circle);
+  return circle;
+}
 // Function to handle double click to close the path
 function handleStageDblClick() {
   if (pathData === '') return;
   if (!currentPathId) return;
 
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  if (currentPath.data().endsWith('Z') === true) {
+    return;
+  }
+
   // Close the path by adding 'Z' to the SVG path data
   pathData += ' Z';
-
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
   // Update the path data and set the closed flag
   currentPath.setAttr('data', pathData);
 
   currentPath.fill(fillColor);
   currentPath.strokeWidth(0);
 
-  const vertices = getVerticesFromPathData(pathData);
+  let vertices = getVerticesFromPathData(pathData);
   // Create circle elements for vertices, and add to layer
-  const vertexCircles = vertices.map((vertex, index) => {
-    const circle = new Konva.Circle({
-      x: vertex.x,
-      y: vertex.y,
-      radius: 5,
-      fill: 'red',
-      visible: false,  // Hide initially
-    });
- 
-    // Event to update path when circle is dragged
-    circle.on('dragmove', () => {
-      if ( ! circle.draggable()) {
-        return;
-      }
-    let point = circle.getAbsolutePosition();
-    const itr = currentPath.getAbsoluteTransform().copy().invert();
-    point = itr.point(point);
-    //let point = circle.position();
-      // Update vertex position in vertices array
-      vertices[index].x = point.x;
-      vertices[index].y = point.y;
-
-      // Generate new path data and update path
-      const newPathData = generatePathDataFromVertices(vertices);
-      currentPath.data(newPathData);
-
-      pathLayer.batchDraw();
-    });
-    circle.on('mouseenter', () => {
-      circle.visible(true);
-    });
-    circle.on('mousedown', () => {
-      circle.startDrag();
-      circle.draggable(true);
-      circle.fill('');
-      circle.strokeWidth(1);
-      circle.stroke('red');
-      currentPath?.opacity(PATH_OPACITY);
-      document.body.style.cursor = 'none';
-    });
-    circle.on('mouseleave', () => {
-      circle.visible(false);
-    });
-    circle.on('mouseup', () => {
-      circle.stopDrag();
-      circle.draggable(false);
-      circle.fill('red');
-      circle.strokeWidth(0);
-      circle.stroke('');
-      currentPath?.opacity(1);
-      document.body.style.cursor = 'default';
-    });
-
-    pathLayer.add(circle);
-    return circle;
-  });
+  let vertexCircles = vertices.map((vertex, index) => createHandleCircle(currentPath, vertex, index));
 
   // Update circle positions on path move
   currentPath.on('dragmove', () => {
     const itr = currentPath.getAbsoluteTransform();
+    vertices = getVerticesFromPathData(currentPath.data());
+    vertexCircles = pathLayer.find('.handle');
     vertices.forEach((vertex, index) => {
       const p = itr.point(vertex);
       vertexCircles[index].absolutePosition({
@@ -1352,6 +1365,20 @@ function stepTowardsPoint(pointA, pointB, stepSize) {
 
 // Function to project a point onto a segment (p1, p2)
 function projectPointOntoSegment(p1, p2, clickPoint) {
+  const p1p2 = distance(p1, p2);
+  const p1c = distance(p1, clickPoint);
+  const p2c = distance(p2, clickPoint);
+  const cosp1 = (p1c*p1c + p1p2*p1p2 - p2c*p2c)/(2*p1c*p1p2);
+  const dist = cosp1*p1c;
+  const sx = (p2.x-p1.x)*(dist/p1p2);
+  const sy = Math.sqrt(dist*dist - sx*sx);
+  let x = p1.x + sx;
+  let y = p1.y + sy;
+  x = Math.floor(x);
+  y = Math.floor(y);
+
+  //return {x, y};
+
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
 
@@ -1368,11 +1395,11 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
   };
   projectedPoint.x = Math.floor(projectedPoint.x);
   projectedPoint.y = Math.floor(projectedPoint.y);
-
+console.log({x, y}, projectedPoint)
   return projectedPoint;
 }
 
-function insertPathPoint(points, clickPoint) {
+function createPathPoint(points, clickPoint) {
   const closestIndex = findClosestPoint(points, clickPoint);
   const previousIndex = closestIndex > 0 ? closestIndex - 1 : (closestIndex === 0 ? points.length - 1 : null);
   const nextIndex = closestIndex < points.length - 1 ? closestIndex + 1 : null;
@@ -1397,10 +1424,12 @@ function insertPathPoint(points, clickPoint) {
 
   const pointPath = projectPointOntoSegment(startPoint, endPoint, clickPoint);
 
-  const orderIndex = [closestIndex, endPointIndex].sort();
+  let orderIndex = [closestIndex, endPointIndex].sort().pop();
+  if (orderIndex === points.length - 1) {
+    orderIndex += 1;
+  }
   
-  points.splice(orderIndex[0], 0, pointPath);
-  pathLayer.batchDraw();
+  return [pointPath, orderIndex];
 }
 
 function debug(canvas) {
