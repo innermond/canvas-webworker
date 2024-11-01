@@ -563,6 +563,10 @@ async function fillSelectionImage(justContour=false) {
 
 function removeSelection() {
   document.getElementById('fillSelectionImageButton').classList.add('inactive');
+  if (isAddNode) {
+    isAddNode = false;
+    document.getElementById('newPathNodeButton').classList.add('inactive');
+  }
 
   const a = justContourLayer.children.length;
   if (a > 0) {
@@ -866,31 +870,29 @@ function handleNewPathClick() {
 var isEditPath = false;
 // Function to handle the "Add New Path" button click
 function handleEditPathClick() {
-  if (isDrawPath === false) {
+  if (currentPathId === false) {
     return;
   }
 
   isEditPath = !isEditPath;
-  if (isEditPath === false) {
-    document.getElementById('editPathButton').classList.add('inactive');
-    return;
-  }
   isDrawPencil = false;
   isSelectImageMode = false;
   isBucketMode = false;
+  isDrawPath = false;
+  isAddNode = false;
   isDrawPath = false;
 
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
   document.getElementById('fillImageButton').classList.add('inactive');
   document.getElementById('newPathButton').classList.add('inactive');
-  document.getElementById('editPathButton').classList.remove('inactive');
+  document.getElementById('newPathNodeButton').classList.add('inactive');
+  document.getElementById('editPathButton').classList[isEditPath ? 'remove' : 'add']('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('deleteButton').disabled = true;
 }
-
 
 let isAddNode = false;
 function handleNewPathNodeClick() {
@@ -900,6 +902,12 @@ function handleNewPathNodeClick() {
 
   isAddNode = ! isAddNode;
 
+  if (isAddNode) {
+    isEditPath = false;
+    document.getElementById('editPathButton').classList.add('inactive');
+    isDrawPath = false;
+    document.getElementById('newPathButton').classList.add('inactive');
+  }
   document.getElementById('newPathNodeButton').classList[isAddNode ? 'remove' : 'add']('inactive');
 }
 
