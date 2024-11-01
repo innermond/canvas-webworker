@@ -100,7 +100,7 @@ function handlePathMode(kevt) {
     });
     pathData = '';
     pathLayer.add(currentPath);
-    
+
     currentPath.on('click', function(evt) {
       evt.cancelBubble = true;
       // Click on unclosed curve does none
@@ -204,6 +204,48 @@ function handlePathMode(kevt) {
         evt.cancelBubble = false;
       }
     });
+
+    let ghostNode = null;
+    currentPath.on('mousemove', () => {
+      if (isAddNode) {
+        // canvas point
+        let movingPoint = stage.getPointerPosition();
+        // to currentPath
+        let itr = currentPath.getAbsoluteTransform().copy().invert();
+        movingPoint = itr.point(movingPoint);
+        movingPoint.x = Math.floor(movingPoint.x);
+        movingPoint.y = Math.floor(movingPoint.y);
+        const vertices = getVerticesFromPathData(currentPath.data());
+        let [newPoint, index] = createPathPoint(vertices, movingPoint);
+        if (ghostNode) {
+          // newPoint is in currentPath coordinates space
+          // ghostNode is inside pathLayer so get reference to pathLayer
+          itr = currentPath.getAbsoluteTransform(pathLayer);//.copy().invert();
+          // references newLayer
+          newPoint = itr.point(newPoint);
+          ghostNode.position(newPoint);
+          ghostNode.visible(true);
+        }
+      }
+    });
+    currentPath.on('mouseenter', () => {
+      if (isAddNode) {
+        ghostNode = new Konva.Circle({
+          x: 0,
+          y: 0,
+          radius: 10,
+          fill: 'white',
+          opacity: 0.4,
+          visible: true,
+          id: 'ghost',
+        });
+        pathLayer.add(ghostNode);
+      }
+    });
+    currentPath.on('mouseleave', () => {
+      ghostNode?.destroy();
+      ghostNode = null;
+    });
   } else {
     currentPath = pathLayer.findOne(`#${currentPathId}`);
   }
@@ -221,6 +263,9 @@ function handlePathMode(kevt) {
     return;
   }
 
+  const itr = currentPath.getAbsoluteTransform().copy().invert();
+  // local point
+  pos = itr.point(pos);
   if (pathData === '') {
       // M'ove command
       pathData += `M${pos.x},${pos.y}`;
@@ -332,16 +377,23 @@ function handleStageDblClick() {
 
   // Update circle positions on path move
   currentPath.on('dragmove', () => {
-    const itr = currentPath.getAbsoluteTransform();
+    const tr = currentPath.getAbsoluteTransform(pathLayer);
     vertices = getVerticesFromPathData(currentPath.data());
     vertexCircles = pathLayer.find('.handle');
     vertices.forEach((vertex, index) => {
-      const p = itr.point(vertex);
+      const p = tr.point(vertex);
       vertexCircles[index].absolutePosition({
         x: p.x,
         y: p.y,
       });
     });
+    // TODO fix wrongly ghost's positioning!!!
+    const gh = pathLayer.findOne('#ghost');
+    if (gh) {
+      const p = tr.point(gh.absolutePosition());
+      gh.position(p);
+    }
+
     pathLayer.batchDraw();
   });
   
@@ -1130,8 +1182,6 @@ const collapseDraw = (evt) => {
 };
 
 // Mouseup event finalizes the shape
-// FIXME Just to comfirm that I am guilty of stupidity
-//document.body.addEventListener('click', () => console.log('document click'));
 document.body.addEventListener('mouseup', collapseDraw);
 stage.on('mouseup', (kevt) => {
   mousemove = false;
@@ -1373,17 +1423,18 @@ function stepTowardsPoint(pointA, pointB, stepSize) {
 
 // Function to project a point onto a segment (p1, p2)
 function projectPointOntoSegment(p1, p2, clickPoint) {
-  const p1p2 = distance(p1, p2);
-  const p1c = distance(p1, clickPoint);
-  const p2c = distance(p2, clickPoint);
-  const cosp1 = (p1c*p1c + p1p2*p1p2 - p2c*p2c)/(2*p1c*p1p2);
-  const dist = cosp1*p1c;
-  const sx = (p2.x-p1.x)*(dist/p1p2);
-  const sy = Math.sqrt(dist*dist - sx*sx);
-  let x = p1.x + sx;
-  let y = p1.y + sy;
-  x = Math.floor(x);
-  y = Math.floor(y);
+  // TODO human error here
+  //const p1p2 = distance(p1, p2);
+  //const p1c = distance(p1, clickPoint);
+  //const p2c = distance(p2, clickPoint);
+  //const cosp1 = (p1c*p1c + p1p2*p1p2 - p2c*p2c)/(2*p1c*p1p2);
+  //const dist = cosp1*p1c;
+  //const sx = (p2.x-p1.x)*(dist/p1p2);
+  //const sy = Math.sqrt(dist*dist - sx*sx);
+  //let x = p1.x + sx;
+  //let y = p1.y + sy;
+  //x = Math.floor(x);
+  //y = Math.floor(y);
 
   //return {x, y};
 
@@ -1403,7 +1454,7 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
   };
   projectedPoint.x = Math.floor(projectedPoint.x);
   projectedPoint.y = Math.floor(projectedPoint.y);
-console.log({x, y}, projectedPoint)
+  //console.log({x, y}, projectedPoint)
   return projectedPoint;
 }
 
