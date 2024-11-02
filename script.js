@@ -208,9 +208,9 @@ function handlePathMode(kevt) {
     let ghostNode = null;
     currentPath.on('mousemove', () => {
       if (isAddNode) {
-        // canvas point
+        // canvas point (it is relative to viewport)
         let movingPoint = stage.getPointerPosition();
-        // to currentPath
+        // to currentPath related to viewport
         let itr = currentPath.getAbsoluteTransform().copy().invert();
         movingPoint = itr.point(movingPoint);
         movingPoint.x = Math.floor(movingPoint.x);
@@ -264,7 +264,7 @@ function handlePathMode(kevt) {
   }
 
   const itr = currentPath.getAbsoluteTransform().copy().invert();
-  // local point
+  // local point to currentPath
   pos = itr.point(pos);
   if (pathData === '') {
       // M'ove command
@@ -375,9 +375,22 @@ function handleStageDblClick() {
   // Create circle elements for vertices, and add to layer
   let vertexCircles = vertices.map((vertex, index) => createHandleCircle(currentPath, vertex, index));
 
+  let ghostNode;
+  let initialGhostPos = {x: 0, y: 0};
+  currentPath.on('dragstart', () => {
+    ghostNode = pathLayer.findOne('#ghost');
+    if (! ghostNode) {
+      return;
+    }
+    initialGhostPos = ghostNode.getAbsolutePosition();
+    const tr = currentPath.getAbsoluteTransform();
+    // relative to currentPath
+    initialGhostPos = tr.copy().invert().point(initialGhostPos);
+  });
   // Update circle positions on path move
   currentPath.on('dragmove', () => {
-    const tr = currentPath.getAbsoluteTransform(pathLayer);
+    // calculate everything in viewport(canvas's stage as it is seen on screen) space
+    const tr = currentPath.getAbsoluteTransform();
     vertices = getVerticesFromPathData(currentPath.data());
     vertexCircles = pathLayer.find('.handle');
     vertices.forEach((vertex, index) => {
@@ -388,10 +401,9 @@ function handleStageDblClick() {
       });
     });
     // TODO fix wrongly ghost's positioning!!!
-    const gh = pathLayer.findOne('#ghost');
-    if (gh) {
-      const p = tr.point(gh.absolutePosition());
-      gh.position(p);
+    if (ghostNode) {
+      const gtr = tr.point(initialGhostPos);
+      ghostNode.absolutePosition(gtr);      
     }
 
     pathLayer.batchDraw();
