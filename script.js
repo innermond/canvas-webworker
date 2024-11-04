@@ -139,9 +139,10 @@ function handlePathMode(kevt) {
       pathData = this.getAttr('data');
 
       if (isAddNode && this.selected) {
-        let clickPoint = this.getRelativePointerPosition();
-        //const itr = stage.getAbsoluteTransform().copy().invert();
-        //clickPoint = itr.point(clickPoint);
+        //let clickPoint = currentPath.getRelativePointerPosition();
+        let clickPoint = stage.getPointerPosition();
+        const itr = currentPath.getAbsoluteTransform().copy().invert();
+        clickPoint = itr.point(clickPoint);
         clickPoint.x = Math.floor(clickPoint.x);
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
@@ -151,7 +152,7 @@ function handlePathMode(kevt) {
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
         // update circle handlers
-        Array.from(pathLayer.find('.handle')).slice(index).forEach((c, i) => c.setAttr('index', i+index));
+        Array.from(pathLayer.find('.'+currentPathId)).slice(index).forEach((c, i) => c.setAttr('index', i+index));
         pathLayer.batchDraw();
         return;
       }
@@ -166,7 +167,7 @@ function handlePathMode(kevt) {
 
       animation01(() => !this.selected, (applyInvert) => {
         if (applyInvert) {
-          this.dash([5, 10]);
+          this.dash([5, 5]);
         } else {
           this.dash([10, 5]);
         }
@@ -225,7 +226,7 @@ function handlePathMode(kevt) {
         if (ghostNode) {
           // newPoint is in currentPath coordinates space
           // ghostNode is inside pathLayer so get reference to pathLayer
-          itr = currentPath.getAbsoluteTransform(pathLayer);//.copy().invert();
+          itr = currentPath.getAbsoluteTransform(pathLayer);
           // references newLayer
           newPoint = itr.point(newPoint);
           ghostNode.position(newPoint);
@@ -292,7 +293,7 @@ function previewCurrentLine(evt) {
   if (isDrawPencil) return;
   if (isDragging) return;
 
-  var pos = stage.getRelativePointerPosition();
+  var pos = pathLayer.getRelativePointerPosition();
 
   // Update the previewLine to preview the line from the last position to the current mouse position
   previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
@@ -301,15 +302,16 @@ function previewCurrentLine(evt) {
 
 function createHandleCircle(currentPath, vertex, index) {
   const circle = new Konva.Circle({
-    x: vertex.x,
-    y: vertex.y,
     radius: 5,
     fill: 'red',
-    visible: false,  // Hide initially
-    name: 'handle',
+    visible: false,
+    name: currentPath.id(),
     index,
   });
-
+  // vertex has currentPath as space so transform it into stage space 
+  const p = currentPath.getAbsoluteTransform().point(vertex);
+  // position using stage space as reference
+  circle.absolutePosition(p);
   // Event to update path when circle is dragged
   circle.on('dragmove', () => {
     if ( ! circle.draggable()) {
@@ -397,7 +399,7 @@ function handleStageDblClick() {
     // calculate everything in viewport(canvas's stage as it is seen on screen) space
     const tr = currentPath.getAbsoluteTransform();
     vertices = getVerticesFromPathData(currentPath.data());
-    vertexCircles = pathLayer.find('.handle');
+    vertexCircles = pathLayer.find('.'+currentPath.id());
     vertices.forEach((vertex, index) => {
       const p = tr.point(vertex);
       vertexCircles[index].absolutePosition({
@@ -418,7 +420,7 @@ function handleStageDblClick() {
     if (! isEditPath) {
       return;
     }
-    vertexCircles = pathLayer.find('.handle');
+    vertexCircles = pathLayer.find('.'+currentPath.id());
     vertexCircles.forEach((circle) => circle.show());
     pathLayer.batchDraw();
   });
@@ -806,6 +808,7 @@ function handleDeleteClick() {
     if (currentPathId) {
       const currentPath = pathLayer.findOne(`#${currentPathId}`);
       currentPath.destroy(); // Remove the current path
+      pathLayer.find(currentPathId).forEach(c => c.destroy());
       resetPathState(); // Reset drawing state
 
       // Disable buttons since there's no current path
