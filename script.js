@@ -140,19 +140,18 @@ function handlePathMode(kevt) {
 
       if (isAddNode && this.selected) {
         let clickPoint = this.getRelativePointerPosition();
-        const itr = stage.getAbsoluteTransform().copy().invert();
-        clickPoint = itr.point(clickPoint);
+        //const itr = stage.getAbsoluteTransform().copy().invert();
+        //clickPoint = itr.point(clickPoint);
         clickPoint.x = Math.floor(clickPoint.x);
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
-        const [newPoint, index] = createPathPoint(vertices, clickPoint);
+        const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
         createHandleCircle(this, newPoint, index);
         vertices.splice(index, 0, newPoint);
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
         // update circle handlers
-        // TODO does it work?
-        Array.from(pathLayer.find('.handle')).slice(index).forEach(c => c.setAttr('index', 1+c.attrs.index));
+        Array.from(pathLayer.find('.handle')).slice(index).forEach((c, i) => c.setAttr('index', i+index));
         pathLayer.batchDraw();
         return;
       }
@@ -187,6 +186,9 @@ function handlePathMode(kevt) {
       if (isDragging && !this.selected) {
         evt.cancelBubble = false;
       }
+      if (ghostNode) {
+        ghostNode.setAttrs({fill: 'red', opacity: 1});
+      }
       if (currentPath.selected) {
         document.body.style.cursor = 'grab';
       }
@@ -195,6 +197,9 @@ function handlePathMode(kevt) {
       evt.cancelBubble = true;
       if (isDragging && !this.selected) {
         evt.cancelBubble = false;
+      }
+      if (isAddNode && ghostNode) {
+        ghostNode.setAttrs({fill: 'white', opacity: 0.4});
       }
       document.body.style.cursor = 'default';
     });
@@ -216,7 +221,7 @@ function handlePathMode(kevt) {
         movingPoint.x = Math.floor(movingPoint.x);
         movingPoint.y = Math.floor(movingPoint.y);
         const vertices = getVerticesFromPathData(currentPath.data());
-        let [newPoint, index] = createPathPoint(vertices, movingPoint);
+        let [newPoint,] = closestProjectedPoint(vertices, movingPoint);
         if (ghostNode) {
           // newPoint is in currentPath coordinates space
           // ghostNode is inside pathLayer so get reference to pathLayer
@@ -413,6 +418,7 @@ function handleStageDblClick() {
     if (! isEditPath) {
       return;
     }
+    vertexCircles = pathLayer.find('.handle');
     vertexCircles.forEach((circle) => circle.show());
     pathLayer.batchDraw();
   });
@@ -1407,30 +1413,20 @@ function distance(point1, point2) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function findClosestPoint(points, clickPoint) {
-  let minDist = Infinity;
-  let closestIndex = -1;
-
-  points.forEach((point, index) => {
-    const dist = distance(point, clickPoint);
-    if (dist < minDist) {
-      minDist = dist;
-      closestIndex = index;
+function closestProjectedPoint(points, clickPoint) {
+  let smallest = Infinity;
+  let projected, index;
+  const pp = [...points, points[0]]; // closed path
+  for (let i = 1, p = {x: 0, y: 0}, curr = 0; i < pp.length; i++) {
+    p = projectPointOntoSegment(pp[i-1], pp[i], clickPoint);
+    curr = distance(clickPoint, p);
+    if (curr < smallest) {
+      smallest = curr;
+      projected = p;
+      index = i-1;
     }
-  });
-
-  return closestIndex;
-}
-
-function stepTowardsPoint(pointA, pointB, stepSize) {
-  const dx = pointB.x - pointA.x;
-  const dy = pointB.y - pointA.y;
-  const distanceAB = Math.sqrt(dx * dx + dy * dy);
-
-  return {
-    x: pointA.x + (dx / distanceAB) * stepSize,
-    y: pointA.y + (dy / distanceAB) * stepSize,
-  };
+  }
+  return [projected, index + 1];
 }
 
 // Function to project a point onto a segment (p1, p2)
@@ -1468,39 +1464,6 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
   projectedPoint.y = Math.floor(projectedPoint.y);
   //console.log({x, y}, projectedPoint)
   return projectedPoint;
-}
-
-function createPathPoint(points, clickPoint) {
-  const closestIndex = findClosestPoint(points, clickPoint);
-  const previousIndex = closestIndex > 0 ? closestIndex - 1 : (closestIndex === 0 ? points.length - 1 : null);
-  const nextIndex = closestIndex < points.length - 1 ? closestIndex + 1 : null;
-
-  let distanceToPreviousSegment = Infinity;
-  let distanceToNextSegment = Infinity;
-
-  const stepSize = 1;
-  if (previousIndex !== null) {
-    const stepToPrevious = stepTowardsPoint(points[closestIndex], points[previousIndex], stepSize);
-    distanceToPreviousSegment = distance(stepToPrevious, clickPoint);
-  }
-
-  if (nextIndex !== null) {
-    const stepToNext = stepTowardsPoint(points[closestIndex], points[nextIndex], stepSize);
-    distanceToNextSegment = distance(stepToNext, clickPoint);
-  }
-
-  const endPointIndex = distanceToPreviousSegment < distanceToNextSegment ? previousIndex : nextIndex;
-  const endPoint = points[endPointIndex];
-  const startPoint = points[closestIndex];
-
-  const pointPath = projectPointOntoSegment(startPoint, endPoint, clickPoint);
-
-  let orderIndex = [closestIndex, endPointIndex].sort().pop();
-  if (orderIndex === points.length - 1) {
-    orderIndex += 1;
-  }
-  
-  return [pointPath, orderIndex];
 }
 
 function debug(canvas) {
