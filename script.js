@@ -134,7 +134,6 @@ function handlePathMode(kevt) {
         previousPath.draggable(false);
         previousPath.selected = false;
       }
-
       currentPathId = this.getId(); // Set this path as the current path
       pathData = this.getAttr('data');
 
@@ -148,7 +147,6 @@ function handlePathMode(kevt) {
         const vertices = getVerticesFromPathData(pathData);
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
         const circle = createHandleCircle(this, newPoint, index);
-        console.log(circle.position(), circle.attrs, newPoint)
         vertices.splice(index, 0, newPoint);
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
@@ -338,6 +336,9 @@ function createHandleCircle(currentPath, vertex, index) {
     circle.visible(true);
   });
   circle.on('mousedown', () => {
+    if (isDeleteNode) {
+      return;
+    }
     circle.startDrag();
     circle.draggable(true);
     circle.fill('');
@@ -357,6 +358,23 @@ function createHandleCircle(currentPath, vertex, index) {
     circle.stroke('');
     currentPath?.opacity(1);
     document.body.style.cursor = 'default';
+  });
+
+  circle.on('click', () => {
+    if (! isDeleteNode) {
+      return;
+    }
+    if (! currentPathId) {
+      return;
+    }
+
+    const vertices = getVerticesFromPathData(currentPath.data());
+    vertices.splice(circle.attrs.index, 1);
+    Array.from(pathLayer.find('.'+currentPathId)).slice(circle.attrs.index).forEach((c, i) => c.setAttr('index', i+index-1));
+    circle.destroy();
+    pathData = generatePathDataFromVertices(vertices);
+    currentPath.setAttr('data', pathData);
+    pathLayer.batchDraw();
   });
 
   pathLayer.add(circle);
@@ -421,7 +439,7 @@ function handleStageDblClick() {
   });
   
   currentPath.on('mouseenter', () => {
-    if (! isEditPath) {
+    if (! isEditPath && !isDeleteNode) {
       return;
     }
     vertexCircles = pathLayer.find('.'+currentPath.id());
@@ -431,7 +449,7 @@ function handleStageDblClick() {
 
   // Hide vertices on mouseout
   currentPath.on('mouseleave', () => {
-    if (! isEditPath) {
+    if (! isEditPath && !isDeleteNode) {
       return;
     }
     vertexCircles.forEach((circle) => circle.hide());
@@ -642,6 +660,10 @@ function removeSelection() {
   if (isAddNode) {
     isAddNode = false;
     document.getElementById('newPathNodeButton').classList.add('inactive');
+  }
+  if (isDeleteNode) {
+    isDeleteNode = false;
+    document.getElementById('deletePathNodeButton').classList.add('inactive');
   }
 
   const a = justContourLayer.children.length;
@@ -988,6 +1010,23 @@ function handleNewPathNodeClick() {
   document.getElementById('newPathNodeButton').classList[isAddNode ? 'remove' : 'add']('inactive');
 }
 
+let isDeleteNode = false;
+function handleDeletePathNodeClick() {
+  if (! currentPathId) {
+    return;
+  }
+
+  isDeleteNode = ! isDeleteNode;
+
+  if (isDeleteNode) {
+    isEditPath = false;
+    document.getElementById('editPathButton').classList.add('inactive');
+    isDrawPath = false;
+    document.getElementById('newPathButton').classList.add('inactive');
+  }
+  document.getElementById('deletePathNodeButton').classList[isDeleteNode ? 'remove' : 'add']('inactive');
+}
+
 var lastClickPos = null; // Global variable to store the last clicked position on the image
 var imageScaleX, imageScaleY; // Variables to store the scaling factors
 
@@ -1146,6 +1185,10 @@ function gco() {
 }
 // Mousedown event starts drawing with pencil
 stage.on('mousedown', (evt) => {
+  if (isDeleteNode) {
+    return;
+  }
+
   if (!isDrawPath && currentPathId) {
     const p = pathLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
@@ -1564,6 +1607,7 @@ document.getElementById('undoButton').addEventListener('click', handleUndoClick)
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
+document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
 document.getElementById('editPathButton').addEventListener('click', handleEditPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
