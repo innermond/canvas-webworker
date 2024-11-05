@@ -139,10 +139,10 @@ function handlePathMode(kevt) {
       pathData = this.getAttr('data');
 
       if (isAddNode && this.selected) {
-        //let clickPoint = currentPath.getRelativePointerPosition();
-        let clickPoint = stage.getPointerPosition();
-        const itr = currentPath.getAbsoluteTransform().copy().invert();
-        clickPoint = itr.point(clickPoint);
+        let clickPoint = currentPath.getRelativePointerPosition();
+        //let clickPoint = stage.getPointerPosition();
+        //const itr = currentPath.getAbsoluteTransform().copy().invert();
+        //clickPoint = itr.point(clickPoint);
         clickPoint.x = Math.floor(clickPoint.x);
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
