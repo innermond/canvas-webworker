@@ -89,7 +89,7 @@ function handlePathMode(kevt) {
 
   let currentPath;
   if (!currentPathId) {
-    currentPathId = `path${Math.random().toString(36).slice(2)}`;
+    currentPathId = `Path${Math.random().toString(36).slice(2)}`;
     currentPath = new Konva.Path({
       data: '',
       stroke: 'white',
@@ -270,7 +270,9 @@ function handlePathMode(kevt) {
   }
 
   const itr = currentPath.getAbsoluteTransform().copy().invert();
-  // local point to currentPath
+  // relative to stage to absolute canvas/stage
+  pos = stage.getAbsoluteTransform().point(pos);
+  // absolute to local currentPath
   pos = itr.point(pos);
   if (pathData === '') {
       // M'ove command
