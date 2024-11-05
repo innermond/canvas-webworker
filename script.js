@@ -147,7 +147,8 @@ function handlePathMode(kevt) {
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
-        createHandleCircle(this, newPoint, index);
+        const circle = createHandleCircle(this, newPoint, index);
+        console.log(circle.position(), circle.attrs, newPoint)
         vertices.splice(index, 0, newPoint);
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
@@ -226,10 +227,9 @@ function handlePathMode(kevt) {
         if (ghostNode) {
           // newPoint is in currentPath coordinates space
           // ghostNode is inside pathLayer so get reference to pathLayer
-          itr = currentPath.getAbsoluteTransform(pathLayer);
-          // references newLayer
+          itr = currentPath.getAbsoluteTransform();
           newPoint = itr.point(newPoint);
-          ghostNode.position(newPoint);
+          ghostNode.absolutePosition(newPoint);
           ghostNode.visible(true);
         }
       }
@@ -310,10 +310,10 @@ function createHandleCircle(currentPath, vertex, index) {
     name: currentPath.id(),
     index,
   });
-  // vertex has currentPath as space so transform it into stage space 
-  const p = currentPath.getAbsoluteTransform().point(vertex);
-  // position using stage space as reference
-  circle.absolutePosition(p);
+  // vertex has currentPath as space so transform it into pathLayer space 
+  const p = currentPath.getAbsoluteTransform(pathLayer).point(vertex);
+  // position using pathLayer - parent of circle -  space as reference
+  circle.position(p);
   // Event to update path when circle is dragged
   circle.on('dragmove', () => {
     if ( ! circle.draggable()) {
@@ -412,6 +412,8 @@ function handleStageDblClick() {
     // TODO fix wrongly ghost's positioning!!!
     if (ghostNode) {
       const gtr = tr.point(initialGhostPos);
+      gtr.x = Math.floor(gtr.x);
+      gtr.y = Math.floor(gtr.y);
       ghostNode.absolutePosition(gtr);      
     }
 
