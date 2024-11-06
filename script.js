@@ -139,19 +139,15 @@ function handlePathMode(kevt) {
 
       if (isAddNode && this.selected) {
         let clickPoint = currentPath.getRelativePointerPosition();
-        //let clickPoint = stage.getPointerPosition();
-        //const itr = currentPath.getAbsoluteTransform().copy().invert();
-        //clickPoint = itr.point(clickPoint);
         clickPoint.x = Math.floor(clickPoint.x);
         clickPoint.y = Math.floor(clickPoint.y);
         const vertices = getVerticesFromPathData(pathData);
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
-        const circle = createHandleCircle(this, newPoint, index);
         vertices.splice(index, 0, newPoint);
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
-        // update circle handlers
-        Array.from(pathLayer.find('.'+currentPathId)).slice(index).forEach((c, i) => c.setAttr('index', i+index));
+        destroyHandleCircles();
+        createHandleCircles(false);
         pathLayer.batchDraw();
         return;
       }
@@ -333,7 +329,7 @@ function createHandleCircle(currentPath, vertex, index) {
     pathLayer.batchDraw();
   });
   circle.on('mouseenter', () => {
-    circle.visible(true);
+    circle.radius(15);
   });
   circle.on('mousedown', () => {
     if (isDeleteNode) {
@@ -347,9 +343,6 @@ function createHandleCircle(currentPath, vertex, index) {
     currentPath?.opacity(PATH_OPACITY);
     document.body.style.cursor = 'none';
   });
-  circle.on('mouseleave', () => {
-    circle.visible(false);
-  });
   circle.on('mouseup', () => {
     circle.stopDrag();
     circle.draggable(false);
@@ -359,8 +352,22 @@ function createHandleCircle(currentPath, vertex, index) {
     currentPath?.opacity(1);
     document.body.style.cursor = 'default';
   });
+  circle.on('mouseleave', () => {
+    circle.radius(5);
+    // is leaving from currentPath through this handle circle?
+    const ii = stage.getAllIntersections(stage.getPointerPosition());
+    for (let i of ii) {
+      // going inside currentPath?
+      if (i.attrs?.name === currentPathId) {
+        return;
+      }
+    }
+    destroyHandleCircles();
+    pathLayer.batchDraw();
+  });
 
-  circle.on('click', () => {
+  circle.on('click', (evt) => {
+    evt.cancelBubble = true;
     if (! isDeleteNode) {
       return;
     }
@@ -370,10 +377,10 @@ function createHandleCircle(currentPath, vertex, index) {
 
     const vertices = getVerticesFromPathData(currentPath.data());
     vertices.splice(circle.attrs.index, 1);
-    Array.from(pathLayer.find('.'+currentPathId)).slice(circle.attrs.index).forEach((c, i) => c.setAttr('index', i+index-1));
-    circle.destroy();
     pathData = generatePathDataFromVertices(vertices);
     currentPath.setAttr('data', pathData);
+    destroyHandleCircles();
+    createHandleCircles(true);
     pathLayer.batchDraw();
   });
 
@@ -398,10 +405,6 @@ function handleStageDblClick() {
   currentPath.fill(fillColor);
   currentPath.strokeWidth(0);
 
-  let vertices = getVerticesFromPathData(pathData);
-  // Create circle elements for vertices, and add to layer
-  let vertexCircles = vertices.map((vertex, index) => createHandleCircle(currentPath, vertex, index));
-
   let ghostNode;
   let initialGhostPos = {x: 0, y: 0};
   currentPath.on('dragstart', () => {
@@ -416,17 +419,19 @@ function handleStageDblClick() {
   });
   // Update circle positions on path move
   currentPath.on('dragmove', () => {
-    // calculate everything in viewport(canvas's stage as it is seen on screen) space
-    const tr = currentPath.getAbsoluteTransform();
-    vertices = getVerticesFromPathData(currentPath.data());
-    vertexCircles = pathLayer.find('.'+currentPath.id());
-    vertices.forEach((vertex, index) => {
-      const p = tr.point(vertex);
-      vertexCircles[index].absolutePosition({
-        x: p.x,
-        y: p.y,
+    if (isEditPath || isDeleteNode) {
+      // calculate everything in viewport(canvas's stage as it is seen on screen) space
+      const tr = currentPath.getAbsoluteTransform();
+      const vertices = getVerticesFromPathData(currentPath.data());
+      const vertexCircles = pathLayer.find('.'+currentPath.id());
+      vertices.forEach((vertex, index) => {
+        const p = tr.point(vertex);
+        vertexCircles[index].absolutePosition({
+          x: p.x,
+          y: p.y,
+        });
       });
-    });
+    }
     // TODO fix wrongly ghost's positioning!!!
     if (ghostNode) {
       const gtr = tr.point(initialGhostPos);
@@ -442,17 +447,24 @@ function handleStageDblClick() {
     if (! isEditPath && !isDeleteNode) {
       return;
     }
-    vertexCircles = pathLayer.find('.'+currentPath.id());
-    vertexCircles.forEach((circle) => circle.show());
+    destroyHandleCircles();
+    createHandleCircles(true);
     pathLayer.batchDraw();
   });
 
   // Hide vertices on mouseout
-  currentPath.on('mouseleave', () => {
+  currentPath.on('mouseleave', (evt) => {
     if (! isEditPath && !isDeleteNode) {
       return;
     }
-    vertexCircles.forEach((circle) => circle.hide());
+    // is over a handle circle?
+    const ii = stage.getAllIntersections(stage.getPointerPosition());
+    for (let i of ii) {
+      if (i.attrs?.name === currentPathId) {
+        return;
+      }
+    }
+    destroyHandleCircles();
     pathLayer.batchDraw();
   });
 
@@ -464,6 +476,25 @@ function handleStageDblClick() {
   document.getElementById('deleteButton').disabled = false; // Enable delete button
 
   pathLayer.batchDraw();
+}
+
+function createHandleCircles(show=false) {
+  if (!currentPathId) return;
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+
+  let vertices = getVerticesFromPathData(currentPath.data());
+  vertices.forEach((vertex, index) => {
+    const c = createHandleCircle(currentPath, vertex, index);
+    c.setAttr('visible', show);
+  });
+}
+
+function destroyHandleCircles() {
+  if (!currentPathId) return;
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+
+  const circles = pathLayer.find('.'+currentPath.id());
+  circles.forEach((circle) => circle.destroy());
 }
 
 function generatePathDataFromVertices(vertices) {
@@ -1190,6 +1221,7 @@ stage.on('mousedown', (evt) => {
   }
 
   if (!isDrawPath && currentPathId) {
+    if (isEditPath) return;
     const p = pathLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
     if (p.data().endsWith('Z') === true) {
