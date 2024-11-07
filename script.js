@@ -305,7 +305,7 @@ function handlePathMode(kevt) {
 
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
-  if (!currentPathId || isEditPath || !lastPos) return; // Don't preview if no path or no previous point
+  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
   if (isBucketMode) return;
   if (isDrawPencil) return;
   if (isDragging) return;
@@ -440,7 +440,7 @@ function handleStageDblClick() {
     // calculate everything in viewport(canvas's stage as it is seen on screen) space
     const tr = currentPath.getAbsoluteTransform();
 
-    if (currentPath.selected || isEditPath || isDeleteNode) {
+    if (currentPath.selected || isDeleteNode) {
       const vertices = getVerticesFromPathData(currentPath.data());
       const vertexCircles = pathLayer.find('.'+currentPath.id());
       vertices.forEach((vertex, index) => {
@@ -979,40 +979,11 @@ function handleNewPathClick() {
   isDrawPencil = false;
   isSelectImageMode = false;
   isBucketMode = false;
-  isEditPath = false;
 
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
   document.getElementById('fillImageButton').classList.add('inactive');
-  document.getElementById('editPathButton').classList.add('inactive');
   document.getElementById('newPathButton').classList.remove('inactive');
-  // Disable the fill button, color picker, and delete button since we are starting a new path
-  document.getElementById('fillButton').disabled = true;
-  document.getElementById('fillColorPicker').disabled = true;
-  document.getElementById('deleteButton').disabled = true;
-}
-
-var isEditPath = false;
-// Function to handle the "Add New Path" button click
-function handleEditPathClick() {
-  if (currentPathId === false) {
-    return;
-  }
-
-  isEditPath = !isEditPath;
-  isDrawPencil = false;
-  isSelectImageMode = false;
-  isBucketMode = false;
-  isDrawPath = false;
-  isAddNode = false;
-  isDrawPath = false;
-
-  document.getElementById('drawPencil').classList.add('inactive');
-  document.getElementById('selectImageButton').classList.add('inactive');
-  document.getElementById('fillImageButton').classList.add('inactive');
-  document.getElementById('newPathButton').classList.add('inactive');
-  document.getElementById('newPathNodeButton').classList.add('inactive');
-  document.getElementById('editPathButton').classList[isEditPath ? 'remove' : 'add']('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
@@ -1028,8 +999,6 @@ function handleNewPathNodeClick() {
   isAddNode = ! isAddNode;
 
   if (isAddNode) {
-    isEditPath = false;
-    document.getElementById('editPathButton').classList.add('inactive');
     isDrawPath = false;
     document.getElementById('newPathButton').classList.add('inactive');
   }
@@ -1045,8 +1014,6 @@ function handleDeletePathNodeClick() {
   isDeleteNode = ! isDeleteNode;
 
   if (isDeleteNode) {
-    isEditPath = false;
-    document.getElementById('editPathButton').classList.add('inactive');
     isDrawPath = false;
     document.getElementById('newPathButton').classList.add('inactive');
   }
@@ -1228,7 +1195,6 @@ stage.on('mousedown', (evt) => {
   }
 
   if (!isDrawPath && currentPathId) {
-    if (isEditPath) return;
     const p = pathLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
     if (false === isAddNode && p.data().endsWith('Z') === true && p.selected === true) {
@@ -1644,6 +1610,5 @@ document.getElementById('redoButton').addEventListener('click', handleRedoClick)
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
 document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
-document.getElementById('editPathButton').addEventListener('click', handleEditPathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
