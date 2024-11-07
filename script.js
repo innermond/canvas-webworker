@@ -309,6 +309,7 @@ function previewCurrentLine(evt) {
   if (isBucketMode) return;
   if (isDrawPencil) return;
   if (isDragging) return;
+  if (! isDrawPath) return;
 
   var pos = pathLayer.getRelativePointerPosition();
 
