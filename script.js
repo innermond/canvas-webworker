@@ -73,12 +73,19 @@ const PATH_OPACITY = 0.4;
 // Function to handle mouse click to add points to the path
 function handlePathMode(kevt) {
 // TODO it is useless?
-//  if (currentPathId) {
-//    const currentPath = pathLayer.findOne(`#${currentPathId}`);
-//    if (currentPath && currentPath.attrs.data.endsWith('Z') === true) {
-//      currentPath?.strokeWidth(0);
-//    }
-//  }
+  if (currentPathId) {
+    const currentPath = pathLayer.findOne(`#${currentPathId}`);
+    // Closed path has no need to add new point
+    if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
+      destroyHandleCircles();
+      currentPath.strokeWidth(0);
+      currentPath.draggable(false);
+      currentPath.selected = false;
+      currentPathId = null;
+      pathLayer.batchDraw();
+      return;
+    }
+  }
 
   if (!isDrawPath) {
     return;
@@ -156,7 +163,7 @@ function handlePathMode(kevt) {
         pathData = generatePathDataFromVertices(vertices);
         this.setAttr('data', pathData);
         destroyHandleCircles();
-        createHandleCircles(false);
+        createHandleCircles(true);
         pathLayer.batchDraw();
         return;
       }
@@ -220,7 +227,7 @@ function handlePathMode(kevt) {
 
     let ghostNode = null;
     currentPath.on('mousemove', () => {
-      if (isAddNode) {
+      if (isAddNode && currentPath.selected) {
         // canvas point (it is relative to viewport)
         let movingPoint = stage.getPointerPosition();
         // to currentPath related to viewport
@@ -322,6 +329,10 @@ function createHandleCircle(currentPath, vertex, index) {
   const p = currentPath.getAbsoluteTransform(pathLayer).point(vertex);
   // position using pathLayer - parent of circle -  space as reference
   circle.position(p);
+  circle.on('dragstart', (evt) => {
+    evt.cancelBubble = true;
+    currentPathId = currentPath.id(); 
+  });
   // Event to update path when circle is dragged
   circle.on('dragmove', (evt) => {
     evt.cancelBubble = true;
@@ -347,10 +358,11 @@ function createHandleCircle(currentPath, vertex, index) {
   circle.on('mouseenter', () => {
     circle.radius(15);
   });
-  circle.on('mousedown', () => {
+  circle.on('mousedown', (evt) => {
     if (isDeleteNode) {
       return;
     }
+    evt.cancelBubble = true;
     circle.startDrag();
     circle.draggable(true);
     circle.fill('');
@@ -370,16 +382,6 @@ function createHandleCircle(currentPath, vertex, index) {
   });
   circle.on('mouseleave', () => {
     circle.radius(5);
-    // is leaving from currentPath through this handle circle?
-    const ii = stage.getAllIntersections(stage.getPointerPosition());
-    for (let i of ii) {
-      // going inside currentPath?
-      if (i.attrs?.name === currentPathId) {
-        return;
-      }
-    }
-    destroyHandleCircles();
-    pathLayer.batchDraw();
   });
 
   circle.on('click', (evt) => {
@@ -457,32 +459,6 @@ function handleStageDblClick() {
       ghostNode.absolutePosition(gtr);      
     }
 
-    pathLayer.batchDraw();
-  });
-  
-  currentPath.on('mouseenter', () => {
-    //if (! isEditPath && !isDeleteNode) {
-    if (! currentPath.selected) {
-      return;
-    }
-    destroyHandleCircles();
-    createHandleCircles(true);
-    pathLayer.batchDraw();
-  });
-
-  // Hide vertices on mouseout
-  currentPath.on('mouseleave', (evt) => {
-    if (! isEditPath && !isDeleteNode) {
-      return;
-    }
-    // is over a handle circle?
-    const ii = stage.getAllIntersections(stage.getPointerPosition());
-    for (let i of ii) {
-      if (i.attrs?.name === currentPathId) {
-        return;
-      }
-    }
-    destroyHandleCircles();
     pathLayer.batchDraw();
   });
 
@@ -1255,13 +1231,13 @@ stage.on('mousedown', (evt) => {
     if (isEditPath) return;
     const p = pathLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
-    if (p.data().endsWith('Z') === true) {
+    if (false === isAddNode && p.data().endsWith('Z') === true && p.selected === true) {
       // Reset prev path
       p.strokeWidth(0);
       p.draggable(false);
       p.selected = false;
+      destroyHandleCircles();
     }
-    resetPathState();
   }
 
   if (!isDrawPencil) {
@@ -1333,6 +1309,7 @@ stage.on('mouseup', (kevt) => {
       collapseBucketLayer();
     }
   }
+  document.body.style.cursor = 'default';
 });
 stage.on('mouseleave', (evt) => {
   mousemove = false;
