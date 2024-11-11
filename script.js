@@ -201,7 +201,7 @@ function handlePathMode(kevt) {
       if (isDragging && !this.selected) {
         evt.cancelBubble = false;
       }
-      if (ghostNode) {
+      if (ghostNode && this.selected) {
         ghostNode.setAttrs({fill: 'red', opacity: 1});
       }
       if (currentPath.selected) {
@@ -217,6 +217,12 @@ function handlePathMode(kevt) {
         ghostNode.setAttrs({fill: 'white', opacity: 0.4});
       }
       document.body.style.cursor = 'default';
+    });
+    currentPath.on('dragstart', function(evt) {
+      evt.cancelBubble = true;
+      if (ghostNode && this.selected && isAddNode) {
+        ghostNode.setAttrs({fill: 'white', opacity: 0.4});
+      }
     });
     currentPath.on('dragmove', function(evt) {
       evt.cancelBubble = true;
