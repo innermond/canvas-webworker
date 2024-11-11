@@ -109,7 +109,7 @@ function handlePathMode(kevt) {
       data: '',
       stroke: 'white',
       strokeWidth: STROKE_WIDTH,
-      dash: [10, 5],
+      dash: [8, 4],
       fill: '',
       id: currentPathId,
     });
@@ -181,11 +181,11 @@ function handlePathMode(kevt) {
 
       animation01(() => !this.selected, (applyInvert) => {
         if (applyInvert) {
-          this.dash([5, 5]);
+          this.dash([4, 4]);
         } else {
-          this.dash([10, 5]);
+          this.dash([8, 4]);
         }
-        this.dashOffset(this.dashOffset() + 5);
+        this.dashOffset(this.dashOffset() + 4);
       });
 
       pathLayer.batchDraw();
@@ -223,7 +223,12 @@ function handlePathMode(kevt) {
       if (ghostNode && this.selected && isAddNode) {
         ghostNode.setAttrs({fill: 'white', opacity: 0.4});
       }
+      this.opacity(PATH_OPACITY);
     });
+    currentPath.on('dragend', function(evt) {
+      evt.cancelBubble = true;
+      this.opacity(1);
+     });
     currentPath.on('dragmove', function(evt) {
       evt.cancelBubble = true;
       if (isDragging && !this.selected) {
@@ -339,6 +344,12 @@ function createHandleCircle(currentPath, vertex, index) {
   circle.on('dragstart', (evt) => {
     evt.cancelBubble = true;
     currentPathId = currentPath.id(); 
+    currentPath?.opacity(PATH_OPACITY);
+  });
+  circle.on('dragend', (evt) => {
+    evt.cancelBubble = true;
+    currentPathId = currentPath.id(); 
+    currentPath?.opacity(1);
   });
   // Event to update path when circle is dragged
   circle.on('dragmove', (evt) => {
@@ -375,10 +386,10 @@ function createHandleCircle(currentPath, vertex, index) {
     circle.fill('');
     circle.strokeWidth(1);
     circle.stroke('red');
-    currentPath?.opacity(PATH_OPACITY);
     document.body.style.cursor = 'none';
   });
-  circle.on('mouseup', () => {
+  circle.on('mouseup', (evt) => {
+    evt.cancelBubble = true;
     circle.stopDrag();
     circle.draggable(false);
     circle.fill('red');
@@ -1526,7 +1537,7 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
 }
 
 function debug(canvas) {
-  const el =document.querySelector('#debug > *:first-child');
+  const el = document.querySelector('#debug > *:first-child');
   canvas.style = "";
   
   if ([ImageBitmap].includes(canvas.constructor)) {
@@ -1565,6 +1576,32 @@ function debug(canvas) {
   el.parentNode.replaceChild(img, el);
 }
 
+function handleUp() {
+  if (!currentPathId) {
+    return
+  }
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  if (!currentPath.selected) {
+    return;
+  }
+
+  const z = currentPath.getZIndex();
+  currentPath.setZIndex(z+1);
+}
+
+function handleDown() {
+  if (!currentPathId) {
+    return
+  }
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  if (!currentPath.selected) {
+    return;
+  }
+
+  const z = currentPath.getZIndex();
+  currentPath.setZIndex(z-1);
+}
+
 // Attach event listeners
 stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
@@ -1599,6 +1636,9 @@ document.getElementsByName('pencilShape').forEach(radio => {
         radio.checked = true;
     }
 });
+
+document.getElementById('upz').addEventListener('click', handleUp);
+document.getElementById('downz').addEventListener('click', handleDown);
 
 document.getElementById('zoomButton').addEventListener('input', handleZoom);
 document.getElementById('zoomButton').setAttribute('step', zoomFactor);
