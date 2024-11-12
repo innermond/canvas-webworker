@@ -160,7 +160,10 @@ function handlePathMode(kevt) {
         const [vertices, types] = getVerticesFromPathData(pathData);
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
         vertices.splice(index, 0, newPoint);
-        const type = 'L';
+        let type = 'L';
+        if (isMagneticNode) {
+          type = 'Q';
+        }
         types.set(newPoint, type);
         pathData = generatePathDataFromVertices(vertices, types);
         this.setAttr('data', pathData);
@@ -414,6 +417,10 @@ function createHandleCircle(currentPath, vertex, index) {
     }
 
     const [vertices, types] = getVerticesFromPathData(currentPath.data());
+    const n = vertices[circle.attrs.index];
+    if (types.has(n)) {
+      types.delete(n);
+    }
     vertices.splice(circle.attrs.index, 1);
     pathData = generatePathDataFromVertices(vertices, types);
     currentPath.setAttr('data', pathData);
@@ -519,7 +526,12 @@ function generatePathDataFromVertices(vertices, types) {
     const command = types.get(vertex);
     switch (command) {
       case 'L':
-      pathData += ` L${vertices[i].x},${vertices[i].y}`;
+      pathData += ` L${vertex.x},${vertex.y}`;
+      break;
+      case 'Q':
+      const next = vertices[i+1] ?? vertices[0];
+      pathData += ` Q${vertex.x},${vertex.y},${next.x},${next.y}`;
+      i += 2; 
       break;
     }
   }
@@ -556,6 +568,7 @@ function getVerticesFromPathData(pathData) {
         const pz = { x: zx, y: zy };
         vertices.push(pa, pz);
         types.set(pa, type);
+        types.set(pz, type);
       break;
     }
   });
@@ -563,12 +576,22 @@ function getVerticesFromPathData(pathData) {
   return [vertices, types];
 }
 
+let isMagneticNode = false;
+
+function handleMagneticNodeClick() {
+  if (!currentPathId) return;
+  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+
+  isMagneticNode = ! isMagneticNode;
+
+  document.getElementById('magneticNodeCheckbox').checked = isMagneticNode;
+}
 
 // Function to handle the "Fill Path" button click
 function handleFillClick() {
-  if (!currentPathId) return; // Only allow filling if the path is closed
-
+  if (!currentPathId) return;
   const currentPath = pathLayer.findOne(`#${currentPathId}`);
+
   currentPath.fill(fillColor);
   currentPath.strokeWidth(0);
 
@@ -1675,6 +1698,7 @@ document.getElementById('undoButton').addEventListener('click', handleUndoClick)
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
+document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
 document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change

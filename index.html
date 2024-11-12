@@ -13,6 +13,9 @@
 <div id="buttonContainer">
     <button id="newPathButton" class="button inactive">Add new path</button>
     <button id="newPathNodeButton" class="button inactive">Add node path</button>
+    <label for="magneticNodeCheckbox"><div>Magnetic node</div>
+      <input type="checkbox" id="magneticNodeCheckbox" value="1" />
+    </label>
     <button id="deletePathNodeButton" class="button inactive">Delete node path</button>
     <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
     <button id="fillButton" class="button">Fill Path with Color</button>
@@ -20,7 +23,7 @@
     <button id="fillSelectionImageButton" class="button inactive">Fill selection from image</button>
     <button id="fillImageButton" class="button inactive">Fill Image With Color</button>
     <label for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
-    <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
+      <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
     </label>
     <button id="drawPencil" class="button inactive">Draw with Pencil</button>
     <div>
@@ -43,13 +46,13 @@
     <input type="checkbox" id="drawProtectCheckbox" value="1" />
     </label>
     <label for="fillCleanCheckbox"> <div>Remove mode <span id="fillCleanCheckboxLabel"></span></div>
-    <input type="checkbox" id="fillCleanCheckbox" value="1" />
+      <input type="checkbox" id="fillCleanCheckbox" value="1" />
     </label>
     <label for="scalePencilButton"> <div>Pencil scale <span id="scalePencilLabel"></span></div>
-    <input type="range" min="1" max="100" id="scalePencilButton" value="30" />
+      <input type="range" min="1" max="100" id="scalePencilButton" value="30" />
     </label>
     <label for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
-    <input type="range" min="0" max="1" id="zoomButton" />
+      <input type="range" min="0" max="1" id="zoomButton" />
     </label>
     <label for="isDraggingCheckbox"> <div>Dragging is <span id="isDraggingCheckboxLabel"></span></div>
     <input type="checkbox" id="isDraggingCheckbox" value="1" />
