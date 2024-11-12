@@ -155,12 +155,14 @@ function handlePathMode(kevt) {
 
       if (isAddNode && this.selected) {
         let clickPoint = currentPath.getRelativePointerPosition();
-        clickPoint.x = Math.floor(clickPoint.x);
-        clickPoint.y = Math.floor(clickPoint.y);
-        const vertices = getVerticesFromPathData(pathData);
+        clickPoint.x = Math.round(clickPoint.x);
+        clickPoint.y = Math.round(clickPoint.y);
+        const [vertices, types] = getVerticesFromPathData(pathData);
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
         vertices.splice(index, 0, newPoint);
-        pathData = generatePathDataFromVertices(vertices);
+        const type = 'L';
+        types.set(newPoint, type);
+        pathData = generatePathDataFromVertices(vertices, types);
         this.setAttr('data', pathData);
         destroyHandleCircles();
         createHandleCircles(true);
@@ -244,9 +246,9 @@ function handlePathMode(kevt) {
         // to currentPath related to viewport
         let itr = currentPath.getAbsoluteTransform().copy().invert();
         movingPoint = itr.point(movingPoint);
-        movingPoint.x = Math.floor(movingPoint.x);
-        movingPoint.y = Math.floor(movingPoint.y);
-        const vertices = getVerticesFromPathData(currentPath.data());
+        movingPoint.x = Math.round(movingPoint.x);
+        movingPoint.y = Math.round(movingPoint.y);
+        const [vertices, types] = getVerticesFromPathData(currentPath.data());
         let [newPoint,] = closestProjectedPoint(vertices, movingPoint);
         if (ghostNode) {
           // newPoint is in currentPath coordinates space
@@ -363,12 +365,12 @@ function createHandleCircle(currentPath, vertex, index) {
     point = itr.point(point);
     // Update vertex position in vertices array
     const index = circle.attrs.index;
-    const vertices = getVerticesFromPathData(currentPath.data());
+    const [vertices, types] = getVerticesFromPathData(currentPath.data());
     vertices[index].x = point.x;
     vertices[index].y = point.y;
 
     // Generate new path data and update path
-    const newPathData = generatePathDataFromVertices(vertices);
+    const newPathData = generatePathDataFromVertices(vertices, types);
     currentPath.setAttr('data', newPathData);
 
     pathLayer.batchDraw();
@@ -411,9 +413,9 @@ function createHandleCircle(currentPath, vertex, index) {
       return;
     }
 
-    const vertices = getVerticesFromPathData(currentPath.data());
+    const [vertices, types] = getVerticesFromPathData(currentPath.data());
     vertices.splice(circle.attrs.index, 1);
-    pathData = generatePathDataFromVertices(vertices);
+    pathData = generatePathDataFromVertices(vertices, types);
     currentPath.setAttr('data', pathData);
     destroyHandleCircles();
     createHandleCircles(true);
@@ -459,7 +461,7 @@ function handleStageDblClick() {
     const tr = currentPath.getAbsoluteTransform();
 
     if (currentPath.selected || isDeleteNode) {
-      const vertices = getVerticesFromPathData(currentPath.data());
+      const [vertices, types] = getVerticesFromPathData(currentPath.data());
       const vertexCircles = pathLayer.find('.'+currentPath.id());
       vertices.forEach((vertex, index) => {
         const p = tr.point(vertex);
@@ -472,8 +474,8 @@ function handleStageDblClick() {
     // TODO fix wrongly ghost's positioning!!!
     if (ghostNode) {
       const gtr = tr.point(initialGhostPos);
-      gtr.x = Math.floor(gtr.x);
-      gtr.y = Math.floor(gtr.y);
+      gtr.x = Math.round(gtr.x);
+      gtr.y = Math.round(gtr.y);
       ghostNode.absolutePosition(gtr);      
     }
 
@@ -494,7 +496,7 @@ function createHandleCircles(show=false) {
   if (!currentPathId) return;
   const currentPath = pathLayer.findOne(`#${currentPathId}`);
 
-  let vertices = getVerticesFromPathData(currentPath.data());
+  let [vertices, types] = getVerticesFromPathData(currentPath.data());
   vertices.forEach((vertex, index) => {
     const c = createHandleCircle(currentPath, vertex, index);
     c.setAttr('visible', show);
@@ -509,10 +511,17 @@ function destroyHandleCircles() {
   circles.forEach((circle) => circle.destroy());
 }
 
-function generatePathDataFromVertices(vertices) {
+function generatePathDataFromVertices(vertices, types) {
   let pathData = `M${vertices[0].x},${vertices[0].y}`;
   for (let i = 1; i < vertices.length; i++) {
-    pathData += ` L${vertices[i].x},${vertices[i].y}`;
+    const vertex = vertices[i];
+    if (!types.has(vertex)) continue; // TODO this is a serious flaw, the path is broken
+    const command = types.get(vertex);
+    switch (command) {
+      case 'L':
+      pathData += ` L${vertices[i].x},${vertices[i].y}`;
+      break;
+    }
   }
   pathData += ' Z';
   return pathData;
@@ -520,6 +529,7 @@ function generatePathDataFromVertices(vertices) {
 
 function getVerticesFromPathData(pathData) {
   const vertices = [];
+  const types = new WeakMap();
   const commands = pathData.match(/[a-zA-Z][^a-zA-Z]*/g); // Split by command characters
 
   let currentX = 0;
@@ -535,13 +545,22 @@ function getVerticesFromPathData(pathData) {
         for (let i = 0; i < coords.length; i += 2) {
           currentX = coords[i];
           currentY = coords[i + 1];
-          vertices.push({ x: currentX, y: currentY });
+          const p = { x: currentX, y: currentY };
+          vertices.push(p);
+          types.set(p, type);
         }
         break;
+      case 'Q':
+        const [kx, ky, zx, zy] = coords;
+        const pa = { x: kx, y: ky };
+        const pz = { x: zx, y: zy };
+        vertices.push(pa, pz);
+        types.set(pa, type);
+      break;
     }
   });
 
-  return vertices;
+  return [vertices, types];
 }
 
 
@@ -679,8 +698,8 @@ async function fillSelectionImage(justContour=false) {
   if (lastPos) {
     const {x, y} = lastPos;
     const startPos = {
-      x: Math.floor(x),
-      y: Math.floor(y),
+      x: Math.round(x),
+      y: Math.round(y),
     };
     removeSelection();
     const img = getAsRawImage(stage);
@@ -812,8 +831,8 @@ async function fillBucket(cobaiImage) {
   // Get pos on a transformed currentImage (through stage's transformation)
   const localPos = cobaiImage.getRelativePointerPosition();
   const startPos = {
-    x: Math.floor(localPos.x),
-    y: Math.floor(localPos.y),
+    x: Math.round(localPos.x),
+    y: Math.round(localPos.y),
   };
 
   const bucketImage = await collapseBucketLayer();
@@ -1511,8 +1530,8 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
   //const sy = Math.sqrt(dist*dist - sx*sx);
   //let x = p1.x + sx;
   //let y = p1.y + sy;
-  //x = Math.floor(x);
-  //y = Math.floor(y);
+  //x = Math.round(x);
+  //y = Math.round(y);
 
   //return {x, y};
 
@@ -1530,8 +1549,8 @@ function projectPointOntoSegment(p1, p2, clickPoint) {
     x: p1.x + clampedT * dx,
     y: p1.y + clampedT * dy
   };
-  projectedPoint.x = Math.floor(projectedPoint.x);
-  projectedPoint.y = Math.floor(projectedPoint.y);
+  projectedPoint.x = Math.round(projectedPoint.x);
+  projectedPoint.y = Math.round(projectedPoint.y);
   //console.log({x, y}, projectedPoint)
   return projectedPoint;
 }
