@@ -334,10 +334,10 @@ function previewCurrentLine(evt) {
   pathLayer.batchDraw();
 }
 
-function createHandleCircle(currentPath, vertex, index) {
+function createHandleCircle(currentPath, vertex, index, fill) {
   const circle = new Konva.Circle({
     radius: 5,
-    fill: 'red',
+    fill,
     visible: false,
     name: currentPath.id(),
     index,
@@ -390,14 +390,14 @@ function createHandleCircle(currentPath, vertex, index) {
     circle.draggable(true);
     circle.fill('');
     circle.strokeWidth(1);
-    circle.stroke('red');
+    circle.stroke(fill);
     document.body.style.cursor = 'none';
   });
   circle.on('mouseup', (evt) => {
     evt.cancelBubble = true;
     circle.stopDrag();
     circle.draggable(false);
-    circle.fill('red');
+    circle.fill(fill);
     circle.strokeWidth(0);
     circle.stroke('');
     currentPath?.opacity(1);
@@ -471,6 +471,9 @@ function handleStageDblClick() {
       const [vertices, types] = getVerticesFromPathData(currentPath.data());
       const vertexCircles = pathLayer.find('.'+currentPath.id());
       vertices.forEach((vertex, index) => {
+        if (!vertexCircles[index]) {
+          return;
+        }
         const p = tr.point(vertex);
         vertexCircles[index].absolutePosition({
           x: p.x,
@@ -504,10 +507,23 @@ function createHandleCircles(show=false) {
   const currentPath = pathLayer.findOne(`#${currentPathId}`);
 
   let [vertices, types] = getVerticesFromPathData(currentPath.data());
-  vertices.forEach((vertex, index) => {
-    const c = createHandleCircle(currentPath, vertex, index);
+  for (let index = 0; index < vertices.length; index++) {
+    const vertex = vertices[index];
+    let already = vertices.slice(0, index).find(v => v.x === vertex.x && v.y === vertex.y);
+    if (already) continue;
+
+    let fill = 'red';
+    const type = types.get(vertex);
+    if (type === 'Q') {
+      const before = types.get(vertices[index-1]);
+      let beforeWasQ = before === 'Q';
+      if (!beforeWasQ) {
+        fill = 'blue';
+      }
+    }
+    const c = createHandleCircle(currentPath, vertex, index, fill);
     c.setAttr('visible', show);
-  });
+  };
 }
 
 function destroyHandleCircles() {
@@ -550,7 +566,8 @@ function getVerticesFromPathData(pathData) {
   let currentX = 0;
   let currentY = 0;
 
-  commands.forEach(command => {
+  for (let inx = 0; inx < commands.length; inx++) {
+    const command = commands[inx];
     const type = command[0];
     const coords = command.slice(1).trim().split(/[\s,]+/).map(Number);
 
@@ -573,11 +590,16 @@ function getVerticesFromPathData(pathData) {
         let pz = { x: zx, y: zy };
         pz = getPointFrom(pz, vertices);
         vertices.push(pk, pz);
-        types.set(pk, type);
-        types.set(pz, type);
+        types.set(pk, 'Q');
+        //let typ = 'L';
+        //if (commands[inx-1][0] === 'Q') {
+        //  typ = 'Q';
+        //}
+        let typ = 'L';
+        types.set(pz, typ);
       break;
     }
-  });
+  };
 
   return [vertices, types];
 }
