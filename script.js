@@ -530,8 +530,11 @@ function generatePathDataFromVertices(vertices, types) {
       break;
       case 'Q':
       const next = vertices[i+1] ?? vertices[0];
+      if (vertex.x === next.x && vertex.y === next.y) {
+        continue;
+      }
       pathData += ` Q${vertex.x},${vertex.y},${next.x},${next.y}`;
-      i += 2; 
+      i += 1; 
       break;
     }
   }
@@ -557,23 +560,32 @@ function getVerticesFromPathData(pathData) {
         for (let i = 0; i < coords.length; i += 2) {
           currentX = coords[i];
           currentY = coords[i + 1];
-          const p = { x: currentX, y: currentY };
+          let p = { x: currentX, y: currentY };
+          p = getPointFrom(p, vertices);
           vertices.push(p);
           types.set(p, type);
         }
         break;
       case 'Q':
         const [kx, ky, zx, zy] = coords;
-        const pa = { x: kx, y: ky };
-        const pz = { x: zx, y: zy };
-        vertices.push(pa, pz);
-        types.set(pa, type);
+        let pk = { x: kx, y: ky };
+        pk = getPointFrom(pk, vertices);
+        let pz = { x: zx, y: zy };
+        pz = getPointFrom(pz, vertices);
+        vertices.push(pk, pz);
+        types.set(pk, type);
         types.set(pz, type);
       break;
     }
   });
 
   return [vertices, types];
+}
+
+function getPointFrom(p, vertices) {
+  return vertices.find(v => {
+    return v.x === p.x && v.y === p.y;
+  }) ?? p;
 }
 
 let isMagneticNode = false;
