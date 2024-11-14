@@ -409,7 +409,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 
   circle.on('click', (evt) => {
     evt.cancelBubble = true;
-    if (! isDeleteNode) {
+    if (! isDeleteNode || ! isChangeNodeType) {
       return;
     }
     if (! currentPathId) {
@@ -418,10 +418,19 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 
     const [vertices, types] = getVerticesFromPathData(currentPath.data());
     const n = vertices[circle.attrs.index];
-    if (types.has(n)) {
-      types.delete(n);
+    if (isDeleteNode) {
+      if (types.has(n)) {
+        types.delete(n);
+      }
+      vertices.splice(circle.attrs.index, 1);
+    } else if (isChangeNodeType) {
+      if (! types.has(n)) {
+        return;
+      }
+      let c = types.get(n);
+      c = c === 'Q' ? 'L' : 'Q';
+      types.set(n, c);
     }
-    vertices.splice(circle.attrs.index, 1);
     pathData = generatePathDataFromVertices(vertices, types);
     currentPath.setAttr('data', pathData);
     destroyHandleCircles();
@@ -604,6 +613,12 @@ function getPointFrom(p, vertices) {
   return vertices.find(v => {
     return v.x === p.x && v.y === p.y;
   }) ?? p;
+}
+
+let isChangeNodeType = false;
+
+function changeNodeType() {
+  isChangeNodeType = ! isChangeNodeType;
 }
 
 let isMagneticNode = false;
@@ -1729,6 +1744,7 @@ document.getElementById('redoButton').addEventListener('click', handleRedoClick)
 document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
 document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
 document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
+document.getElementById('changeNodeTypeCheckbox').addEventListener('change', changeNodeType);
 document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
