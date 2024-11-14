@@ -470,12 +470,13 @@ function handleStageDblClick() {
     if (currentPath.selected || isDeleteNode) {
       const [vertices, types] = getVerticesFromPathData(currentPath.data());
       const vertexCircles = pathLayer.find('.'+currentPath.id());
-      vertices.forEach((vertex, index) => {
-        if (!vertexCircles[index]) {
+      vertexCircles.forEach((vertex) => {
+        const {index} = vertex.attrs;
+        if (!vertices[index]) {
           return;
         }
-        const p = tr.point(vertex);
-        vertexCircles[index].absolutePosition({
+        const p = tr.point(vertices[index]);
+        vertex.absolutePosition({
           x: p.x,
           y: p.y,
         });
@@ -515,11 +516,7 @@ function createHandleCircles(show=false) {
     let fill = 'red';
     const type = types.get(vertex);
     if (type === 'Q') {
-      const before = types.get(vertices[index-1]);
-      let beforeWasQ = before === 'Q';
-      if (!beforeWasQ) {
-        fill = 'blue';
-      }
+      fill = 'blue';
     }
     const c = createHandleCircle(currentPath, vertex, index, fill);
     c.setAttr('visible', show);
