@@ -539,18 +539,17 @@ function generatePathDataFromVertices(vertices, types) {
   for (let i = 1; i < vertices.length; i++) {
     const vertex = vertices[i];
     if (!types.has(vertex)) continue; // TODO this is a serious flaw, the path is broken
+    const next = vertices[i+1] ?? vertices[0];
     const command = types.get(vertex);
+    if (vertex.x === next.x && vertex.y === next.y) {
+      continue;
+    }
     switch (command) {
       case 'L':
       pathData += ` L${vertex.x},${vertex.y}`;
       break;
       case 'Q':
-      const next = vertices[i+1] ?? vertices[0];
-      if (vertex.x === next.x && vertex.y === next.y) {
-        continue;
-      }
       pathData += ` Q${vertex.x},${vertex.y},${next.x},${next.y}`;
-      i += 1; 
       break;
     }
   }
