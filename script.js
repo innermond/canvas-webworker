@@ -40,6 +40,11 @@ var fillColor = '#000000'; // Default fill color (black)
 // It controlls sensitivity for flooding image areas with fillColor
 var fillColorSensitivity = 25;
 
+var opacityColor = 100;
+
+var blendColorDefault = 'source-over';
+var blendColor = blendColorDefault;
+
 // Size of pencil
 var pencilSize = 30;
 
@@ -488,6 +493,7 @@ function handleStageDblClick() {
   currentPath.setAttr('data', pathData);
 
   currentPath.fill(fillColor);
+  currentPath.globalCompositeOperation(blendColor);
   currentPath.strokeWidth(0);
 
   let ghostNode;
@@ -503,7 +509,7 @@ function handleStageDblClick() {
     initialGhostPos = tr.copy().invert().point(initialGhostPos);
   });
   // Update circle positions on path move
-  currentPath.on('dragmove', () => {
+  currentPath.on('dragmove transform', () => {
     // calculate everything in viewport(canvas's stage as it is seen on screen) space
     const tr = currentPath.getAbsoluteTransform();
 
@@ -677,6 +683,7 @@ function handleFillClick() {
   const currentPath = pathLayer.findOne(`#${currentPathId}`);
 
   currentPath.fill(fillColor);
+  currentPath.globalCompositeOperation(blendColor);
   currentPath.strokeWidth(0);
 
   pathLayer.batchDraw();
@@ -847,7 +854,7 @@ function removeSelection(e) {
     justContourLayer.batchDraw();
   }
 
-  if (e.target === stage) {
+  if (e?.target === stage) {
     imageTransformer.nodes([]);
     pathTransformer.nodes([]);
   }
@@ -989,16 +996,33 @@ function getPixelColor(image, x, y) {
 // Function to convert hex color to RGB
 function hexToRgb(hex) {
     var bigint = parseInt(hex.slice(1), 16);
-    return {
-        r: (bigint >> 16) & 255,
-        g: (bigint >> 8) & 255,
-        b: bigint & 255
-    };
+
+    // Extract RGB components
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+
+    // Check if there's an alpha channel
+    const alpha = hex.length === 9 ? ((bigint >> 24) & 255) / 255 : 1; // Default alpha = 1
+
+    return { r, g, b, a: alpha };
 }
 
 // Helper function to convert RGB to hex
-function rgbToHex(r, g, b) {
-    return (r << 16) + (g << 8) + b; // Combine RGB into a single hex value
+function rgbToHex(r, g, b, a = 1) {
+    // Ensure RGB values are within [0, 255]
+    r = Math.max(0, Math.min(255, r));
+    g = Math.max(0, Math.min(255, g));
+    b = Math.max(0, Math.min(255, b));
+
+    // Convert alpha (0.0–1.0) to 0–255 range and ensure it's within bounds
+    const alpha = Math.round(Math.max(0, Math.min(1, a)) * 255);
+
+    // Combine components into a single HEX string
+    const hex = ((r << 16) + (g << 8) + b).toString(16).padStart(6, "0"); // RGB part
+    const alphaHex = alpha.toString(16).padStart(2, "0"); // Alpha part
+
+    return a < 1 ? `#${hex}${alphaHex}` : `#${hex}`; // Add alpha only if it's less than 1
 }
 
 // Helper function to parse hex color
@@ -1006,7 +1030,8 @@ function parseColor(color) {
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
-    return { r, g, b };
+    const a = parseInt(color.slice(7, 9), 16);
+    return { r, g, b, a };
 }
 
 // Function to handle the "Delete" button click
@@ -1269,11 +1294,23 @@ function handleImageUpload(e) {
 }
 
 // Function to handle color picker change
-function handleColorPickerChange() {
-    fillColor = document.getElementById('fillColorPicker').value; // Update global fillColor
-    if (pencil) {
-        pencil.fill(fillColor);
-    }
+function handleColorPickerChange(e) {
+  fillColor = e.target.value; // Update global fillColor
+  const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
+  fillColor = fillColor.slice(0, 7) + alpha; 
+  if (pencil) {
+      pencil.fill(fillColor);
+  }
+}
+
+function handleOpacityChange(e) {
+  opacityColor = e.target.value;
+  const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
+  fillColor = fillColor.slice(0, 7) + alpha; 
+}
+
+function handleBlendColor(e) {
+  blendColor = e.target.value;
 }
 
 // Maps interval [0, 1] to [0, 500]
@@ -1349,7 +1386,7 @@ let isDrawPencil = false;
 let mousemove = false;
 
 function gco() {
-    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : 'source-over');
+    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : blendColor);
     return v;
 }
 // Mousedown event starts drawing with pencil
@@ -1848,5 +1885,7 @@ document.getElementById('changeNodeTypeButton').addEventListener('click', change
 document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
-
+document.getElementById('opacityInput').addEventListener('input', handleOpacityChange); // Update fillColor on change
+document.getElementById('opacityInput').value = opacityColor;
+document.getElementById('blendModes').addEventListener('change', handleBlendColor);
 inactivateModes();

@@ -11,6 +11,7 @@ self.onmessage = function(e) {
         r: data[startPixelIndex],
         g: data[startPixelIndex + 1],
         b: data[startPixelIndex + 2],
+        a: data[startPixelIndex + 3] ?? 255,
     };
 
     const pixelStack = [{ x: startX, y: startY }];
@@ -38,6 +39,7 @@ self.onmessage = function(e) {
         r: data[pixelIndex],
         g: data[pixelIndex + 1],
         b: data[pixelIndex + 2],
+        a: data[pixelIndex + 3] ?? 255,
       };
 
       // Check if the current pixel matches the start color within tolerance
@@ -99,7 +101,7 @@ self.onmessage = function(e) {
         floodImageData.data[index] = newColorRgb.r;     // Red
         floodImageData.data[index + 1] = newColorRgb.g; // Green
         floodImageData.data[index + 2] = newColorRgb.b; // Blue
-        floodImageData.data[index + 3] = 255; // Alpha
+        floodImageData.data[index + 3] = newColorRgb.a; // Alpha
       });
     } else {
       const black = {r: 0, g: 0, b: 0};
@@ -150,6 +152,7 @@ function checkIsBorder(x, y, width, height, data, startColor, tolerance) {
         r: data[neighborIndex + 0],
         g: data[neighborIndex + 1],
         b: data[neighborIndex + 2],
+        a: data[neighborIndex + 3] ?? 255,
       };
       const distance = colorDistance(neighborColor, startColor);
       if (distance > tolerance) {
@@ -167,15 +170,21 @@ function colorDistance(c1, c2) {
   return Math.sqrt(
     Math.pow(c1.r - c2.r, 2) +
     Math.pow(c1.g - c2.g, 2) +
-    Math.pow(c1.b - c2.b, 2)
+    Math.pow(c1.b - c2.b, 2) +
+    Math.pow(c1.a - c2.a, 2)
   );
 }
 
 function hexToRgb(hex) {
-  const bigint = parseInt(hex.slice(1), 16);
-  return {
-    r: (bigint >> 16) & 255,
-    g: (bigint >> 8) & 255,
-    b: bigint & 255
-  };
+  var bigint = parseInt(hex.slice(1), 16);
+
+  // Extract RGB components
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  // Check if there's an alpha channel
+  const alpha = hex.length === 9 ? ((bigint >> 24) & 255) : 255; // Default alpha = 1
+
+  return { r, g, b, a: alpha };
 }
