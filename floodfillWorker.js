@@ -176,15 +176,19 @@ function colorDistance(c1, c2) {
 }
 
 function hexToRgb(hex) {
-  var bigint = parseInt(hex.slice(1), 16);
+  var h = hex.slice(hex.startsWith('#') ? 1 : 0);
+  if (h.length === 3) h = h.map(x => x+x).join('');
+  var hasAlpha = h.length === 8;
+
+  h = parseInt(h, 16);
 
   // Extract RGB components
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
+  const r = h >>> (hasAlpha ? 3*8 : 2*6);
+  const g = (h & (hasAlpha ? 0x00ff0000 : 0x00ff00)) >>> (hasAlpha ? 2*8 : 1*8);
+  const b = (h & (hasAlpha ? 0x0000ff00 : 0x0000ff)) >>> (hasAlpha ? 1*8 : 0*8);
 
   // Check if there's an alpha channel
-  const alpha = hex.length === 9 ? ((bigint >> 24) & 255) : 255; // Default alpha = 1
+  const a = hasAlpha ? h & 0x000000ff : 255;
 
-  return { r, g, b, a: alpha };
+  return { r, g, b, a };
 }
