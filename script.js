@@ -25,6 +25,8 @@ stage.add(justContourLayer);
 var pathLayer = new Konva.Layer({
     id: 'path',
 });
+var pathTransformer = new Konva.Transformer();
+pathLayer.add(pathTransformer);
 stage.add(pathLayer);
 
 var currentImage; // Variable to hold the currently added image
@@ -215,10 +217,19 @@ function handlePathMode(kevt) {
         document.body.style.cursor = 'grab';
       }
     });
-    currentPath.on('mouseup', function(evt) {
-      evt.cancelBubble = true;
+    currentPath.on('mouseup', function(e) {
+      const inx = pathTransformer.nodes().indexOf(e.target);
+      if (inx === -1) { // not found exclusively add it
+        pathTransformer.nodes([]);
+        pathTransformer.nodes([e.target]);
+      } else { // found remove it
+        const nodes = pathTransformer.nodes().slice();
+        nodes.splice(inx, 1);
+        pathTransformer.nodes(nodes);
+      }
+      e.cancelBubble = true;
       if (isDragging && !this.selected) {
-        evt.cancelBubble = false;
+        e.cancelBubble = false;
       }
       if (isAddNode && ghostNode) {
         ghostNode.setAttrs({fill: 'white', opacity: 0.4});
@@ -838,6 +849,7 @@ function removeSelection(e) {
 
   if (e.target === stage) {
     imageTransformer.nodes([]);
+    pathTransformer.nodes([]);
   }
 }
 
