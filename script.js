@@ -11,6 +11,8 @@ var stage = new Konva.Stage({
 var imageLayer = new Konva.Layer({
     id: 'image',
 });
+var imageTransformer = new Konva.Transformer();
+imageLayer.add(imageTransformer);
 stage.add(imageLayer);
 var bucketLayer = new Konva.Layer({
     id: 'bucket',
@@ -813,7 +815,7 @@ async function fillSelectionImage(justContour=false) {
   }
 }
 
-function removeSelection() {
+function removeSelection(e) {
   document.getElementById('fillSelectionImageButton').classList.add('inactive');
   if (isAddNode) {
     isAddNode = false;
@@ -832,6 +834,10 @@ function removeSelection() {
   if (a > 0) {
     justContourLayer.destroyChildren();
     justContourLayer.batchDraw();
+  }
+
+  if (e.target === stage) {
+    imageTransformer.nodes([]);
   }
 }
 
@@ -1203,23 +1209,41 @@ function handleImageUpload(e) {
       stage.width(img.width)
       stage.height(img.height)
       stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
-      const allLayers = [imageLayer, bucketLayer, pathLayer];
-      for (const layer of allLayers) {
-        // Remove including non-drawing preview line 
-        layer.destroyChildren()
-      }
+      //const allLayers = [imageLayer, bucketLayer, pathLayer];
+      //for (const layer of allLayers) {
+      //  // Remove including non-drawing preview line 
+      //  layer.destroyChildren()
+      //}
       // Add back preview line
-      restorePreviewLine();
+      //restorePreviewLine();
 
       const newImage = new Konva.Image({
         image: img,
       });
       imageLayer.add(newImage);
 
-      newImage.on('click', function(evt) {
+      newImage.on('click', function(e) {
+        e.evt.preventDefault();
+
         const pos = stage.getRelativePointerPosition();
         lastClickPos = pos;
         document.getElementById('deleteButton').disabled = false; // Enable delete button
+      });
+      newImage.on('mousedown', function(e) {
+        e.target.startDrag();
+      });
+      newImage.on('mouseup', function(e) {
+        e.target.stopDrag();
+
+        const inx = imageTransformer.nodes().indexOf(e.target);
+        if (inx === -1) { // not found exclusively add it
+          imageTransformer.nodes([]);
+          imageTransformer.nodes([e.target]);
+        } else { // found remove it
+          const nodes = imageTransformer.nodes().slice();
+          nodes.splice(inx, 1);
+          imageTransformer.nodes(nodes);
+        }
       });
 
       imageLayer.batchDraw(); // Redraw the imageLayer to show the image
