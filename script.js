@@ -490,6 +490,7 @@ function handleStageDblClick() {
     return;
   }
 
+  currentPathId = null;
   // Close the path by adding 'Z' to the SVG path data
   pathData += ' Z';
   // Update the path data and set the closed flag
@@ -1047,6 +1048,8 @@ function handleDeleteClick() {
       pathLayer.find(currentPathId).forEach(c => c.destroy());
       resetPathState(); // Reset drawing state
 
+      pathTransformer.nodes([]);
+
       // Disable buttons since there's no current path
       document.getElementById('fillButton').disabled = true;
       document.getElementById('fillColorPicker').disabled = true;
@@ -1058,6 +1061,8 @@ function handleDeleteClick() {
     } else if (currentImage) {
       currentImage.destroy(); // Remove the current image
       currentImage = null; // Reset current image variable
+
+      imageTransformer.nodes([]);
 
       // Disable the delete button since there's no current image
       document.getElementById('deleteButton').disabled = true;
