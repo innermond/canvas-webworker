@@ -101,6 +101,7 @@ function handlePathMode(kevt) {
   }
 
   var pos = stage.getRelativePointerPosition();
+  // TODO it interferes with image clicking on same point will do nothing?
   if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y && pathData !== '') {
     return;
   }
@@ -161,6 +162,7 @@ function handlePathMode(kevt) {
       }
       currentPathId = this.getId(); // Set this path as the current path
       pathData = this.getAttr('data');
+      currentImage = null;
 
       if (isAddNode && this.selected) {
         let clickPoint = currentPath.getRelativePointerPosition();
@@ -223,6 +225,7 @@ function handlePathMode(kevt) {
       }
     });
     currentPath.on('mouseup', function(e) {
+      imageTransformer.nodes([]);
       const inx = pathTransformer.nodes().indexOf(e.target);
       if (inx === -1) { // not found exclusively add it
         pathTransformer.nodes([]);
@@ -715,6 +718,7 @@ floodFillWorker.onmessage = async function(e) {
     bucketLayer.add(floodImage);
     bucketLayer.batchDraw();
   } else {
+    floodImage.setAttr('id', 'floodImageContour');
     justContourLayer.add(floodImage);
     justContourLayer.batchDraw();
 
@@ -1062,10 +1066,15 @@ function handleDeleteClick() {
 }
 
 function handleClearAllClick() {
-    pathLayer.removeChildren();
-    pathLayer.clear();
-    bucketLayer.removeChildren();
-    bucketLayer.clear();
+  const all = [pathLayer, justContourLayer, imageLayer, bucketLayer];
+  all.forEach(l => {
+    l.removeChildren();
+    l.clear();
+  });
+
+  currentPathId = null;
+  currentImage?.destroy();
+  currentImage =null;
 }
 
 function dropShapeClick() {
@@ -1260,18 +1269,26 @@ function handleImageUpload(e) {
       imageLayer.add(newImage);
 
       newImage.on('click', function(e) {
+        if (isDrawPath) return;
+
         e.evt.preventDefault();
+
+        currentImage = e.target;
+        currentPathId = null;
 
         const pos = stage.getRelativePointerPosition();
         lastClickPos = pos;
+        
         document.getElementById('deleteButton').disabled = false; // Enable delete button
       });
       newImage.on('mousedown', function(e) {
+        if (isSelectImageMode) return;
         e.target.startDrag();
       });
       newImage.on('mouseup', function(e) {
         e.target.stopDrag();
-
+        
+        pathTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
         if (inx === -1) { // not found exclusively add it
           imageTransformer.nodes([]);
@@ -1282,6 +1299,15 @@ function handleImageUpload(e) {
           imageTransformer.nodes(nodes);
         }
       });
+      //newImage.on('transform', function(e) {
+      //  const c = justContourLayer.findOne('#floodImageContour');
+      //  if (!c) return;
+      //  const her = c.getAbsoluteTransform();
+      //  const me = e.target.getAbsoluteTransform();
+      //  const our = me.multiply(her);
+      //  console.log(our.decompose())
+      //  e.target.setAttrs(our.decompose());
+      //});
 
       imageLayer.batchDraw(); // Redraw the imageLayer to show the image
 
