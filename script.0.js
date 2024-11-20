@@ -32,10 +32,13 @@ stage.add(pathLayer);
 const selection = new Set();
 const modes = {
   drawPath: 1 << 0,
-  drawPencil: 1 << 1,
-  fill: 1 << 2,
-  bucket: 1 << 3,
-  select: 1 << 4,
+  addNodePath: 1 << 1,
+  changeNodePath: 1 << 2,
+  deleteNodePath: 1 << 3,
+  drawPencil: 1 << 4,
+  fill: 1 << 5,
+  bucket: 1 << 6,
+  select: 1 << 7,
 };
 const ALL_IS = ((1 << Object.keys(modes).length) -1); // 1111...
 // mode get/set a value - one of is
@@ -57,21 +60,15 @@ Object.keys(modes).forEach(k => {
 });
 
 var currentImage; // Variable to hold the currently added image
-
 // Variable to store the last clicked position
 var lastPos = null;
-
 // Global variable to store the fill color with a default value
 var fillColor = '#000000'; // Default fill color (black)
-
 // It controlls sensitivity for flooding image areas with fillColor
 var fillColorSensitivity = 25;
-
 var opacityColor = 100;
-
 var blendColorDefault = 'source-over';
 var blendColor = blendColorDefault;
-
 // Size of pencil
 var pencilSize = 30;
 
@@ -146,7 +143,6 @@ function doSelectStart(e) {
 function doSelectEnd(e) {
   if (! is.select) return;
   e.cancelBubble = true;
-  (e.evt ?? e).stopImmediatePropagation();
 
   pathLayer.findOne('#selectingRect')?.destroy();
   selectPoints[0] = {x: 0, y: 0};
@@ -155,7 +151,6 @@ function doSelectEnd(e) {
 function doSelecting(e) {
   if (!is.select) return;
   e.cancelBubble = true;
-  e.evt.stopImmediatePropagation();
   const r = pathLayer.findOne('#selectingRect');
   if (!r) return;
 
@@ -170,7 +165,6 @@ function doSelecting(e) {
 function doSelectFinal(e) {
   if (! is.select) return;
   e.cancelBubble = true;
-  e.evt.stopImmediatePropagation();
 }
 
 function handleBucketMode(kevt) {
@@ -205,7 +199,7 @@ const STROKE_WIDTH = 1;
 const PATH_OPACITY = 0.2;
 
 // Function to handle mouse click to add points to the path
-function handlePathMode(kevt) {
+function doDrawPathing(kevt) {
 // TODO it is useless?
   if (currentPathId) {
     const currentPath = pathLayer.findOne(`#${currentPathId}`);
@@ -221,7 +215,7 @@ function handlePathMode(kevt) {
     }
   }
 
-  if (!isDrawPath) {
+  if (!is.drawPath) {
     return;
   }
 
@@ -289,7 +283,7 @@ function handlePathMode(kevt) {
       pathData = this.getAttr('data');
       currentImage = null;
 
-      if (isAddNode && this.selected) {
+      if (is.addNodePath && this.selected) {
         let clickPoint = currentPath.getRelativePointerPosition();
         clickPoint.x = Math.round(clickPoint.x);
         clickPoint.y = Math.round(clickPoint.y);
@@ -364,14 +358,14 @@ function handlePathMode(kevt) {
       if (isDragging && !this.selected) {
         e.cancelBubble = false;
       }
-      if (isAddNode && ghostNode) {
+      if (is.addNodePath && ghostNode) {
         ghostNode.setAttrs({fill: 'white', opacity: 0.4});
       }
       document.body.style.cursor = 'default';
     });
     currentPath.on('dragstart', function(evt) {
       evt.cancelBubble = true;
-      if (ghostNode && this.selected && isAddNode) {
+      if (ghostNode && this.selected && is.addNodePath) {
         ghostNode.setAttrs({fill: 'white', opacity: 0.4});
       }
       this.opacity(PATH_OPACITY);
@@ -389,7 +383,7 @@ function handlePathMode(kevt) {
 
     let ghostNode = null;
     currentPath.on('mousemove', () => {
-      if (isAddNode && currentPath.selected) {
+      if (is.addNodePath && currentPath.selected) {
         // canvas point (it is relative to viewport)
         let movingPoint = stage.getPointerPosition();
         // to currentPath related to viewport
@@ -410,7 +404,7 @@ function handlePathMode(kevt) {
       }
     });
     currentPath.on('mouseenter', () => {
-      if (isAddNode) {
+      if (is.addNodePath) {
         ghostNode = new Konva.Circle({
           x: 0,
           y: 0,
@@ -471,7 +465,7 @@ function previewCurrentLine(evt) {
   if (isBucketMode) return;
   if (isDrawPencil) return;
   if (isDragging) return;
-  if (! isDrawPath) return;
+  if (! is.drawPath) return;
 
   var pos = pathLayer.getRelativePointerPosition();
 
@@ -528,7 +522,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     circle.radius(15);
   });
   circle.on('mousedown', (evt) => {
-    if (isDeleteNode || isChangeNodeType) {
+    if (is.deleteNodePath || is.changeNodePath) {
       return;
     }
     evt.cancelBubble = true;
@@ -557,7 +551,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 
   circle.on('click', (evt) => {
     evt.cancelBubble = true;
-    if (! isDeleteNode) {
+    if (! is.deleteNodePath) {
       return;
     }
     if (! currentPathId) {
@@ -579,7 +573,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
   });
   circle.on('click', (evt) => {
     evt.cancelBubble = true;
-    if (! isChangeNodeType) {
+    if (! is.changeNodePath) {
       return;
     }
     if (! currentPathId) {
@@ -642,7 +636,7 @@ function handleStageDblClick() {
     // calculate everything in viewport(canvas's stage as it is seen on screen) space
     const tr = currentPath.getAbsoluteTransform();
 
-    if (currentPath.selected || isDeleteNode) {
+    if (currentPath.selected || is.deleteNodePath) {
       const [vertices, types] = getVerticesFromPathData(currentPath.data());
       const vertexCircles = pathLayer.find('.'+currentPath.id());
       vertexCircles.forEach((vertex) => {
@@ -782,17 +776,17 @@ function getPointFrom(p, vertices) {
   }) ?? p;
 }
 
-let isChangeNodeType = false;
-
-function changeNodeType() {
-  isChangeNodeType = ! isChangeNodeType;
-  if (isChangeNodeType) {
-    isDrawPath = false;
-    isDeleteNode = false;
-    document.getElementById('newPathButton').classList.add('inactive');
-    document.getElementById('deletePathNodeButton').classList.add('inactive');
+function doChangeNodePathClick() {
+  if (! currentPathId) {
+    is.changeNodePath = false;
+    document.getElementById('doChangeNodePath').classList.add('inactive');
+    return;
   }
-  document.getElementById('changeNodeTypeButton').classList[isChangeNodeType ? 'remove' : 'add']('inactive');
+  if (is.changeNodePath) {
+    document.getElementById('doDrawPath').classList.add('inactive');
+    document.getElementById('doDeleteNodePath').classList.add('inactive');
+  }
+  document.getElementById('doChangeNodePath').classList[is.changeNodePath ? 'remove' : 'add']('inactive');
 }
 
 let isMagneticNode = false;
@@ -906,10 +900,10 @@ function handleFillImageClick() {
   }
 
   isDrawPencil = false;
-  isDrawPath = false;
+  is.drawPath = false;
   isSelectImageMode = false;
 
-  document.getElementById('newPathButton').classList.add('inactive');
+  document.getElementById('doDrawPath').classList.add('inactive');
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
 }
@@ -925,10 +919,10 @@ function handleSelectImageClick() {
   }
 
   isDrawPencil = false;
-  isDrawPath = false;
+  is.drawPath = false;
   isBucketMode = false;
 
-  document.getElementById('newPathButton').classList.add('inactive');
+  document.getElementById('doDrawPath').classList.add('inactive');
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('fillImageButton').classList.add('inactive');
 }
@@ -965,17 +959,17 @@ async function fillSelectionImage(justContour=false) {
 
 function removeSelection(e) {
   document.getElementById('fillSelectionImageButton').classList.add('inactive');
-  if (isAddNode) {
-    isAddNode = false;
-    document.getElementById('newPathNodeButton').classList.add('inactive');
+  if (is.addNodePath) {
+    is.addNodePath = false;
+    document.getElementById('doAddNodePath').classList.add('inactive');
   }
-  if (isDeleteNode) {
-    isDeleteNode = false;
-    document.getElementById('deletePathNodeButton').classList.add('inactive');
+  if (is.deleteNodePath) {
+    is.deleteNodePath = false;
+    document.getElementById('doDeleteNodePath').classList.add('inactive');
   }
-  if (isChangeNodeType) {
-    isChangeNodeType = false;
-    document.getElementById('changeNodeTypeButton').classList.add('inactive');
+  if (is.changeNodePath) {
+    is.changeNodePath = false;
+    document.getElementById('doChangeNodePath').classList.add('inactive');
   }
 
   const a = justContourLayer.children.length;
@@ -1286,14 +1280,12 @@ function resetPathState() {
   previewLine.points([]);
 }
 
-var isDrawPath = false;
-
 function handleNewPathClick() {
   resetPathState();
 
-  isDrawPath = !isDrawPath;
-  if (isDrawPath === false) {
-    document.getElementById('newPathButton').classList.add('inactive');
+  is.drawPath = !is.drawPath;
+  if (is.drawPath === false) {
+    document.getElementById('doDrawPath').classList.add('inactive');
     return;
   }
   isDrawPencil = false;
@@ -1303,43 +1295,34 @@ function handleNewPathClick() {
   document.getElementById('drawPencil').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
   document.getElementById('fillImageButton').classList.add('inactive');
-  document.getElementById('newPathButton').classList.remove('inactive');
+  document.getElementById('doDrawPath').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('fillButton').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('deleteButton').disabled = true;
 }
 
-let isAddNode = false;
-function handleNewPathNodeClick() {
+function doAddNodePathClick() {
   if (! currentPathId) {
+    is.addNodePath = false;
+    document.getElementById('doAddNodePath').classList.add('inactive');
     return;
   }
-
-  isAddNode = ! isAddNode;
-
-  if (isAddNode) {
-    isDrawPath = false;
-    document.getElementById('newPathButton').classList.add('inactive');
-  }
-  document.getElementById('newPathNodeButton').classList[isAddNode ? 'remove' : 'add']('inactive');
+  document.getElementById('doAddNodePath').classList[is.addNodePath ? 'remove' : 'add']('inactive');
 }
 
-let isDeleteNode = false;
-function handleDeletePathNodeClick() {
+function doDeleteNodePathClick() {
   if (! currentPathId) {
+    is.deleteNodePath = false;
+    document.getElementById('doDeleteNodePath').classList.add('inactive');
     return;
   }
 
-  isDeleteNode = ! isDeleteNode;
-
-  if (isDeleteNode) {
-    isDrawPath = false;
-    isChangeNodeType = false;
-    document.getElementById('newPathButton').classList.add('inactive');
-    document.getElementById('changeNodeTypeButton').classList.add('inactive');
+  if (is.deleteNodePath) {
+    document.getElementById('doDrawPath').classList.add('inactive');
+    document.getElementById('doChangeNodePath').classList.add('inactive');
   }
-  document.getElementById('deletePathNodeButton').classList[isDeleteNode ? 'remove' : 'add']('inactive');
+  document.getElementById('doDeleteNodePath').classList[is.deleteNodePath ? 'remove' : 'add']('inactive');
 }
 
 var lastClickPos = null; // Global variable to store the last clicked position on the image
@@ -1399,7 +1382,7 @@ function handleImageUpload(e) {
       imageLayer.add(newImage);
 
       newImage.on('click', function(e) {
-        if (isDrawPath) return;
+        if (is.drawPath) return;
 
         e.evt.preventDefault();
 
@@ -1559,14 +1542,14 @@ stage.on('mousedown', (evt) => {
     return;
   }
 
-  if (isDeleteNode || isChangeNodeType) {
+  if (is.deleteNodePath || is.changeNodePath) {
     return;
   }
 
-  if (!isDrawPath && currentPathId) {
+  if (!is.drawPath && currentPathId) {
     const p = pathLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
-    if (false === isAddNode && p.data().endsWith('Z') === true && p.selected === true) {
+    if (false === is.addNodePath && p.data().endsWith('Z') === true && p.selected === true) {
       // Reset prev path
       p.strokeWidth(0);
       p.draggable(false);
@@ -1813,7 +1796,7 @@ function handleDrawPencilClick() {
   }
 
   isBucketMode = false;
-  isDrawPath = false;
+  is.drawPath = false;
   isDragging = false;
   stage.stopDrag();
   isSelectImageMode = false;
@@ -1822,7 +1805,7 @@ function handleDrawPencilClick() {
   document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
 
   document.getElementById('fillImageButton').classList.add('inactive');
-  document.getElementById('newPathButton').classList.add('inactive');
+  document.getElementById('doDrawPath').classList.add('inactive');
   document.getElementById('selectImageButton').classList.add('inactive');
 
   document.getElementById('drawPencil').classList.remove('inactive');
@@ -1959,9 +1942,9 @@ function inactivateModes(except='') {
   isBucketMode = false;
   isDrawPencil = false;
   currentImage = null;
-  isDrawPath = false;
-  isAddNode = false;
-  isDeleteNode = false;
+  is.drawPath = false;
+  is.addNodePath = false;
+  is.deleteNodePath = false;
 
   const modes = [
     'fillButton',
@@ -1973,10 +1956,9 @@ function inactivateModes(except='') {
     'downz',
     'deleteButton',
     'dropShape',
-    'newPathButton',
-    'newPathNodeButton',
-    'changeNodeTypeButton',
-    'deletePathNodeButton',
+    'doAddNodePath',
+    'doChangeNodePath',
+    'doDeleteNodePath',
   ];
 
   modes.forEach(m => document.getElementById(m).classList.add('inactive'));
@@ -1993,7 +1975,7 @@ stage.on('click', doSelectFinal);
 stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
 stage.on('click', handleBucketMode);
-stage.on('click', handlePathMode);
+stage.on('click', doDrawPathing);
 stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
@@ -2041,11 +2023,10 @@ document.getElementById('dropShape').addEventListener('click', dropShapeClick);
 document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllClick);
 document.getElementById('undoButton').addEventListener('click', handleUndoClick);
 document.getElementById('redoButton').addEventListener('click', handleRedoClick);
-document.getElementById('newPathButton').addEventListener('click', handleNewPathClick);
-document.getElementById('newPathNodeButton').addEventListener('click', handleNewPathNodeClick);
+document.getElementById('doAddNodePath').addEventListener('click', doAddNodePathClick);
 document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
-document.getElementById('changeNodeTypeButton').addEventListener('click', changeNodeType);
-document.getElementById('deletePathNodeButton').addEventListener('click', handleDeletePathNodeClick);
+document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);
+document.getElementById('doDeleteNodePath').addEventListener('click', doDeleteNodePathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
 document.getElementById('opacityInput').addEventListener('input', handleOpacityChange); // Update fillColor on change
