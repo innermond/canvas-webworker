@@ -45,11 +45,12 @@ const mode = (m) => {
   if (! mIsValid) throw new Error(`${m} is not a valid mode`);
   mode.value = m;
 };
-mode.value = 0;
+mode.value = 0; // no modes 0000...
 const is = {};
 Object.keys(modes).forEach(k => {
-  object.defineProperty(is, k, {
-    get: () => (mode.value & modes[k]) !== 0,
+  Object.defineProperty(is, k, {
+    get: () => mode.value === modes[k],
+    set: v => v ? mode(modes[k]) : mode.value = 0,
     enumerable: true,
     configurable: true,
   });
@@ -73,6 +74,31 @@ var blendColor = blendColorDefault;
 
 // Size of pencil
 var pencilSize = 30;
+
+//function doSelect() {
+//  is.select = !is.select;
+//  document.getElementById('doSelect').classList.toggle('inactive');
+//}
+// Create functions like the one above for any do...modes's key
+// and bind them to their coresponding DOM buttons
+for (let k in modes) {
+  const name = 'do' + k.charAt(0).toUpperCase() + k.slice(1);
+  const fn = () => {
+    is[k] = !is[k];
+    // Add inactive class to all do...modes's key DOM elements
+    document.querySelectorAll('[id^=do]')?.forEach(x => {
+      let name = x.id.slice(2);
+      name = name.charAt(0).toLowerCase() + name.slice(1);
+      if (Object.keys(modes).includes(name) === false) return;;
+      x.classList.add('inactive');
+    })
+    // toggle inactive class to pressed button
+    document.getElementById(name)?.classList[is[k] ? 'remove' : 'add']('inactive');
+  }
+  Object.defineProperty(fn, 'name', {value: name});
+  document.getElementById(name)?.addEventListener('click', fn);
+  this[name] = fn;
+}
 
 function handleBucketMode(kevt) {
   if (!isBucketMode) {
