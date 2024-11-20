@@ -146,7 +146,7 @@ function doSelectStart(e) {
 function doSelectEnd(e) {
   if (! is.select) return;
   e.cancelBubble = true;
-  e.evt.stopImmediatePropagation();
+  (e.evt ?? e).stopImmediatePropagation();
 
   pathLayer.findOne('#selectingRect')?.destroy();
   selectPoints[0] = {x: 0, y: 0};
@@ -1984,6 +1984,7 @@ function inactivateModes(except='') {
 
 stage.on('mousedown', doSelectStart);
 stage.on('mouseup', doSelectEnd);
+document.body.addEventListener('mouseup', doSelectEnd);
 stage.on('mousemove', doSelecting);
 stage.on('click', doSelectFinal);
 
