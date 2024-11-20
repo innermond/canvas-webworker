@@ -100,6 +100,68 @@ for (let k in modes) {
   this[name] = fn;
 }
 
+const selectPoints = [{x: 0, y: 0}, {x: 0, y: 0}];
+Object.defineProperty(selectPoints, 'x', {
+  get: () => Math.min(selectPoints[0].x, selectPoints[1].x),
+});
+Object.defineProperty(selectPoints, 'y', {
+  get: () => Math.min(selectPoints[0].y, selectPoints[1].y),
+});
+Object.defineProperty(selectPoints, 'width', {
+  get: () => Math.abs(selectPoints[1].x - selectPoints[0].x),
+});
+Object.defineProperty(selectPoints, 'height', {
+  get: () => Math.abs(selectPoints[1].y - selectPoints[0].y),
+});
+function doSelectStart(e) {
+  if (! is.select) return;
+  e.cancelBubble = true;
+  e.evt.stopImmediatePropagation();
+  if (e.target !== stage) return;
+
+  selectPoints[0] = stage.getPointerPosition();
+  selectPoints[1] = {...selectPoints[0]};
+
+  const r = new Konva.Rect({
+    fill: 'rgba(0,0,255,0.25)',
+    visible: true,
+    listening: false,
+    id: 'selectingRect',
+  });
+  r.width(0);
+  r.height(0);
+  pathLayer.add(r);
+}
+function doSelectEnd(e) {
+  if (! is.select) return;
+  e.cancelBubble = true;
+  e.evt.stopImmediatePropagation();
+
+  pathLayer.findOne('#selectingRect')?.destroy();
+  selectPoints[0] = {x: 0, y: 0};
+  selectPoints[1] = {x: 0, y: 0};
+}
+function doSelecting(e) {
+  if (!is.select) return;
+  e.cancelBubble = true;
+  e.evt.stopImmediatePropagation();
+  const r = pathLayer.findOne('#selectingRect');
+  if (!r) return;
+
+  selectPoints[1] = stage.getPointerPosition();
+  r.setAttrs({
+    x: selectPoints.x,
+    y: selectPoints.y,
+    width: selectPoints.width,
+    height: selectPoints.height,
+  }); 
+}
+function doSelectFinal(e) {
+  if (! is.select) return;
+  e.cancelBubble = true;
+  e.evt.stopImmediatePropagation();
+}
+
 function handleBucketMode(kevt) {
   if (!isBucketMode) {
     return;
@@ -1908,6 +1970,12 @@ function inactivateModes(except='') {
 
   modes.forEach(m => document.getElementById(m).classList.add('inactive'));
 }
+
+stage.on('mousedown', doSelectStart);
+stage.on('mouseup', doSelectEnd);
+stage.on('mousemove', doSelecting);
+stage.on('click', doSelectFinal);
+
 
 // Attach event listeners
 stage.on('click', removeSelection);
