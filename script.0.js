@@ -123,13 +123,24 @@ function doSelectStart(e) {
   selectPoints[1] = {...selectPoints[0]};
 
   const r = new Konva.Rect({
-    fill: 'rgba(0,0,255,0.25)',
+    fill: 'rgba(255,255,255,0.05)',
+    stroke: 'white',
+    strokeWidth: STROKE_WIDTH,
+    dash: [8, 4],
     visible: true,
     listening: false,
     id: 'selectingRect',
   });
   r.width(0);
   r.height(0);
+  animation01(() => !is.select, applyInvert => {
+        if (applyInvert) {
+          r.dash([4, 4]);
+        } else {
+          r.dash([8, 4]);
+        }
+        r.dashOffset(r.dashOffset() + 4);
+  });
   pathLayer.add(r);
 }
 function doSelectEnd(e) {
@@ -190,8 +201,8 @@ function handleBucketMode(kevt) {
   kevt?.evt.stopImmediatePropagation();
 }
 
-const STROKE_WIDTH = 2;
-const PATH_OPACITY = 0.4;
+const STROKE_WIDTH = 1;
+const PATH_OPACITY = 0.2;
 
 // Function to handle mouse click to add points to the path
 function handlePathMode(kevt) {
