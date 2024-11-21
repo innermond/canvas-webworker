@@ -340,11 +340,12 @@ function doDrawPathing(kevt) {
       }
     });
     currentPath.on('mouseup', function(e) {
+      if (is.drawPath) return;
       imageTransformer.nodes([]);
       const inx = imageTransformer.nodes().indexOf(e.target);
       if (inx === -1) { // not found exclusively add it
         imageTransformer.nodes([]);
-        imageTransformer.nodes([e.target]);
+        !is.drawPath && imageTransformer.nodes([e.target]);
       } else { // found remove it
         const nodes = imageTransformer.nodes().slice();
         nodes.splice(inx, 1);
@@ -1189,32 +1190,32 @@ function dropShapeAllClick() {
   bucketLayer.batchDraw();
 }
 
-// Create a temporary line for the preview (while moving the mouse)
 var previewLine = new Konva.Line({
   id: 'previewLine',
   points: [],
   stroke: 'white',
   strokeWidth: 1,
   lineCap: 'round',
-  dash: [10, 5], // Dashed line to distinguish from the actual path
+  dash: [10, 5],
 });
 imageLayer.add(previewLine);
 
-function restorePreviewLine() {
-  const foundLine = imageLayer.findOne('#previewLine');
-  if (foundLine) {
-    return;
-  }
-
-  previewLine = new Konva.Line({
-    points: [],
-    stroke: 'green',
-    strokeWidth: 1,
-    lineCap: 'round',
-    dash: [10, 5], // Dashed line
-  });
-  imageLayer.add(previewLine);
-}
+//function restorePreviewLine() {
+//  const foundLine = imageLayer.findOne('#previewLine');
+//  if (foundLine) {
+//    return;
+//  }
+//
+//  previewLine = new Konva.Line({
+//    points: [],
+//    stroke: 'green',
+//    strokeWidth: 1,
+//    lineCap: 'round',
+//    dash: [10, 5], // Dashed line
+//  });
+//  previewLine.zIndex(imageLayer.children.length-1),
+//  imageLayer.add(previewLine);
+//}
 
 // Variable to store the current path data
 var pathData = '';
@@ -1226,6 +1227,7 @@ function resetPathState() {
   pathData = '';
   lastPos = null;
   previewLine.points([]);
+  previewLine.zIndex(imageLayer.children.length-1);
 }
 
 function handleNewPathClick() {
@@ -1328,6 +1330,7 @@ function handleImageUpload(e) {
         image: img,
       });
       imageLayer.add(newImage);
+      previewLine.zIndex(imageLayer.children.length-1);
 
       newImage.on('mousedown', function(e) {
         if (is.magikWand) return;
@@ -1339,6 +1342,7 @@ function handleImageUpload(e) {
       newImage.on('mouseup', function(e) {
         e.target.stopDrag();
         if (is.bucket) return; 
+        if (is.drawPath) return; 
         
         imageTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
