@@ -51,14 +51,14 @@
       <option value="luminosity">luminosity</option>
     </select>
 
-    <button id="fillButton" class="button inactive">Fill Path with Color</button>
-    <button id="selectImageButton" class="button inactive">Select from image</button>
+    <button id="doFill" class="button inactive">Fill Path</button>
+    <button id="doMagikWand" class="button inactive">Magik Wand</button>
     <button id="fillSelectionImageButton" class="button inactive">Fill selection from image</button>
-    <button id="fillImageButton" class="button inactive">Fill Image With Color</button>
+    <button id="doBucket" class="button inactive">Fill Image With Color</button>
     <label for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
       <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
     </label>
-    <button id="drawPencil" class="button inactive">Draw with Pencil</button>
+    <button id="doDrawPencil" class="button inactive">Draw with Pencil</button>
     <div>
         <label>
             <input type="radio" name="pencilShape" value="rectangle">
@@ -87,17 +87,13 @@
     <label for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
       <input type="range" min="0" max="1" id="zoomButton" />
     </label>
-    <label for="isDraggingCheckbox"> <div>Dragging is <span id="isDraggingCheckboxLabel"></span></div>
-    <input type="checkbox" id="isDraggingCheckbox" value="1" />
-    </label>
+    <button id="doDrag" class="button inactive">Drag mode</button>
     <button id="upz" class="button">Up</button>
     <button id="downz" class="button">Down</button>
     <button id="deleteButton" class="button" disabled>Delete Current Path/Image</button>
     <button id="clearAllButton" class="button">Clear all</button>
     <button id="dropShape" class="button">Drop shape</button>
     <button id="dropShapeAll" class="button">Drop all shapes</button>
-    <button id="undoButton" class="button">Undo</button>
-    <button id="redoButton" class="button">Redo</button>
     <input type="file" id="uploadImageButton" class="button" accept="image/*" />
 </div>
 

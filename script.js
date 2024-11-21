@@ -37,8 +37,10 @@ const modes = {
   deleteNodePath: 1 << 3,
   drawPencil: 1 << 4,
   fill: 1 << 5,
-  bucket: 1 << 6,
-  select: 1 << 7,
+  select: 1 << 6,
+  bucket: 1 << 7,
+  magikWand : 1 << 8,
+  drag: 1 << 9,
 };
 const ALL_IS = ((1 << Object.keys(modes).length) -1); // 1111...
 // mode get/set a value - one of is
@@ -168,7 +170,7 @@ function doSelectFinal(e) {
 }
 
 function handleBucketMode(kevt) {
-  if (!isBucketMode) {
+  if (!is.bucket) {
     return;
   }
 
@@ -328,12 +330,12 @@ function doDrawPathing(kevt) {
 
       // Update button states
       document.getElementById('deleteButton').disabled = false; // Enable the delete button
-      document.getElementById('fillButton').disabled = false; // Enable the fill button
+      document.getElementById('doFill').disabled = false; // Enable the fill button
       document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
     });
     currentPath.on('mousedown', function(evt) {
       evt.cancelBubble = true;
-      if (isDragging && !this.selected) {
+      if (is.drag && !this.selected) {
         evt.cancelBubble = false;
       }
       if (ghostNode && this.selected) {
@@ -355,7 +357,7 @@ function doDrawPathing(kevt) {
         pathTransformer.nodes(nodes);
       }
       e.cancelBubble = true;
-      if (isDragging && !this.selected) {
+      if (is.drag && !this.selected) {
         e.cancelBubble = false;
       }
       if (is.addNodePath && ghostNode) {
@@ -376,7 +378,7 @@ function doDrawPathing(kevt) {
      });
     currentPath.on('dragmove', function(evt) {
       evt.cancelBubble = true;
-      if (isDragging && !this.selected) {
+      if (is.drag && !this.selected) {
         evt.cancelBubble = false;
       }
     });
@@ -462,9 +464,9 @@ function doDrawPathing(kevt) {
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
   if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
-  if (isBucketMode) return;
-  if (isDrawPencil) return;
-  if (isDragging) return;
+  if (is.bucket) return;
+  if (is.drawPencil) return;
+  if (is.drag) return;
   if (! is.drawPath) return;
 
   var pos = pathLayer.getRelativePointerPosition();
@@ -665,7 +667,7 @@ function handleStageDblClick() {
   resetPathState();
 
   // Enable the "Fill Path" button and color picker after the path is closed
-  document.getElementById('fillButton').disabled = false;
+  document.getElementById('doFill').disabled = false;
   document.getElementById('fillColorPicker').disabled = false;
   document.getElementById('deleteButton').disabled = false; // Enable delete button
 
@@ -801,7 +803,7 @@ function handleMagneticNodeClick() {
 }
 
 // Function to handle the "Fill Path" button click
-function handleFillClick() {
+function doFillClick() {
   if (!currentPathId) return;
   const currentPath = pathLayer.findOne(`#${currentPathId}`);
 
@@ -811,7 +813,7 @@ function handleFillClick() {
 
   pathLayer.batchDraw();
 
-  document.getElementById('fillButton').classList.remove('inactive');
+  document.getElementById('doFill').classList.remove('inactive');
 }
 
 // Create a new web worker
@@ -886,49 +888,8 @@ function animation01(exitFn, animationFn, atMillisec=150) {
   };
 }
 
-// It control if flood filling is allowed
-let isBucketMode = false;
-
-// Function to handle filling the image with the global color using Web Worker
-function handleFillImageClick() {
-  isBucketMode = !isBucketMode;
-  // When filling mode begins it requires you 
-  // to choose a starting color (by position) from image
-  document.getElementById('fillImageButton').classList[isBucketMode ? 'remove' : 'add']('inactive'); // Enable fill image button
-  if (! isBucketMode) {
-    return;
-  }
-
-  isDrawPencil = false;
-  is.drawPath = false;
-  isSelectImageMode = false;
-
-  document.getElementById('doDrawPath').classList.add('inactive');
-  document.getElementById('drawPencil').classList.add('inactive');
-  document.getElementById('selectImageButton').classList.add('inactive');
-}
-
-let isSelectImageMode = false;
-
-function handleSelectImageClick() {
-  isSelectImageMode = ! isSelectImageMode;
-  document.getElementById('selectImageButton').classList.toggle('inactive');
-
-  if (isSelectImageMode === false) {
-    return;
-  }
-
-  isDrawPencil = false;
-  is.drawPath = false;
-  isBucketMode = false;
-
-  document.getElementById('doDrawPath').classList.add('inactive');
-  document.getElementById('drawPencil').classList.add('inactive');
-  document.getElementById('fillImageButton').classList.add('inactive');
-}
-
 async function fillSelectionImageClick() {
-  if (isSelectImageMode === false) {
+  if (is.magikWand === false) {
     return;
   }
   await fillSelectionImage(false);
@@ -985,7 +946,7 @@ function removeSelection(e) {
 }
 
 function handleSelectMode(kevt) {
-  if (!isSelectImageMode) {
+  if (!is.magikWand) {
     return true;
   }
   if (kevt.target === stage) return;
@@ -1058,7 +1019,7 @@ async function getImageDataComposedWithBucket(kimage) {
 }
 
 async function fillBucket(cobaiImage) {
-  const bucketOrSelectImage = isBucketMode || isSelectImageMode;
+  const bucketOrSelectImage = is.bucket || is.magikWand;
   if (!bucketOrSelectImage || !cobaiImage || !cobaiImage?.parent) return;
 
   lastClickPos = cobaiImage.getRelativePointerPosition();
@@ -1095,7 +1056,7 @@ async function fillBucket(cobaiImage) {
     startPos,
     fillColor,
     tolerance: fillColorSensitivity,
-    justContour: isSelectImageMode,
+    justContour: is.magikWand,
   });
 
 }
@@ -1170,7 +1131,7 @@ function handleDeleteClick() {
       pathTransformer.nodes([]);
 
       // Disable buttons since there's no current path
-      document.getElementById('fillButton').disabled = true;
+      document.getElementById('doFill').disabled = true;
       document.getElementById('fillColorPicker').disabled = true;
       document.getElementById('deleteButton').disabled = true;
 
@@ -1234,13 +1195,6 @@ function dropShapeAllClick() {
   bucketLayer.batchDraw();
 }
 
-function handleUndoClick() {
-}
-
-function handleRedoClick() {
-    console.log(stage.toJSON())
-}
-
 // Create a temporary line for the preview (while moving the mouse)
 var previewLine = new Konva.Line({
   id: 'previewLine',
@@ -1288,16 +1242,16 @@ function handleNewPathClick() {
     document.getElementById('doDrawPath').classList.add('inactive');
     return;
   }
-  isDrawPencil = false;
-  isSelectImageMode = false;
-  isBucketMode = false;
+  is.drawPencil = false;
+  is.magikWand = false;
+  is.bucket = false;
 
-  document.getElementById('drawPencil').classList.add('inactive');
-  document.getElementById('selectImageButton').classList.add('inactive');
-  document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('doDrawPencil').classList.add('inactive');
+  document.getElementById('doMagikWand').classList.add('inactive');
+  document.getElementById('doBucket').classList.add('inactive');
   document.getElementById('doDrawPath').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
-  document.getElementById('fillButton').disabled = true;
+  document.getElementById('doFill').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('deleteButton').disabled = true;
 }
@@ -1381,6 +1335,28 @@ function handleImageUpload(e) {
       });
       imageLayer.add(newImage);
 
+      newImage.on('mousedown', function(e) {
+        if (is.magikWand) return;
+        e.target.startDrag();
+        if (is.bucket) {
+          e.target.stopDrag();
+        }
+      });
+      newImage.on('mouseup', function(e) {
+        e.target.stopDrag();
+        if (is.bucket) return; 
+        
+        pathTransformer.nodes([]);
+        const inx = imageTransformer.nodes().indexOf(e.target);
+        if (inx === -1) { // not found exclusively add it
+          imageTransformer.nodes([]);
+          imageTransformer.nodes([e.target]);
+        } else { // found remove it
+          const nodes = imageTransformer.nodes().slice();
+          nodes.splice(inx, 1);
+          imageTransformer.nodes(nodes);
+        }
+      });
       newImage.on('click', function(e) {
         if (is.drawPath) return;
 
@@ -1393,24 +1369,6 @@ function handleImageUpload(e) {
         lastClickPos = pos;
         
         document.getElementById('deleteButton').disabled = false; // Enable delete button
-      });
-      newImage.on('mousedown', function(e) {
-        if (isSelectImageMode) return;
-        e.target.startDrag();
-      });
-      newImage.on('mouseup', function(e) {
-        e.target.stopDrag();
-        
-        pathTransformer.nodes([]);
-        const inx = imageTransformer.nodes().indexOf(e.target);
-        if (inx === -1) { // not found exclusively add it
-          imageTransformer.nodes([]);
-          imageTransformer.nodes([e.target]);
-        } else { // found remove it
-          const nodes = imageTransformer.nodes().slice();
-          nodes.splice(inx, 1);
-          imageTransformer.nodes(nodes);
-        }
       });
       //newImage.on('transform', function(e) {
       //  const c = justContourLayer.findOne('#floodImageContour');
@@ -1521,7 +1479,6 @@ function handleScalePencil() {
 }
 
 let pencil;
-let isDrawPencil = false;
 let mousemove = false;
 
 function gco() {
@@ -1530,7 +1487,7 @@ function gco() {
 }
 // Mousedown event starts drawing with pencil
 stage.on('mousedown', (evt) => {
-  if (isDragging === true) {
+  if (is.drag === true) {
     const ii = stage.getAllIntersections(stage.getPointerPosition());
     for (let i of ii) {
       // going inside currentPath?
@@ -1558,7 +1515,7 @@ stage.on('mousedown', (evt) => {
     }
   }
 
-  if (!isDrawPencil) {
+  if (!is.drawPencil) {
     return;
   }
 
@@ -1595,9 +1552,9 @@ const collapseDraw = (evt) => {
         pencilPrevPos = null;
         return;
     }
-    if (!isDrawPencil) return;
+    if (!is.drawPencil) return;
     if (!pencil) return;
-    if (isDragging) return;
+    if (is.drag) return;
 
     collapseBucketLayer();
 };
@@ -1608,7 +1565,7 @@ stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
 
-  if (isDragging === true) {
+  if (is.drag === true) {
     stage.stopDrag();
   }
 
@@ -1617,13 +1574,13 @@ stage.on('mouseup', (kevt) => {
     kevt.evt.cancelBubble = true;
   }
   //
-  if (!isBucketMode) {
+  if (!is.bucket) {
     const pencilGhost = stage.findOne('#pencilGhost');
     if (pencilGhost) {
       pencilGhost.destroy();
     }
     // TODO will affect other ops than shape-ing?
-    if (isDrawPencil) {
+    if (is.drawPencil) {
       collapseBucketLayer();
     }
   }
@@ -1654,10 +1611,10 @@ stage.on('mousemove', (evt) => {
   if (!mousemove && evt.target?.attrs?.id === 'stage') {
     return;
   }
-  if (!isDrawPencil) return;
+  if (!is.drawPencil) return;
   if (!mousemove) return;
   if (!pencil) return;
-  if (isDragging) return;
+  if (is.drag) return;
 
   evt.cancelBubble = true;
 
@@ -1739,14 +1696,6 @@ function handleFillClean() {
     document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
 }
 
-let isDragging = false;
-
-function handleDragging() {
-    isDragging = !isDragging;
-    document.getElementById('isDraggingCheckbox').checked = isDragging;
-    document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
-}
-
 let pencilShape = 'rectangle';
 
 function handlePencilShape(evt) {
@@ -1786,29 +1735,23 @@ function createPencilShape(pencilShape = 'rectangle') {
   }
 }
 
-function handleDrawPencilClick() {
+function doDrawPencilClick() {
   removeSelection();
 
-  isDrawPencil = !isDrawPencil;
-  if (isDrawPencil === false ) {
-    document.getElementById('drawPencil').classList.add('inactive');
+  if (is.drawPencil === false ) {
+    document.getElementById('doDrawPencil').classList.add('inactive');
     return;
   }
 
-  isBucketMode = false;
-  is.drawPath = false;
-  isDragging = false;
+  is.bucket = false;
   stage.stopDrag();
-  isSelectImageMode = false;
+  is.magikWand = false;
 
-  document.getElementById('isDraggingCheckbox').checked = isDragging;
-  document.getElementById('isDraggingCheckboxLabel').textContent = 'inactive';
-
-  document.getElementById('fillImageButton').classList.add('inactive');
+  document.getElementById('doBucket').classList.add('inactive');
   document.getElementById('doDrawPath').classList.add('inactive');
-  document.getElementById('selectImageButton').classList.add('inactive');
+  document.getElementById('doMagikWand').classList.add('inactive');
 
-  document.getElementById('drawPencil').classList.remove('inactive');
+  document.getElementById('doDrawPencil').classList.remove('inactive');
 }
 
 function distance(point1, point2) {
@@ -1938,20 +1881,15 @@ function handleDown() {
 
 function inactivateModes(except='') {
   currentPathId = null;
-  isSelectImageMode = false;
-  isBucketMode = false;
-  isDrawPencil = false;
   currentImage = null;
-  is.drawPath = false;
-  is.addNodePath = false;
-  is.deleteNodePath = false;
+  mode.value = 0;
 
   const modes = [
-    'fillButton',
-    'selectImageButton',
+    'doFill',
+    'doMagikWand',
     'fillSelectionImageButton',
-    'fillImageButton',
-    'drawPencil',
+    'doBucket',
+    'doDrawPencil',
     'upz',
     'downz',
     'deleteButton',
@@ -1979,15 +1917,13 @@ stage.on('click', doDrawPathing);
 stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
-document.getElementById('fillButton').addEventListener('click', handleFillClick);
+document.getElementById('doFill').addEventListener('click', doFillClick);
 
-document.getElementById('selectImageButton').addEventListener('click', handleSelectImageClick);
 document.getElementById('fillSelectionImageButton').addEventListener('click', fillSelectionImageClick);
-document.getElementById('fillImageButton').addEventListener('click', handleFillImageClick);
 document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityClick);
 document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
 
-document.getElementById('drawPencil').addEventListener('click', handleDrawPencilClick);
+document.getElementById('doDrawPencil').addEventListener('click', doDrawPencilClick);
 
 document.getElementById('drawProtectCheckbox').addEventListener('change', handleDrawProtect);
 document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
@@ -2014,15 +1950,10 @@ document.getElementById('zoomButton').setAttribute('step', zoomFactor);
 document.getElementById('zoomButton').value = zoomScale;
 document.getElementById('zoomButtonLabel').textContent = mapZoom(zoomScale);
 
-document.getElementById('isDraggingCheckbox').addEventListener('change', handleDragging);
-document.getElementById('isDraggingCheckboxLabel').textContent = isDragging ? 'active' : 'inactive';
-
 document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
 document.getElementById('clearAllButton').addEventListener('click', handleClearAllClick);
 document.getElementById('dropShape').addEventListener('click', dropShapeClick);
 document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllClick);
-document.getElementById('undoButton').addEventListener('click', handleUndoClick);
-document.getElementById('redoButton').addEventListener('click', handleRedoClick);
 document.getElementById('doAddNodePath').addEventListener('click', doAddNodePathClick);
 document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
 document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);
