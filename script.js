@@ -22,12 +22,6 @@ var justContourLayer = new Konva.Layer({
     id: 'justContour',
 });
 stage.add(justContourLayer);
-var pathLayer = new Konva.Layer({
-    id: 'path',
-});
-var pathTransformer = new Konva.Transformer();
-pathLayer.add(pathTransformer);
-stage.add(pathLayer);
 
 const selection = new Set();
 const modes = {
@@ -140,20 +134,20 @@ function doSelectStart(e) {
         }
         r.dashOffset(r.dashOffset() + 4);
   });
-  pathLayer.add(r);
+  imageLayer.add(r);
 }
 function doSelectEnd(e) {
   if (! is.select) return;
   e.cancelBubble = true;
 
-  pathLayer.findOne('#selectingRect')?.destroy();
+  imageLayer.findOne('#selectingRect')?.destroy();
   selectPoints[0] = {x: 0, y: 0};
   selectPoints[1] = {x: 0, y: 0};
 }
 function doSelecting(e) {
   if (!is.select) return;
   e.cancelBubble = true;
-  const r = pathLayer.findOne('#selectingRect');
+  const r = imageLayer.findOne('#selectingRect');
   if (!r) return;
 
   selectPoints[1] = stage.getPointerPosition();
@@ -204,7 +198,7 @@ const PATH_OPACITY = 0.2;
 function doDrawPathing(kevt) {
 // TODO it is useless?
   if (currentPathId) {
-    const currentPath = pathLayer.findOne(`#${currentPathId}`);
+    const currentPath = imageLayer.findOne(`#${currentPathId}`);
     // Closed path has no need to add new point
     if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
       destroyHandleCircles();
@@ -212,7 +206,7 @@ function doDrawPathing(kevt) {
       currentPath.draggable(false);
       currentPath.selected = false;
       currentPathId = null;
-      pathLayer.batchDraw();
+      imageLayer.batchDraw();
       return;
     }
   }
@@ -245,7 +239,7 @@ function doDrawPathing(kevt) {
       id: currentPathId,
     });
     pathData = '';
-    pathLayer.add(currentPath);
+    imageLayer.add(currentPath);
 
     currentPath.on('click', function(evt) {
       evt.cancelBubble = true;
@@ -255,7 +249,7 @@ function doDrawPathing(kevt) {
       }
       // Another path is currently drawing but we clicked on already closed path
       if (currentPathId !== null && this.getId() !== currentPathId) {
-        const previousPath = pathLayer.findOne(`#${currentPathId}`);
+        const previousPath = imageLayer.findOne(`#${currentPathId}`);
         // Prev path is currently drawing
         if (previousPath.data().endsWith('Z') === false) {
           evt.cancelBubble = false;
@@ -276,7 +270,7 @@ function doDrawPathing(kevt) {
       }
       // Reset previous path stroke
       if (currentPathId !== this.getId()) {
-        const previousPath = pathLayer.findOne(`#${currentPathId}`);
+        const previousPath = imageLayer.findOne(`#${currentPathId}`);
         previousPath.strokeWidth(0);
         previousPath.draggable(false);
         previousPath.selected = false;
@@ -301,7 +295,7 @@ function doDrawPathing(kevt) {
         this.setAttr('data', pathData);
         destroyHandleCircles();
         createHandleCircles(true);
-        pathLayer.batchDraw();
+        imageLayer.batchDraw();
         return;
       }
       this.selected = !this?.selected;
@@ -325,7 +319,7 @@ function doDrawPathing(kevt) {
         this.dashOffset(this.dashOffset() + 4);
       });
 
-      pathLayer.batchDraw();
+      imageLayer.batchDraw();
       lastPos = null; // Reset last position for drawing
 
       // Update button states
@@ -347,14 +341,14 @@ function doDrawPathing(kevt) {
     });
     currentPath.on('mouseup', function(e) {
       imageTransformer.nodes([]);
-      const inx = pathTransformer.nodes().indexOf(e.target);
+      const inx = imageTransformer.nodes().indexOf(e.target);
       if (inx === -1) { // not found exclusively add it
-        pathTransformer.nodes([]);
-        pathTransformer.nodes([e.target]);
+        imageTransformer.nodes([]);
+        imageTransformer.nodes([e.target]);
       } else { // found remove it
-        const nodes = pathTransformer.nodes().slice();
+        const nodes = imageTransformer.nodes().slice();
         nodes.splice(inx, 1);
-        pathTransformer.nodes(nodes);
+        imageTransformer.nodes(nodes);
       }
       e.cancelBubble = true;
       if (is.drag && !this.selected) {
@@ -397,7 +391,7 @@ function doDrawPathing(kevt) {
         let [newPoint,] = closestProjectedPoint(vertices, movingPoint);
         if (ghostNode) {
           // newPoint is in currentPath coordinates space
-          // ghostNode is inside pathLayer so get reference to pathLayer
+          // ghostNode is inside imageLayer so get reference to imageLayer
           itr = currentPath.getAbsoluteTransform();
           newPoint = itr.point(newPoint);
           ghostNode.absolutePosition(newPoint);
@@ -416,7 +410,7 @@ function doDrawPathing(kevt) {
           visible: true,
           id: 'ghost',
         });
-        pathLayer.add(ghostNode);
+        imageLayer.add(ghostNode);
       }
     });
     currentPath.on('mouseleave', () => {
@@ -424,7 +418,7 @@ function doDrawPathing(kevt) {
       ghostNode = null;
     });
   } else {
-    currentPath = pathLayer.findOne(`#${currentPathId}`);
+    currentPath = imageLayer.findOne(`#${currentPathId}`);
   }
 
   if (! currentPath) {
@@ -438,7 +432,7 @@ function doDrawPathing(kevt) {
     currentPath.draggable(false);
     currentPath.selected = false;
     currentPathId = null;
-    pathLayer.batchDraw();
+    imageLayer.batchDraw();
     return;
   }
 
@@ -457,7 +451,7 @@ function doDrawPathing(kevt) {
 
   //// Update the path data
   currentPath.setAttr('data', pathData);
-  pathLayer.batchDraw();
+  imageLayer.batchDraw();
   kevt.evt.stopImmediatePropagation();
 }
 
@@ -469,11 +463,11 @@ function previewCurrentLine(evt) {
   if (is.drag) return;
   if (! is.drawPath) return;
 
-  var pos = pathLayer.getRelativePointerPosition();
+  var pos = imageLayer.getRelativePointerPosition();
 
   // Update the previewLine to preview the line from the last position to the current mouse position
   previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-  pathLayer.batchDraw();
+  imageLayer.batchDraw();
 }
 
 function createHandleCircle(currentPath, vertex, index, fill) {
@@ -484,9 +478,9 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     name: currentPath.id(),
     index,
   });
-  // vertex has currentPath as space so transform it into pathLayer space 
-  const p = currentPath.getAbsoluteTransform(pathLayer).point(vertex);
-  // position using pathLayer - parent of circle -  space as reference
+  // vertex has currentPath as space so transform it into imageLayer space 
+  const p = currentPath.getAbsoluteTransform(imageLayer).point(vertex);
+  // position using imageLayer - parent of circle -  space as reference
   circle.position(p);
   circle.on('dragstart', (evt) => {
     evt.cancelBubble = true;
@@ -518,7 +512,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     const newPathData = generatePathDataFromVertices(vertices, types);
     currentPath.setAttr('data', newPathData);
 
-    pathLayer.batchDraw();
+    imageLayer.batchDraw();
   });
   circle.on('mouseenter', () => {
     circle.radius(15);
@@ -571,7 +565,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     currentPath.setAttr('data', pathData);
     destroyHandleCircles();
     createHandleCircles(true);
-    pathLayer.batchDraw();
+    imageLayer.batchDraw();
   });
   circle.on('click', (evt) => {
     evt.cancelBubble = true;
@@ -595,10 +589,10 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     currentPath.setAttr('data', pathData);
     destroyHandleCircles();
     createHandleCircles(true);
-    pathLayer.batchDraw();
+    imageLayer.batchDraw();
   });
 
-  pathLayer.add(circle);
+  imageLayer.add(circle);
   return circle;
 }
 // Function to handle double click to close the path
@@ -606,7 +600,7 @@ function handleStageDblClick() {
   if (pathData === '') return;
   if (!currentPathId) return;
 
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
   if (currentPath.data().endsWith('Z') === true) {
     return;
   }
@@ -624,7 +618,7 @@ function handleStageDblClick() {
   let ghostNode;
   let initialGhostPos = {x: 0, y: 0};
   currentPath.on('dragstart', () => {
-    ghostNode = pathLayer.findOne('#ghost');
+    ghostNode = imageLayer.findOne('#ghost');
     if (! ghostNode) {
       return;
     }
@@ -640,7 +634,7 @@ function handleStageDblClick() {
 
     if (currentPath.selected || is.deleteNodePath) {
       const [vertices, types] = getVerticesFromPathData(currentPath.data());
-      const vertexCircles = pathLayer.find('.'+currentPath.id());
+      const vertexCircles = imageLayer.find('.'+currentPath.id());
       vertexCircles.forEach((vertex) => {
         const {index} = vertex.attrs;
         if (!vertices[index]) {
@@ -661,7 +655,7 @@ function handleStageDblClick() {
       ghostNode.absolutePosition(gtr);      
     }
 
-    pathLayer.batchDraw();
+    imageLayer.batchDraw();
   });
 
   resetPathState();
@@ -671,12 +665,12 @@ function handleStageDblClick() {
   document.getElementById('fillColorPicker').disabled = false;
   document.getElementById('deleteButton').disabled = false; // Enable delete button
 
-  pathLayer.batchDraw();
+  imageLayer.batchDraw();
 }
 
 function createHandleCircles(show=false) {
   if (!currentPathId) return;
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
   let [vertices, types] = getVerticesFromPathData(currentPath.data());
   let i = 0;
@@ -697,9 +691,9 @@ function createHandleCircles(show=false) {
 
 function destroyHandleCircles() {
   if (!currentPathId) return;
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
-  const circles = pathLayer.find('.'+currentPath.id());
+  const circles = imageLayer.find('.'+currentPath.id());
   circles.forEach((circle) => circle.destroy());
 }
 
@@ -795,7 +789,7 @@ let isMagneticNode = false;
 
 function handleMagneticNodeClick() {
   if (!currentPathId) return;
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
   isMagneticNode = ! isMagneticNode;
 
@@ -805,13 +799,13 @@ function handleMagneticNodeClick() {
 // Function to handle the "Fill Path" button click
 function doFillClick() {
   if (!currentPathId) return;
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
   currentPath.fill(fillColor);
   currentPath.globalCompositeOperation(blendColor);
   currentPath.strokeWidth(0);
 
-  pathLayer.batchDraw();
+  imageLayer.batchDraw();
 
   document.getElementById('doFill').classList.remove('inactive');
 }
@@ -941,7 +935,7 @@ function removeSelection(e) {
 
   if (e?.target === stage) {
     imageTransformer.nodes([]);
-    pathTransformer.nodes([]);
+    imageTransformer.nodes([]);
   }
 }
 
@@ -1123,12 +1117,12 @@ function parseColor(color) {
 function handleDeleteClick() {
     if (currentPathId) {
       destroyHandleCircles();
-      const currentPath = pathLayer.findOne(`#${currentPathId}`);
+      const currentPath = imageLayer.findOne(`#${currentPathId}`);
       currentPath.destroy(); // Remove the current path
-      pathLayer.find(currentPathId).forEach(c => c.destroy());
+      imageLayer.find(currentPathId).forEach(c => c.destroy());
       resetPathState(); // Reset drawing state
 
-      pathTransformer.nodes([]);
+      imageTransformer.nodes([]);
 
       // Disable buttons since there's no current path
       document.getElementById('doFill').disabled = true;
@@ -1137,7 +1131,7 @@ function handleDeleteClick() {
 
       // Clear the temporary line
       previewLine.points([]);
-      pathLayer.batchDraw();
+      imageLayer.batchDraw();
     } else if (currentImage) {
       currentImage.destroy(); // Remove the current image
       currentImage = null; // Reset current image variable
@@ -1151,7 +1145,7 @@ function handleDeleteClick() {
 }
 
 function handleClearAllClick() {
-  const all = [pathLayer, justContourLayer, imageLayer, bucketLayer];
+  const all = [imageLayer, justContourLayer, imageLayer, bucketLayer];
   all.forEach(l => {
     l.removeChildren();
     l.clear();
@@ -1167,7 +1161,7 @@ function dropShapeClick() {
     return;
   }
 
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
   if (! currentPath) {
     return;
   }
@@ -1180,8 +1174,8 @@ function dropShapeClick() {
 }
 
 function dropShapeAllClick() {
-  for (let i=0; i < pathLayer.children.length; i++) {
-    const p = pathLayer.children[i];
+  for (let i=0; i < imageLayer.children.length; i++) {
+    const p = imageLayer.children[i];
     if (p.getId() === 'previewLine') {
       continue;
     }
@@ -1191,7 +1185,7 @@ function dropShapeAllClick() {
   };
   collapseBucketLayer();
   resetPathState();
-  pathLayer.batchDraw();
+  imageLayer.batchDraw();
   bucketLayer.batchDraw();
 }
 
@@ -1204,10 +1198,10 @@ var previewLine = new Konva.Line({
   lineCap: 'round',
   dash: [10, 5], // Dashed line to distinguish from the actual path
 });
-pathLayer.add(previewLine);
+imageLayer.add(previewLine);
 
 function restorePreviewLine() {
-  const foundLine = pathLayer.findOne('#previewLine');
+  const foundLine = imageLayer.findOne('#previewLine');
   if (foundLine) {
     return;
   }
@@ -1219,7 +1213,7 @@ function restorePreviewLine() {
     lineCap: 'round',
     dash: [10, 5], // Dashed line
   });
-  pathLayer.add(previewLine);
+  imageLayer.add(previewLine);
 }
 
 // Variable to store the current path data
@@ -1322,7 +1316,7 @@ function handleImageUpload(e) {
       stage.width(img.width)
       stage.height(img.height)
       stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
-      //const allLayers = [imageLayer, bucketLayer, pathLayer];
+      //const allLayers = [imageLayer, bucketLayer, imageLayer];
       //for (const layer of allLayers) {
       //  // Remove including non-drawing preview line 
       //  layer.destroyChildren()
@@ -1346,7 +1340,7 @@ function handleImageUpload(e) {
         e.target.stopDrag();
         if (is.bucket) return; 
         
-        pathTransformer.nodes([]);
+        imageTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
         if (inx === -1) { // not found exclusively add it
           imageTransformer.nodes([]);
@@ -1504,7 +1498,7 @@ stage.on('mousedown', (evt) => {
   }
 
   if (!is.drawPath && currentPathId) {
-    const p = pathLayer.findOne(`#${currentPathId}`);
+    const p = imageLayer.findOne(`#${currentPathId}`);
     // Prev path is currently drawing
     if (false === is.addNodePath && p.data().endsWith('Z') === true && p.selected === true) {
       // Reset prev path
@@ -1546,17 +1540,17 @@ stage.on('mousedown', (evt) => {
 });
 
 const collapseDraw = (evt) => {
-    // Is a natural-browser event - not artificially generated ?
-    if (evt.composed) {
-        mousemove = false;
-        pencilPrevPos = null;
-        return;
-    }
-    if (!is.drawPencil) return;
-    if (!pencil) return;
-    if (is.drag) return;
+  // Is a natural-browser event - not artificially generated ?
+  if (evt.composed) {
+    mousemove = false;
+    pencilPrevPos = null;
+    return;
+  }
+  if (!is.drawPencil) return;
+  if (!pencil) return;
+  if (is.drag) return;
 
-    collapseBucketLayer();
+  collapseBucketLayer();
 };
 
 // Mouseup event finalizes the shape
@@ -1857,7 +1851,7 @@ function handleUp() {
   if (!currentPathId) {
     return
   }
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
   if (!currentPath.selected) {
     return;
   }
@@ -1870,7 +1864,7 @@ function handleDown() {
   if (!currentPathId) {
     return
   }
-  const currentPath = pathLayer.findOne(`#${currentPathId}`);
+  const currentPath = imageLayer.findOne(`#${currentPathId}`);
   if (!currentPath.selected) {
     return;
   }
