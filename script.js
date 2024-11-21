@@ -341,6 +341,7 @@ function doDrawPathing(kevt) {
     });
     currentPath.on('mouseup', function(e) {
       if (is.drawPath) return;
+      if (is.select) return;
       imageTransformer.nodes([]);
       const inx = imageTransformer.nodes().indexOf(e.target);
       if (inx === -1) { // not found exclusively add it
@@ -459,9 +460,6 @@ function doDrawPathing(kevt) {
 // Function to handle mouse move to preview the next segment in real-time
 function previewCurrentLine(evt) {
   if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
-  if (is.bucket) return;
-  if (is.drawPencil) return;
-  if (is.drag) return;
   if (! is.drawPath) return;
 
   var pos = imageLayer.getRelativePointerPosition();
@@ -1146,7 +1144,7 @@ function handleDeleteClick() {
 }
 
 function handleClearAllClick() {
-  const all = [imageLayer, justContourLayer, imageLayer, bucketLayer];
+  const all = [imageLayer, justContourLayer, bucketLayer];
   all.forEach(l => {
     l.removeChildren();
     l.clear();
@@ -1238,9 +1236,6 @@ function handleNewPathClick() {
     document.getElementById('doDrawPath').classList.add('inactive');
     return;
   }
-  is.drawPencil = false;
-  is.magikWand = false;
-  is.bucket = false;
 
   document.getElementById('doDrawPencil').classList.add('inactive');
   document.getElementById('doMagikWand').classList.add('inactive');
@@ -1334,6 +1329,7 @@ function handleImageUpload(e) {
 
       newImage.on('mousedown', function(e) {
         if (is.magikWand) return;
+        if (is.drawPencil) return; 
         e.target.startDrag();
         if (is.bucket) {
           e.target.stopDrag();
@@ -1343,6 +1339,7 @@ function handleImageUpload(e) {
         e.target.stopDrag();
         if (is.bucket) return; 
         if (is.drawPath) return; 
+        if (is.drawPencil) return; 
         
         imageTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
@@ -1573,7 +1570,7 @@ stage.on('mouseup', (kevt) => {
   }
   //
   if (!is.bucket) {
-    const pencilGhost = stage.findOne('#pencilGhost');
+    const pencilGhost = bucketLayer.findOne('#pencilGhost');
     if (pencilGhost) {
       pencilGhost.destroy();
     }
@@ -1731,6 +1728,7 @@ function createPencilShape(pencilShape = 'rectangle') {
         fill: fillColor,
       });
   }
+  pencil.setAttr('name', 'pencil');
 }
 
 function doDrawPencilClick() {
@@ -1741,9 +1739,7 @@ function doDrawPencilClick() {
     return;
   }
 
-  is.bucket = false;
   stage.stopDrag();
-  is.magikWand = false;
 
   document.getElementById('doBucket').classList.add('inactive');
   document.getElementById('doDrawPath').classList.add('inactive');
