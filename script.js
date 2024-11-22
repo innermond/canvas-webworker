@@ -1510,35 +1510,6 @@ stage.on('mousedown', (evt) => {
       destroyHandleCircles();
     }
   }
-
-  if (!is.drawPencil) {
-    return;
-  }
-
-  // TODO: Must be first or not at all???
-  const pos = stage.getRelativePointerPosition();
-  lastPos = pos;
-
-  evt.cancelBubble = true;
-  mousemove = true;
-
-  if (pencil) {
-    pencil.width(pencilSize);
-    pencil.height(pencilSize);
-    adjustPencilCenter();
-  } else {
-    const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
-    createPencilShape(ps);
-  }
-  pencil.globalCompositeOperation(gco());
-
-  const cloned = pencil.clone({
-    x: pos.x, y: pos.y,
-    id: 'pencilGhost',
-    fill: 'transparent', stroke: fillColor, strokeWidth: 1,
-    globalCompositeOperation: 'source-over',
-  });
-  bucketLayer.add(cloned);
 });
 
 const collapseDraw = (evt) => {
@@ -1561,35 +1532,15 @@ stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
 
-  kevt?.evt?.stopImmediatePropagation();
-  if (kevt?.evt?.cancelBubble) {
-    kevt.evt.cancelBubble = true;
-  }
-  //
-  if (!is.bucket) {
-    const pencilGhost = bucketLayer.findOne('#pencilGhost');
-    if (pencilGhost) {
-      pencilGhost.destroy();
-    }
-    // TODO will affect other ops than shape-ing?
-    if (is.drawPencil) {
-      collapseBucketLayer();
-      collapseStroke();
-    }
-  }
+  //kevt?.evt?.stopImmediatePropagation();
+  //if (kevt?.evt?.cancelBubble) {
+  //  kevt.evt.cancelBubble = true;
+  //}
   document.body.style.cursor = 'default';
 });
-stage.on('mouseleave', (evt) => {
+stage.on('mouseleave', () => {
   mousemove = false;
   pencilPrevPos = null;
-  const pencilGhost = bucketLayer.findOne('#pencilGhost');
-  if (pencilGhost) {
-    pencilGhost.destroy();
-  }
-  collapseDraw(evt);
-  if (is.drawPencil) {
-    collapseStroke();
-  }
 });
 
 function directionAngle(dx, dy) {
@@ -1921,6 +1872,43 @@ stage.on('mouseup', (e) => {
 stage.on('click', (e) => {
   if (!is.drag) return;
   e.cancelBubble = true;
+});
+// drawPencil mode
+stage.on('mousedown', e => {
+  if (!is.drawPencil) return;
+  e.cancelBubble = true;
+
+  const pos = stage.getRelativePointerPosition();
+  lastPos = pos;
+  mousemove = true;
+
+  if (pencil) {
+    pencil.width(pencilSize);
+    pencil.height(pencilSize);
+    adjustPencilCenter();
+  } else {
+    const ps = Array.from(document.getElementsByName('pencilShape')).filter(x => x.checked).pop()?.value ?? 'rectangle';
+    createPencilShape(ps);
+  }
+  pencil.globalCompositeOperation(gco());
+
+  const cloned = pencil.clone({
+    x: pos.x, y: pos.y,
+    id: 'pencilGhost',
+    fill: 'transparent', stroke: fillColor, strokeWidth: 1,
+    globalCompositeOperation: 'source-over',
+  });
+  bucketLayer.add(cloned);
+});
+stage.on('mouseup mouseleave', (e) => {
+  if (!is.drawPencil) return;
+  e.cancelBubble = true;
+
+  const pencilGhost = bucketLayer.findOne('#pencilGhost');
+  if (pencilGhost) {
+    pencilGhost.destroy();
+  }
+  collapseStroke();
 });
 
 stage.on('click', removeSelection);
