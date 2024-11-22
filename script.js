@@ -241,6 +241,9 @@ function doDrawPathing(kevt) {
     imageLayer.add(currentPath);
 
     currentPath.on('click', function(evt) {
+      if (is.select) return;
+      if (is.drag) return;
+      if (is.drawPath) return;
       evt.cancelBubble = true;
       // Click on unclosed curve does none
       if (this.data().endsWith('Z') === false) {
@@ -327,6 +330,9 @@ function doDrawPathing(kevt) {
       document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
     });
     currentPath.on('mousedown', function(evt) {
+      if (is.drawPath) return;
+      if (is.select) return;
+      if (is.drag) return;
       evt.cancelBubble = true;
       if (is.drag && !this.selected) {
         evt.cancelBubble = false;
@@ -341,6 +347,7 @@ function doDrawPathing(kevt) {
     currentPath.on('mouseup', function(e) {
       if (is.drawPath) return;
       if (is.select) return;
+      if (is.drag) return;
       imageTransformer.nodes([]);
       const inx = imageTransformer.nodes().indexOf(e.target);
       if (inx === -1) { // not found exclusively add it
@@ -454,18 +461,6 @@ function doDrawPathing(kevt) {
   currentPath.setAttr('data', pathData);
   imageLayer.batchDraw();
   kevt.evt.stopImmediatePropagation();
-}
-
-// Function to handle mouse move to preview the next segment in real-time
-function previewCurrentLine(evt) {
-  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
-  if (! is.drawPath) return;
-
-  var pos = imageLayer.getRelativePointerPosition();
-
-  // Update the previewLine to preview the line from the last position to the current mouse position
-  previewLine.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-  imageLayer.batchDraw();
 }
 
 function createHandleCircle(currentPath, vertex, index, fill) {
@@ -598,6 +593,7 @@ function handleStageDblClick() {
   if (pathData === '') return;
   if (!currentPathId) return;
 
+  previewLine?.remove();
   const currentPath = imageLayer.findOne(`#${currentPathId}`);
   if (currentPath.data().endsWith('Z') === true) {
     return;
@@ -986,8 +982,8 @@ function collapseBucketLayer() {
 
   return bucketImage;
 }
-// TODO fix it, it does not work
 function collapseStroke() {
+  if (bucketLayer.children.length === 0) return;
   const bucketImage = getAsRawImage(bucketLayer);
   bucketLayer.destroyChildren();
   bucketImage.globalCompositeOperation(gco());
@@ -1135,7 +1131,6 @@ function handleDeleteClick() {
       document.getElementById('deleteButton').disabled = true;
 
       // Clear the temporary line
-      previewLine.points([]);
       imageLayer.batchDraw();
     } else if (currentImage) {
       currentImage.destroy(); // Remove the current image
@@ -1194,33 +1189,6 @@ function dropShapeAllClick() {
   bucketLayer.batchDraw();
 }
 
-var previewLine = new Konva.Line({
-  id: 'previewLine',
-  points: [],
-  stroke: 'white',
-  strokeWidth: 1,
-  lineCap: 'round',
-  dash: [10, 5],
-});
-imageLayer.add(previewLine);
-
-//function restorePreviewLine() {
-//  const foundLine = imageLayer.findOne('#previewLine');
-//  if (foundLine) {
-//    return;
-//  }
-//
-//  previewLine = new Konva.Line({
-//    points: [],
-//    stroke: 'green',
-//    strokeWidth: 1,
-//    lineCap: 'round',
-//    dash: [10, 5], // Dashed line
-//  });
-//  previewLine.zIndex(imageLayer.children.length-1),
-//  imageLayer.add(previewLine);
-//}
-
 // Variable to store the current path data
 var pathData = '';
 var currentPathId = null; // Variable to hold the current path object
@@ -1230,8 +1198,6 @@ function resetPathState() {
   currentPathId = null;
   pathData = '';
   lastPos = null;
-  previewLine.points([]);
-  previewLine.zIndex(imageLayer.children.length-1);
 }
 
 function handleNewPathClick() {
@@ -1343,6 +1309,7 @@ function handleImageUpload(e) {
         }
       });
       newImage.on('mouseup', function(e) {
+        if (is.select) return; 
         e.target.stopDrag();
         if (is.bucket) return; 
         if (is.drawPath) return; 
@@ -1527,7 +1494,11 @@ const collapseDraw = (evt) => {
 };
 
 // Mouseup event finalizes the shape
-document.body.addEventListener('mouseup', collapseDraw);
+document.body.addEventListener('mouseup', evt => {
+  if (!evt.composed) return;
+  mousemove = false;
+  pencilPrevPos = null;
+});
 stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
@@ -1910,12 +1881,45 @@ stage.on('mouseup mouseleave', (e) => {
   }
   collapseStroke();
 });
+// preview line
+const previewLine = new Konva.Line({
+  id: 'previewLine',
+  points: [],
+  stroke: 'white',
+  strokeWidth: 1,
+  lineCap: 'round',
+  dash: [10, 5],
+});
+stage.on('mousedown', e => {
+  if (!is.drawPath) return;
+  e.cancelBubble = true;
+
+  imageLayer.add(previewLine);
+  previewLine.zIndex(imageLayer.children.length-1);
+});
+stage.on('mouseup click', e => {
+  if (!is.drawPath) return;
+  e.cancelBubble = true;
+
+  previewLine.visible(false);
+});
+stage.on('mousemove', e => {
+  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
+  if (!is.drawPath) return;
+  e.cancelBubble = true;
+
+  var pos = imageLayer.getRelativePointerPosition();
+
+  previewLine.visible(true);
+  // Update the previewLine to preview the line from the last position to the current mouse position
+  previewLine?.points([lastPos.x, lastPos.y, pos.x, pos.y]);
+  imageLayer.batchDraw();
+});
 
 stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
 stage.on('click', handleBucketMode);
 stage.on('click', doDrawPathing);
-stage.on('mousemove', previewCurrentLine);
 stage.on('dblclick', handleStageDblClick);
 
 document.getElementById('doFill').addEventListener('click', doFillClick);
