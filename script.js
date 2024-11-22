@@ -110,7 +110,6 @@ function doSelectStart(e) {
   if (! is.select) return;
   e.cancelBubble = true;
   e.evt.stopImmediatePropagation();
-  if (e.target !== stage) return;
 
   selectPoints[0] = stage.getPointerPosition();
   selectPoints[1] = {...selectPoints[0]};
@@ -987,6 +986,13 @@ function collapseBucketLayer() {
 
   return bucketImage;
 }
+// TODO fix it, it does not work
+function collapseStroke() {
+  const bucketImage = getAsRawImage(bucketLayer);
+  bucketLayer.destroyChildren();
+  bucketImage.globalCompositeOperation(gco());
+  imageLayer.add(bucketImage);
+}
 
 async function getImageDataComposedWithBucket(kimage) {
   // Get raw native image behind currentImage
@@ -1330,6 +1336,7 @@ function handleImageUpload(e) {
       newImage.on('mousedown', function(e) {
         if (is.magikWand) return;
         if (is.drawPencil) return; 
+        if (is.select) return; 
         e.target.startDrag();
         if (is.bucket) {
           e.target.stopDrag();
@@ -1340,6 +1347,7 @@ function handleImageUpload(e) {
         if (is.bucket) return; 
         if (is.drawPath) return; 
         if (is.drawPencil) return; 
+        if (is.select) return; 
         
         imageTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
@@ -1354,6 +1362,7 @@ function handleImageUpload(e) {
       });
       newImage.on('click', function(e) {
         if (is.drawPath) return;
+        if (is.select) return; 
 
         e.evt.preventDefault();
 
@@ -1391,7 +1400,7 @@ function handleColorPickerChange(e) {
   const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
   fillColor = fillColor.slice(0, 7) + alpha; 
   if (pencil) {
-      pencil.fill(fillColor);
+    pencil.fill(fillColor);
   }
 }
 
@@ -1399,6 +1408,9 @@ function handleOpacityChange(e) {
   opacityColor = e.target.value;
   const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
   fillColor = fillColor.slice(0, 7) + alpha; 
+  if (pencil) {
+    pencil.fill(fillColor);
+  }
 }
 
 function handleBlendColor(e) {
@@ -1577,6 +1589,7 @@ stage.on('mouseup', (kevt) => {
     // TODO will affect other ops than shape-ing?
     if (is.drawPencil) {
       collapseBucketLayer();
+      collapseStroke();
     }
   }
   document.body.style.cursor = 'default';
@@ -1584,11 +1597,14 @@ stage.on('mouseup', (kevt) => {
 stage.on('mouseleave', (evt) => {
   mousemove = false;
   pencilPrevPos = null;
-  const pencilGhost = stage.findOne('#pencilGhost');
+  const pencilGhost = bucketLayer.findOne('#pencilGhost');
   if (pencilGhost) {
     pencilGhost.destroy();
   }
   collapseDraw(evt);
+  if (is.drawPencil) {
+    collapseStroke();
+  }
 });
 
 function directionAngle(dx, dy) {
