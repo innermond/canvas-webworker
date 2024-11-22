@@ -1348,6 +1348,7 @@ function handleImageUpload(e) {
         if (is.drawPath) return; 
         if (is.drawPencil) return; 
         if (is.select) return; 
+        if (is.drag) return; 
         
         imageTransformer.nodes([]);
         const inx = imageTransformer.nodes().indexOf(e.target);
@@ -1494,18 +1495,6 @@ function gco() {
 }
 // Mousedown event starts drawing with pencil
 stage.on('mousedown', (evt) => {
-  if (is.drag === true) {
-    const ii = stage.getAllIntersections(stage.getPointerPosition());
-    for (let i of ii) {
-      // going inside currentPath?
-      if (i.attrs?.name === currentPathId) {
-        return;
-      }
-    }
-    stage.startDrag();
-    return;
-  }
-
   if (is.deleteNodePath || is.changeNodePath) {
     return;
   }
@@ -1571,10 +1560,6 @@ document.body.addEventListener('mouseup', collapseDraw);
 stage.on('mouseup', (kevt) => {
   mousemove = false;
   pencilPrevPos = null;
-
-  if (is.drag === true) {
-    stage.stopDrag();
-  }
 
   kevt?.evt?.stopImmediatePropagation();
   if (kevt?.evt?.cancelBubble) {
@@ -1912,14 +1897,32 @@ function inactivateModes(except='') {
   modes.forEach(m => document.getElementById(m).classList.add('inactive'));
 }
 
+// select mode
 stage.on('mousedown', doSelectStart);
 stage.on('mouseup', doSelectEnd);
 document.body.addEventListener('mouseup', doSelectEnd);
 stage.on('mousemove', doSelecting);
 stage.on('click', doSelectFinal);
+// drag mode
+stage.on('mousedown', (e) => {
+  if (!is.drag) return;
+  e.cancelBubble = true;
 
+  stage.startDrag();
+  document.body.style.cursor = 'grab';
+});
+stage.on('mouseup', (e) => {
+  if (!is.drag) return;
+  e.cancelBubble = true;
 
-// Attach event listeners
+  stage.stopDrag();
+  document.body.style.cursor = 'inherit';
+});
+stage.on('click', (e) => {
+  if (!is.drag) return;
+  e.cancelBubble = true;
+});
+
 stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
 stage.on('click', handleBucketMode);
