@@ -1,57 +1,59 @@
 body {
-    margin: 0;
-    padding: 0;
-    overflow: scroll;
-    background: #999;
-    height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: scroll;
+  background: #999;
+  height: auto;
 }
 
 #container {
-    position: relative;
-    width: min-content;
-    height: auto;
-    border: 2px solid red;
+  position: relative;
+  width: min-content;
+  height: auto;
+  border: 2px solid red;
 
-    max-width: 100%;
-    background: url(./chess.png);
+  max-width: 100%;
+  background: url(./chess.png);
 }
 
 #container > div {
-    transform-origin: top left;
+  transform-origin: top left;
 }
 
 #buttonContainer {
-    position: relative;
-    top: 10px;
-    left: 10px;
-    z-index: 10; /* Ensure buttons stay above the canvas */
+  position: relative;
+  top: 10px;
+  left: 10px;
+  z-index: 10; /* Ensure buttons stay above the canvas */
+  display: flex;
+  flex-flow: wrap;
 }
 
 .button {
-    display: block;
-    margin-bottom: 10px; /* Space between buttons */
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px; /* Optional: rounded corners */
+  display: block;
+  margin-bottom: 10px; /* Space between buttons */
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px; /* Optional: rounded corners */
 }
 
 .button:disabled {
-    background-color: gray;
-    cursor: not-allowed;
+  background-color: gray;
+  cursor: not-allowed;
 }
 
 .button.inactive {
-  background: gray;
+background: gray;
 }
 
 /* Add style for color picker */
 .color-picker {
-    margin-bottom: 10px; /* Space between color picker and buttons */
+  margin-bottom: 10px; /* Space between color picker and buttons */
 }
 
 #zoomButton {
-  min-width: 500px; 
+min-width: 500px; 
 }
