@@ -60,6 +60,26 @@ body {
 min-width: 500px; 
 }
 
+.doSelect {
+  background: #333 url(./asset/icon/pointer.svg) no-repeat center;
+}
+
+.doDrawPath {
+  background: #333 url(./asset/icon/draw-path.svg) no-repeat center;
+}
+
+.doAddNodePath {
+  background: #333 url(./asset/icon/add-node-path.svg) no-repeat center;
+}
+
+.doChangeNodePath {
+  background: #333 url(./asset/icon/change-node-path.svg) no-repeat center;
+}
+
+.doDeleteNodePath {
+  background: #333 url(./asset/icon/delete-node-path.svg) no-repeat center;
+}
+
 .doFill {
-  background: #333 url(./asset/icon/add-text.svg) no-repeat center;
+  background: #333 url(./asset/icon/fill.svg) no-repeat center;
 }
