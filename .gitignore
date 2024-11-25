@@ -21,4 +21,5 @@ tags
 .git
 node_modules
 tmp
+dist
 
