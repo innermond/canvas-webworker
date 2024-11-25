@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konva.js Draw Path on Click & Upload Image</title>
+    <script src="konva.min.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DebHkNS0.css">
+</head>
+<body>
+
+<div id="buttonContainer">
+    <button id="doSelect" class="button inactive">Select mode</button>
+    <button id="doDrawPath" class="button inactive">Draw Path mode</button>
+    <button id="doAddNodePath" class="button inactive">Add node path</button>
+    <label for="magneticNodeCheckbox"><div>Magnetic node</div>
+      <input type="checkbox" id="magneticNodeCheckbox" value="1" />
+    </label>
+    <button id="doChangeNodePath" class="button inactive">Change node type</button>
+    <button id="doDeleteNodePath" class="button inactive">Delete node path</button>
+    <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
+    <input id="opacityInput" type="number" min="0" max="100" class="button inactive" title="Color Opacity" />
+<label for="blendModes">Blend mode:</label>
+    <select id="blendModes">
+      <option value="source-over">source-over (Default)</option>
+      <option value="source-in">source-in</option>
+      <option value="source-out">source-out</option>
+      <option value="source-atop">source-atop</option>
+      <option value="destination-over">destination-over</option>
+      <option value="destination-in">destination-in</option>
+      <option value="destination-out">destination-out</option>
+      <option value="destination-atop">destination-atop</option>
+      <option value="lighter">lighter</option>
+      <option value="copy">copy</option>
+      <option value="xor">xor</option>
+      <option value="multiply">multiply</option>
+      <option value="screen">screen</option>
+      <option value="overlay">overlay</option>
+      <option value="darken">darken</option>
+      <option value="lighten">lighten</option>
+      <option value="color-dodge">color-dodge</option>
+      <option value="color-burn">color-burn</option>
+      <option value="hard-light">hard-light</option>
+      <option value="soft-light">soft-light</option>
+      <option value="difference">difference</option>
+      <option value="exclusion">exclusion</option>
+      <option value="hue">hue</option>
+      <option value="saturation">saturation</option>
+      <option value="color">color</option>
+      <option value="luminosity">luminosity</option>
+    </select>
+
+    <button id="doFill" class="button inactive">Fill Path</button>
+    <button id="doMagikWand" class="button inactive">Magik Wand</button>
+    <button id="fillSelectionImageButton" class="button inactive">Fill selection from image</button>
+    <button id="doBucket" class="button inactive">Fill Image With Color</button>
+    <label for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
+      <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
+    </label>
+    <button id="doDrawPencil" class="button inactive">Draw with Pencil</button>
+    <div>
+        <label>
+            <input type="radio" name="pencilShape" value="rectangle">
+            Rectangle
+        </label>
+        
+        <label>
+            <input type="radio" name="pencilShape" value="circle">
+            Circle
+        </label>
+        
+        <label>
+            <input type="radio" name="pencilShape" value="rhomb">
+            Rhomb
+        </label>      
+    </div>
+    <label for="drawProtectCheckbox"> <div>Protect painted areas <span id="drawProtectLabel"></span></div>
+    <input type="checkbox" id="drawProtectCheckbox" value="1" />
+    </label>
+    <label for="fillCleanCheckbox"> <div>Remove mode <span id="fillCleanCheckboxLabel"></span></div>
+      <input type="checkbox" id="fillCleanCheckbox" value="1" />
+    </label>
+    <label for="scalePencilButton"> <div>Pencil scale <span id="scalePencilLabel"></span></div>
+      <input type="range" min="1" max="100" id="scalePencilButton" value="30" />
+    </label>
+    <label for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
+      <input type="range" min="0" max="1" id="zoomButton" />
+    </label>
+    <button id="doDrag" class="button inactive">Drag mode</button>
+    <button id="upz" class="button">Up</button>
+    <button id="downz" class="button">Down</button>
+    <button id="deleteButton" class="button" disabled>Delete Current Path/Image</button>
+    <button id="clearAllButton" class="button">Clear all</button>
+    <button id="dropShape" class="button">Drop shape</button>
+    <button id="dropShapeAll" class="button">Drop all shapes</button>
+    <input type="file" id="uploadImageButton" class="button" accept="image/*" />
+</div>
+
+<!-- Canvas Container -->
+<div id="container" style="width: 800px; height: 400px"></div>
+<!-- Reference to external JavaScript file -->
+<script src="script.js"></script>
+
+<!-- Debug canvases -->
+<div style="position: relative; border: 2px solid red">
+  <div id="debug" >
+    <canvas/>
+  </div>
+</div>
+
+</body>
+</html>
