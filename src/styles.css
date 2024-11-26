@@ -133,3 +133,10 @@ min-width: 500px;
 .doDropShapeAll {
   background: #333 url(./asset/icon/drop-shape-all.svg) no-repeat center;
 }
+.doUploadImage {
+  background: #333 url(./asset/icon/upload-image.svg) no-repeat center;
+}
+
+.file-input {
+  display: none;
+}
