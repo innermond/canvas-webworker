@@ -325,7 +325,7 @@ function doDrawPathing(kevt) {
       lastPos = null; // Reset last position for drawing
 
       // Update button states
-      document.getElementById('deleteButton').disabled = false; // Enable the delete button
+      document.getElementById('doDelete').disabled = false; // Enable the delete button
       document.getElementById('doFill').disabled = false; // Enable the fill button
       document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
     });
@@ -657,7 +657,7 @@ function handleStageDblClick() {
   // Enable the "Fill Path" button and color picker after the path is closed
   document.getElementById('doFill').disabled = false;
   document.getElementById('fillColorPicker').disabled = false;
-  document.getElementById('deleteButton').disabled = false; // Enable delete button
+  document.getElementById('doDelete').disabled = false; // Enable delete button
 
   imageLayer.batchDraw();
 }
@@ -849,7 +849,7 @@ floodFillWorker.onmessage = async function(e) {
   }
 
   document.getElementById('fillSelectionImageButton').classList.remove('inactive');
-  document.getElementById('deleteButton').disabled = false;
+  document.getElementById('doDelete').disabled = false;
 };
 
 function animation01(exitFn, animationFn, atMillisec=150) {
@@ -1128,7 +1128,7 @@ function handleDeleteClick() {
       // Disable buttons since there's no current path
       document.getElementById('doFill').disabled = true;
       document.getElementById('fillColorPicker').disabled = true;
-      document.getElementById('deleteButton').disabled = true;
+      document.getElementById('doDelete').disabled = true;
 
       // Clear the temporary line
       imageLayer.batchDraw();
@@ -1139,7 +1139,7 @@ function handleDeleteClick() {
       imageTransformer.nodes([]);
 
       // Disable the delete button since there's no current image
-      document.getElementById('deleteButton').disabled = true;
+      document.getElementById('doDelete').disabled = true;
       imageLayer.batchDraw(); // Redraw the imageLayer
     }
 }
@@ -1156,7 +1156,7 @@ function handleClearAllClick() {
   currentImage =null;
 }
 
-function dropShapeClick() {
+function doDropShapeClick() {
   if (! currentPathId) {
     return;
   }
@@ -1173,7 +1173,7 @@ function dropShapeClick() {
   resetPathState();
 }
 
-function dropShapeAllClick() {
+function doDropShapeAllClick() {
   for (let i=0; i < imageLayer.children.length; i++) {
     const p = imageLayer.children[i];
     if (p.getId() === 'previewLine') {
@@ -1216,7 +1216,7 @@ function handleNewPathClick() {
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('doFill').disabled = true;
   document.getElementById('fillColorPicker').disabled = true;
-  document.getElementById('deleteButton').disabled = true;
+  document.getElementById('doDelete').disabled = true;
 }
 
 function doAddNodePathClick() {
@@ -1340,7 +1340,7 @@ function handleImageUpload(e) {
         const pos = stage.getRelativePointerPosition();
         lastClickPos = pos;
         
-        document.getElementById('deleteButton').disabled = false; // Enable delete button
+        document.getElementById('doDelete').disabled = false; // Enable delete button
       });
       //newImage.on('transform', function(e) {
       //  const c = justContourLayer.findOne('#floodImageContour');
@@ -1354,7 +1354,7 @@ function handleImageUpload(e) {
 
       imageLayer.batchDraw(); // Redraw the imageLayer to show the image
 
-      document.getElementById('deleteButton').disabled = false; // Enable delete button after image is added
+      document.getElementById('doDelete').disabled = false; // Enable delete button after image is added
     };
     img.src = event.target.result; // Set image source to the file's data URL
   };
@@ -1809,8 +1809,8 @@ function inactivateModes(except='') {
     'doDrawPencil',
     'upz',
     'downz',
-    'deleteButton',
-    'dropShape',
+    'doDelete',
+    'doDropShape',
     'doAddNodePath',
     'doChangeNodePath',
     'doDeleteNodePath',
@@ -1955,10 +1955,10 @@ document.getElementById('zoomButton').setAttribute('step', zoomFactor);
 document.getElementById('zoomButton').value = zoomScale;
 document.getElementById('zoomButtonLabel').textContent = mapZoom(zoomScale);
 
-document.getElementById('deleteButton').addEventListener('click', handleDeleteClick);
-document.getElementById('clearAllButton').addEventListener('click', handleClearAllClick);
-document.getElementById('dropShape').addEventListener('click', dropShapeClick);
-document.getElementById('dropShapeAll').addEventListener('click', dropShapeAllClick);
+document.getElementById('doDelete').addEventListener('click', handleDeleteClick);
+document.getElementById('doDeleteAll').addEventListener('click', handleClearAllClick);
+document.getElementById('doDropShape').addEventListener('click', doDropShapeClick);
+document.getElementById('doDropShapeAll').addEventListener('click', doDropShapeAllClick);
 document.getElementById('doAddNodePath').addEventListener('click', doAddNodePathClick);
 document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
 document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);

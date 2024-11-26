@@ -14,12 +14,14 @@
     <button id="doDrawPath" class="button inactive doDrawPath" title="Draw Path" />
     <button id="doAddNodePath" class="button inactive doAddNodePath" title="Add node path" />
     <button id="doDeleteNodePath" class="button inactive doDeleteNodePath" title="Delete node path" />
-    <button id="doChangeNodePath" class="button inactive doChangeNodePath" title="Change node type" />
-    <label for="magneticNodeCheckbox"><div>Magnetic node</div>
+      <button id="doChangeNodePath" class="button inactive doChangeNodePath" title="Change node type"></button>
+    <label class="button-like" for="magneticNodeCheckbox"><div>Magnetic node</div>
       <input type="checkbox" id="magneticNodeCheckbox" value="1" />
     </label>
-    <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
-    <input id="opacityInput" type="number" min="0" max="100" class="button inactive" title="Color Opacity" />
+    <div class="color-opacity-combo">
+      <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
+      <input id="opacityInput" type="number" min="0" max="100" class="inactive" title="Color Opacity" />
+      </div>
 <label for="blendModes">Blend mode:</label>
     <select id="blendModes">
       <option value="source-over">source-over (Default)</option>
@@ -51,13 +53,13 @@
     </select>
 
     <button id="doFill" class="button inactive doFill" title="Fill Path" />
-    <button id="doMagikWand" class="button inactive">Magik Wand</button>
+    <button id="doMagikWand" class="button inactive doMagikWand" title="Magik Wand" />
     <button id="fillSelectionImageButton" class="button inactive">Fill selection from image</button>
     <button id="doBucket" class="button inactive">Fill Image With Color</button>
-    <label for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
+    <label class="button-like" for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
       <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
     </label>
-    <button id="doDrawPencil" class="button inactive">Draw with Pencil</button>
+    <button id="doDrawPencil" class="button inactive doDrawPencil" title="Draw with Pencil" />
     <div>
         <label>
             <input type="radio" name="pencilShape" value="rectangle">
@@ -80,19 +82,19 @@
     <label for="fillCleanCheckbox"> <div>Remove mode <span id="fillCleanCheckboxLabel"></span></div>
       <input type="checkbox" id="fillCleanCheckbox" value="1" />
     </label>
-    <label for="scalePencilButton"> <div>Pencil scale <span id="scalePencilLabel"></span></div>
+    <label class="button-like" for="scalePencilButton"> <div>Pencil scale <span id="scalePencilLabel"></span></div>
       <input type="range" min="1" max="100" id="scalePencilButton" value="30" />
     </label>
-    <label for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
+    <label class="button-like" for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
       <input type="range" min="0" max="1" id="zoomButton" />
     </label>
-    <button id="doDrag" class="button inactive">Drag mode</button>
-    <button id="upz" class="button">Up</button>
-    <button id="downz" class="button">Down</button>
-    <button id="deleteButton" class="button" disabled>Delete Current Path/Image</button>
-    <button id="clearAllButton" class="button">Clear all</button>
-    <button id="dropShape" class="button">Drop shape</button>
-    <button id="dropShapeAll" class="button">Drop all shapes</button>
+    <button id="doDrag" class="button inactive doDrag" title="Drag mode" />
+    <button id="upz" class="button doUpz" title="Up" />
+    <button id="downz" class="button doDownz" title="Down" />
+    <button id="doDelete" class="button doDelete" disabled title="Delete Current Path/Image" />
+    <button id="doDeleteAll" class="button doDeleteAll" title="Clear all" />
+    <button id="doDropShape" class="button doDropShape" title="Drop shape" />
+    <button id="doDropShapeAll" class="button doDropShapeAll" title="Drop all shapes" />
     <input type="file" id="uploadImageButton" class="button" accept="image/*" />
 </div>
 
