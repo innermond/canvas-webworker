@@ -10,57 +10,56 @@
 <body>
 
 <div id="buttonContainer">
-    <button id="doSelect" class="button inactive doSelect" title="Select mode" />
-    <button id="doDrawPath" class="button inactive doDrawPath" title="Draw Path" />
-    <button id="doAddNodePath" class="button inactive doAddNodePath" title="Add node path" />
-    <button id="doDeleteNodePath" class="button inactive doDeleteNodePath" title="Delete node path" />
-      <button id="doChangeNodePath" class="button inactive doChangeNodePath" title="Change node type"></button>
-    <label class="button-like" for="magneticNodeCheckbox"><div>Magnetic node</div>
-      <input type="checkbox" id="magneticNodeCheckbox" value="1" />
-    </label>
+    <button id="doSelect" class="button inactive doSelect" title="Select mode"></button>
+    <button id="doDrawPath" class="button inactive doDrawPath" title="Draw Path"></button>
+    <button id="doAddNodePath" class="button inactive doAddNodePath" title="Add node path"></button>
+    <button id="doChangeNodePath" class="button inactive doChangeNodePath" title="Change node type"></button>
+    <button id="doDeleteNodePath" class="button inactive doDeleteNodePath" title="Delete node path"></button>
+      <button id="doMagneticNode" class="button inactive doMagneticNode" title="Magnetic node"></button>
     <div class="color-opacity-combo">
       <input type="color" id="fillColorPicker" class="color-picker" title="Choose Fill Color" />
       <input id="opacityInput" type="number" min="0" max="100" class="inactive" title="Color Opacity" />
       </div>
-<label for="blendModes">Blend mode:</label>
-    <select id="blendModes">
-      <option value="source-over">source-over (Default)</option>
-      <option value="source-in">source-in</option>
-      <option value="source-out">source-out</option>
-      <option value="source-atop">source-atop</option>
-      <option value="destination-over">destination-over</option>
-      <option value="destination-in">destination-in</option>
-      <option value="destination-out">destination-out</option>
-      <option value="destination-atop">destination-atop</option>
-      <option value="lighter">lighter</option>
-      <option value="copy">copy</option>
-      <option value="xor">xor</option>
-      <option value="multiply">multiply</option>
-      <option value="screen">screen</option>
-      <option value="overlay">overlay</option>
-      <option value="darken">darken</option>
-      <option value="lighten">lighten</option>
-      <option value="color-dodge">color-dodge</option>
-      <option value="color-burn">color-burn</option>
-      <option value="hard-light">hard-light</option>
-      <option value="soft-light">soft-light</option>
-      <option value="difference">difference</option>
-      <option value="exclusion">exclusion</option>
-      <option value="hue">hue</option>
-      <option value="saturation">saturation</option>
-      <option value="color">color</option>
-      <option value="luminosity">luminosity</option>
-    </select>
-
-    <button id="doFill" class="button inactive doFill" title="Fill Path" />
-    <button id="doMagikWand" class="button inactive doMagikWand" title="Magik Wand" />
+      <label for="blendModes">
+        <select id="blendModes">
+          <option value="source-over">source-over (Default)</option>
+          <option value="source-in">source-in</option>
+          <option value="source-out">source-out</option>
+          <option value="source-atop">source-atop</option>
+          <option value="destination-over">destination-over</option>
+          <option value="destination-in">destination-in</option>
+          <option value="destination-out">destination-out</option>
+          <option value="destination-atop">destination-atop</option>
+          <option value="lighter">lighter</option>
+          <option value="copy">copy</option>
+          <option value="xor">xor</option>
+          <option value="multiply">multiply</option>
+          <option value="screen">screen</option>
+          <option value="overlay">overlay</option>
+          <option value="darken">darken</option>
+          <option value="lighten">lighten</option>
+          <option value="color-dodge">color-dodge</option>
+          <option value="color-burn">color-burn</option>
+          <option value="hard-light">hard-light</option>
+          <option value="soft-light">soft-light</option>
+          <option value="difference">difference</option>
+          <option value="exclusion">exclusion</option>
+          <option value="hue">hue</option>
+          <option value="saturation">saturation</option>
+          <option value="color">color</option>
+          <option value="luminosity">luminosity</option>
+        </select>
+        <div>Blend mode:</div>
+      </label>
+    <button id="doFill" class="button inactive doFill" title="Fill Path"></button>
+    <button id="doMagikWand" class="button inactive doMagikWand" title="Magik Wand"></button>
     <button id="fillSelectionImageButton" class="button inactive">Fill selection from image</button>
     <button id="doBucket" class="button inactive">Fill Image With Color</button>
     <label class="button-like" for="fillImageSensitivityButton"> <div>Fill Sensitivity <span id="fillImageSensitivityLabel"></span></div>
       <input type="range" min="0" max="100" id="fillImageSensitivityButton" value="25" />
     </label>
-    <button id="doDrawPencil" class="button inactive doDrawPencil" title="Draw with Pencil" />
-    <div>
+    <button id="doDrawPencil" class="button inactive doDrawPencil" title="Draw with Pencil"></button>
+    <div id="pencilShapes">
         <label>
             <input type="radio" name="pencilShape" value="rectangle">
             Rectangle
@@ -88,13 +87,13 @@
     <label class="button-like" for="zoomButton"> <div>Zoom scale <span id="zoomButtonLabel"></span></div>
       <input type="range" min="0" max="1" id="zoomButton" />
     </label>
-    <button id="doDrag" class="button inactive doDrag" title="Drag mode" />
-    <button id="upz" class="button doUpz" title="Up" />
-    <button id="downz" class="button doDownz" title="Down" />
-    <button id="doDelete" class="button doDelete" disabled title="Delete Current Path/Image" />
-    <button id="doDeleteAll" class="button doDeleteAll" title="Clear all" />
-    <button id="doDropShape" class="button doDropShape" title="Drop shape" />
-    <button id="doDropShapeAll" class="button doDropShapeAll" title="Drop all shapes" />
+    <button id="doDrag" class="button inactive doDrag" title="Drag mode"></button>
+    <button id="upz" class="button doUpz" title="Up"></button>
+    <button id="downz" class="button doDownz" title="Down"></button>
+    <button id="doDelete" class="button doDelete" disabled title="Delete Current Path/Image"></button>
+    <button id="doDeleteAll" class="button doDeleteAll" title="Clear all"></button>
+    <button id="doDropShape" class="button doDropShape" title="Drop shape"></button>
+      <button id="doDropShapeAll" class="button doDropShapeAll" title="Drop all shapes"></button>
     <label class="button-like doUploadImage" for="uploadImageButton" title="Upload image"> 
       <input type="file" id="uploadImageButton" class="file-input" accept="image/*" />
     </label>

@@ -787,7 +787,7 @@ function handleMagneticNodeClick() {
 
   isMagneticNode = ! isMagneticNode;
 
-  document.getElementById('magneticNodeCheckbox').checked = isMagneticNode;
+  document.getElementById('doMagneticNode').checked = isMagneticNode;
 }
 
 // Function to handle the "Fill Path" button click
@@ -1960,7 +1960,7 @@ document.getElementById('doDeleteAll').addEventListener('click', handleClearAllC
 document.getElementById('doDropShape').addEventListener('click', doDropShapeClick);
 document.getElementById('doDropShapeAll').addEventListener('click', doDropShapeAllClick);
 document.getElementById('doAddNodePath').addEventListener('click', doAddNodePathClick);
-document.getElementById('magneticNodeCheckbox').addEventListener('change', handleMagneticNodeClick);
+document.getElementById('doMagneticNode').addEventListener('click', handleMagneticNodeClick);
 document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);
 document.getElementById('doDeleteNodePath').addEventListener('click', doDeleteNodePathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);

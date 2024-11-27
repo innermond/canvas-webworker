@@ -66,22 +66,29 @@ body {
   margin-bottom: 10px;
 }
 
-.color-opacity-combo {
+.color-opacity-combo, #pencilShapes {
   display: flex;
-  flex-direction: row;
-  align-content: start;
+  align-items: center;
   height: 50px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #333;
+  color: white;
 }
 .color-opacity-combo > input {
   flex: 1 0 auto;
   height: 100%;
+  border: none;
+  background: #333;
+  color: white;
+  margin: 0px;
 }
 .color-opacity-combo > input + input {
-  padding: 0;
+  padding: 0px 10px;
   margin: 0;
   border: 0;
-  font-size: 2rem;
-  width: 5rem;
+  font-size: 1.25rem;
+  width: 3.5rem;
 }
 
 #zoomButton {
@@ -96,6 +103,9 @@ min-width: 500px;
 }
 .doAddNodePath {
   background: #333 url(./asset/icon/add-node-path.svg) no-repeat center;
+}
+.doMagneticNode {
+  background: #333 url(./asset/icon/magnetic-node.svg) no-repeat center;
 }
 .doChangeNodePath {
   background: #333 url(./asset/icon/change-node-path.svg) no-repeat center;
@@ -139,4 +149,30 @@ min-width: 500px;
 
 .file-input {
   display: none;
+}
+label[for=blendModes], label[for=drawProtectCheckbox], label[for=fillCleanCheckbox] {
+  height: 50px;
+  background-color: #333;
+  color: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+  align-items: center;
+  display: flex;
+  position: relative;
+}
+label[for=blendModes] > div {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background-color: #333;
+  color: white;
+}
+label[for=blendModes] > select {
+position: relative;
+  top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 1.2rem;
+  border: none;
+  background-color: #333;
+  color: white;
 }
