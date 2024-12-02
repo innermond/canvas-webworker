@@ -216,7 +216,7 @@ function doDrawPathing(kevt) {
 
   var pos = stage.getRelativePointerPosition();
   // TODO it interferes with image clicking on same point will do nothing?
-  if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y && pathData !== '') {
+  if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y) {
     return;
   }
   lastPos = pos;
@@ -237,7 +237,6 @@ function doDrawPathing(kevt) {
       fill: '',
       id: currentPathId,
     });
-    pathData = '';
     imageLayer.add(currentPath);
 
     currentPath.on('click', function(evt) {
@@ -278,14 +277,13 @@ function doDrawPathing(kevt) {
         previousPath.selected = false;
       }
       currentPathId = this.getId(); // Set this path as the current path
-      pathData = this.getAttr('data');
       currentImage = null;
 
       if (is.addNodePath && this.selected) {
         let clickPoint = currentPath.getRelativePointerPosition();
         clickPoint.x = Math.round(clickPoint.x);
         clickPoint.y = Math.round(clickPoint.y);
-        const [vertices, types] = getVerticesFromPathData(pathData);
+        const [vertices, types] = getVerticesFromPathData(this.data());
         const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
         vertices.splice(index, 0, newPoint);
         let type = 'L';
@@ -293,8 +291,8 @@ function doDrawPathing(kevt) {
           type = 'Q';
         }
         types.set(newPoint, type);
-        pathData = generatePathDataFromVertices(vertices, types);
-        this.setAttr('data', pathData);
+        const pathData = generatePathDataFromVertices(vertices, types);
+        this.data(pathData);
         destroyHandleCircles();
         createHandleCircles(true);
         imageLayer.batchDraw();
@@ -449,6 +447,7 @@ function doDrawPathing(kevt) {
   pos = stage.getAbsoluteTransform().point(pos);
   // absolute to local currentPath
   pos = itr.point(pos);
+  let pathData = currentPath.data();
   if (pathData === '') {
       // M'ove command
       pathData += `M${pos.x},${pos.y}`;
@@ -458,7 +457,7 @@ function doDrawPathing(kevt) {
   }
 
   //// Update the path data
-  currentPath.setAttr('data', pathData);
+  currentPath.data(pathData);
   imageLayer.batchDraw();
   kevt.evt.stopImmediatePropagation();
 }
@@ -503,7 +502,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 
     // Generate new path data and update path
     const newPathData = generatePathDataFromVertices(vertices, types);
-    currentPath.setAttr('data', newPathData);
+    currentPath.data(newPathData);
 
     imageLayer.batchDraw();
   });
@@ -555,7 +554,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     }
     vertices.splice(c.attrs.index, 1);
     pathData = generatePathDataFromVertices(vertices, types);
-    currentPath.setAttr('data', pathData);
+    currentPath.data(pathData);
     destroyHandleCircles();
     createHandleCircles(true);
     imageLayer.batchDraw();
@@ -579,7 +578,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     cmd = cmd === 'Q' ? 'L' : 'Q';
     types.set(n, cmd);
     pathData = generatePathDataFromVertices(vertices, types);
-    currentPath.setAttr('data', pathData);
+    currentPath.data(pathData);
     destroyHandleCircles();
     createHandleCircles(true);
     imageLayer.batchDraw();
@@ -590,7 +589,6 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 }
 // Function to handle double click to close the path
 function handleStageDblClick() {
-  if (pathData === '') return;
   if (!currentPathId) return;
 
   previewLine?.remove();
@@ -601,9 +599,10 @@ function handleStageDblClick() {
 
   currentPathId = null;
   // Close the path by adding 'Z' to the SVG path data
+  let pathData = currentPath.data();
   pathData += ' Z';
   // Update the path data and set the closed flag
-  currentPath.setAttr('data', pathData);
+  currentPath.data(pathData);
 
   currentPath.fill(fillColor);
   currentPath.globalCompositeOperation(blendColor);
