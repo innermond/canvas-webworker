@@ -85,8 +85,8 @@ for (let k in modes) {
       if (Object.keys(modes).includes(name) === false) return;;
       x.classList.add('inactive');
     })
-    // toggle inactive class to pressed button
-    document.getElementById(name)?.classList[is[k] ? 'remove' : 'add']('inactive');
+    // toggle active class to pressed button
+    document.getElementById(name)?.classList[is[k] ? 'add' : 'remove']('active');
   }
   Object.defineProperty(fn, 'name', {value: name});
   document.getElementById(name)?.addEventListener('click', fn);

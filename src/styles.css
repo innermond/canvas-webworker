@@ -29,7 +29,9 @@ body {
   flex-flow: wrap;
 
   --btn-bg: #787878;
-  --btn-bg-hover: #333;
+  --btn-bg-hover: #555;
+  --btn-bg-active: #333;
+  --btn-bg-inactive: #ddd;
 }
 
 .button {
@@ -67,8 +69,8 @@ body {
   cursor: not-allowed;
 }
 
-.button.inactivei, .button-like.inactive {
-  background-color: #ddd;
+.button.active, .button-like.active {
+  background-color: var(--btn-bg-active) !important;
 }
 
 .color-picker {
