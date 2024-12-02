@@ -29,6 +29,7 @@ body {
   flex-flow: wrap;
 
   --btn-bg: #787878;
+  --btn-bg-hover: #333;
 }
 
 .button {
@@ -43,6 +44,9 @@ body {
   width: 50px;
   height: 50px;
 }
+.button:hover {
+  background-color: var(--btn-bg-hover) !important;
+}
 .button-like {
   display: block;
   padding: 0px 20px;
@@ -53,6 +57,9 @@ body {
   border-radius: 4px;
   height: 50px;
   width: min-content;
+}
+.button-like:hover {
+  background-color: var(--btn-bg-hover) !important;
 }
 
 .button:disabled, .button-like:disabled {
@@ -77,6 +84,9 @@ body {
   background: var(--btn-bg) !important;
   color: white;
 }
+.color-opacity-combo:hover, #pencilShapes:hover {
+  background-color: var(--btn-bg-hover) !important;
+}
 .color-opacity-combo > input {
   flex: 1 0 auto;
   height: 100%;
@@ -84,6 +94,9 @@ body {
   background: var(--btn-bg) !important;
   color: white;
   margin: 0px;
+}
+.color-opacity-combo > input:hover {
+  background-color: var(--btn-bg-hover) !important;
 }
 .color-opacity-combo > input + input {
   padding: 0px 10px;
@@ -162,12 +175,18 @@ label[for=blendModes], label[for=drawProtectCheckbox], label[for=fillCleanCheckb
   display: flex;
   position: relative;
 }
+label[for=blendModes]:hover, label[for=drawProtectCheckbox]:hover, label[for=fillCleanCheckbox]:hover {
+  background-color: var(--btn-bg-hover) !important;
+}
 label[for=blendModes] > div {
   position: absolute;
   top: 4px;
   left: 4px;
   background-color: var(--btn-bg) !important;
   color: white;
+}
+label[for=blendModes] > div:hover {
+  background-color: var(--btn-bg-hover) !important;
 }
 label[for=blendModes] > select {
 position: relative;
@@ -177,4 +196,7 @@ position: relative;
   border: none;
   background-color: var(--btn-bg) !important;
   color: white;
+}
+label[for=blendModes] > select:hover {
+  background-color: var(--btn-bg-hover) !important;
 }
