@@ -27,13 +27,15 @@ body {
   z-index: 10; /* Ensure buttons stay above the canvas */
   display: flex;
   flex-flow: wrap;
+
+  --btn-bg: #787878;
 }
 
 .button {
   display: block;
   margin-bottom: 10px; /* Space between buttons */
   padding: 10px 20px;
-  background-color: #333;
+  background-color: var(--btn-bg) !important;
   color: white;
   border: none;
   cursor: pointer;
@@ -44,7 +46,7 @@ body {
 .button-like {
   display: block;
   padding: 0px 20px;
-  background-color: #333;
+  background-color: var(--btn-bg) !important;
   color: white;
   border: none;
   cursor: pointer;
@@ -72,14 +74,14 @@ body {
   height: 50px;
   border-radius: 4px;
   overflow: hidden;
-  background: #333;
+  background: var(--btn-bg) !important;
   color: white;
 }
 .color-opacity-combo > input {
   flex: 1 0 auto;
   height: 100%;
   border: none;
-  background: #333;
+  background: var(--btn-bg) !important;
   color: white;
   margin: 0px;
 }
@@ -92,59 +94,59 @@ body {
 }
 
 #zoomButton {
-min-width: 500px; 
+  min-width: 500px; 
 }
 
 .doSelect {
-  background: #333 url(./asset/icon/pointer.svg) no-repeat center;
+  background: url(./asset/icon/pointer.svg) no-repeat center;
 }
 .doDrawPath {
-  background: #333 url(./asset/icon/draw-path.svg) no-repeat center;
+  background: url(./asset/icon/draw-path.svg) no-repeat center;
 }
 .doAddNodePath {
-  background: #333 url(./asset/icon/add-node-path.svg) no-repeat center;
+  background: url(./asset/icon/add-node-path.svg) no-repeat center;
 }
 .doMagneticNode {
-  background: #333 url(./asset/icon/magnetic-node.svg) no-repeat center;
+  background: url(./asset/icon/magnetic-node.svg) no-repeat center;
 }
 .doChangeNodePath {
-  background: #333 url(./asset/icon/change-node-path.svg) no-repeat center;
+  background: url(./asset/icon/change-node-path.svg) no-repeat center;
 }
 .doDeleteNodePath {
-  background: #333 url(./asset/icon/delete-node-path.svg) no-repeat center;
+  background: url(./asset/icon/delete-node-path.svg) no-repeat center;
 }
 .doFill {
-  background: #333 url(./asset/icon/fill.svg) no-repeat center;
+  background: url(./asset/icon/fill.svg) no-repeat center;
 }
 .doMagikWand {
-  background: #333 url(./asset/icon/magik-wand.svg) no-repeat center;
+  background: url(./asset/icon/magik-wand.svg) no-repeat center;
 }
 .doDrawPencil {
-  background: #333 url(./asset/icon/draw-pencil.svg) no-repeat center;
+  background: url(./asset/icon/draw-pencil.svg) no-repeat center;
 }
 .doDrag {
-  background: #333 url(./asset/icon/drag.svg) no-repeat center;
+  background: url(./asset/icon/drag.svg) no-repeat center;
 }
 .doUpz {
-  background: #333 url(./asset/icon/upz.svg) no-repeat center;
+  background: url(./asset/icon/upz.svg) no-repeat center;
 }
 .doDownz {
-  background: #333 url(./asset/icon/downz.svg) no-repeat center;
+  background: url(./asset/icon/downz.svg) no-repeat center;
 }
 .doDelete {
-  background: #333 url(./asset/icon/delete.svg) no-repeat center;
+  background: url(./asset/icon/delete.svg) no-repeat center;
 }
 .doDeleteAll {
-  background: #333 url(./asset/icon/delete-all.svg) no-repeat center;
+  background: url(./asset/icon/delete-all.svg) no-repeat center;
 }
 .doDropShape {
-  background: #333 url(./asset/icon/drop-shape.svg) no-repeat center;
+  background: url(./asset/icon/drop-shape.svg) no-repeat center;
 }
 .doDropShapeAll {
-  background: #333 url(./asset/icon/drop-shape-all.svg) no-repeat center;
+  background: url(./asset/icon/drop-shape-all.svg) no-repeat center;
 }
 .doUploadImage {
-  background: #333 url(./asset/icon/upload-image.svg) no-repeat center;
+  background: url(./asset/icon/upload-image.svg) no-repeat center;
 }
 
 .file-input {
@@ -152,7 +154,7 @@ min-width: 500px;
 }
 label[for=blendModes], label[for=drawProtectCheckbox], label[for=fillCleanCheckbox] {
   height: 50px;
-  background-color: #333;
+  background-color: var(--btn-bg) !important;
   color: #fff;
   border-radius: 4px;
   overflow: hidden;
@@ -164,7 +166,7 @@ label[for=blendModes] > div {
   position: absolute;
   top: 4px;
   left: 4px;
-  background-color: #333;
+  background-color: var(--btn-bg) !important;
   color: white;
 }
 label[for=blendModes] > select {
@@ -173,6 +175,6 @@ position: relative;
   padding-bottom: 0.5rem;
   font-size: 1.2rem;
   border: none;
-  background-color: #333;
+  background-color: var(--btn-bg) !important;
   color: white;
 }
