@@ -111,13 +111,14 @@ function doSelectStart(e) {
   e.cancelBubble = true;
   e.evt.stopImmediatePropagation();
 
-  selectPoints[0] = stage.getPointerPosition();
+  selectPoints[0] = stage.getRelativePointerPosition();
   selectPoints[1] = {...selectPoints[0]};
 
   const r = new Konva.Rect({
     fill: 'rgba(255,255,255,0.05)',
     stroke: 'white',
     strokeWidth: STROKE_WIDTH,
+    strokeScaleEnabled: false,
     dash: [8, 4],
     visible: true,
     listening: false,
@@ -149,7 +150,7 @@ function doSelecting(e) {
   const r = imageLayer.findOne('#selectingRect');
   if (!r) return;
 
-  selectPoints[1] = stage.getPointerPosition();
+  selectPoints[1] = stage.getRelativePointerPosition();
   r.setAttrs({
     x: selectPoints.x,
     y: selectPoints.y,
