@@ -1,63 +1,13 @@
-let { width: pwidth, height: pheight } = document.querySelector('#container').style;
-// Set up the stage and imageLayer
-var stage = new Konva.Stage({
-    id: 'stage',
-    container: 'container',
-    width: parseInt(pwidth) ?? 200,
-    height: parseInt(pheight) ?? 100,
-});
-
-// Order of layers is important
-var imageLayer = new Konva.Layer({
-    id: 'image',
-});
-var imageTransformer = new Konva.Transformer();
-imageLayer.add(imageTransformer);
-stage.add(imageLayer);
-var bucketLayer = new Konva.Layer({
-    id: 'bucket',
-});
-stage.add(bucketLayer);
-var justContourLayer = new Konva.Layer({
-    id: 'justContour',
-});
-stage.add(justContourLayer);
-
-const selection = new Set();
-const modes = {
-  drawPath: 1 << 0,
-  addNodePath: 1 << 1,
-  changeNodePath: 1 << 2,
-  deleteNodePath: 1 << 3,
-  drawPencil: 1 << 4,
-  fill: 1 << 5,
-  select: 1 << 6,
-  bucket: 1 << 7,
-  magikWand : 1 << 8,
-  drag: 1 << 9,
-};
-const ALL_IS = ((1 << Object.keys(modes).length) -1); // 1111...
-// mode get/set a value - one of is
-const mode = (m) => {
-  if (m === undefined) return mode.value;
-  const mIsValid = (m & ALL_IS) === m && (m & (m - 1)) === 0;
-  if (! mIsValid) throw new Error(`${m} is not a valid mode`);
-  mode.value = m;
-};
-mode.value = 0; // no modes 0000...
-const is = {};
-Object.keys(modes).forEach(k => {
-  Object.defineProperty(is, k, {
-    get: () => mode.value === modes[k],
-    set: v => v ? mode(modes[k]) : mode.value = 0,
-    enumerable: true,
-    configurable: true,
-  });
-});
+import {stage, imageLayer, bucketLayer, justContourLayer} from '@/init/layers';
+import {imageTransformer} from '@/init/layers';
+import '@/init/create-dofuncs';
+import {is, mode} from '@/modes';
+import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
+import {animation01} from '@/animation';
+import {currentPathId, setCurrentPathId, doDrawPathing} from '@/path';
+import {lastPos, setLastPos} from '@/last-position';
 
 var currentImage; // Variable to hold the currently added image
-// Variable to store the last clicked position
-var lastPos = null;
 // Global variable to store the fill color with a default value
 var fillColor = '#000000'; // Default fill color (black)
 // It controlls sensitivity for flooding image areas with fillColor
@@ -68,101 +18,6 @@ var blendColor = blendColorDefault;
 // Size of pencil
 var pencilSize = 30;
 
-//function doSelect() {
-//  is.select = !is.select;
-//  document.getElementById('doSelect').classList.toggle('inactive');
-//}
-// Create functions like the one above for any do...modes's key
-// and bind them to their coresponding DOM buttons
-for (let k in modes) {
-  const name = 'do' + k.charAt(0).toUpperCase() + k.slice(1);
-  const fn = () => {
-    is[k] = !is[k];
-    // Add inactive class to all do...modes's key DOM elements
-    document.querySelectorAll('[id^=do]')?.forEach(x => {
-      let name = x.id.slice(2);
-      name = name.charAt(0).toLowerCase() + name.slice(1);
-      if (Object.keys(modes).includes(name) === false) return;;
-      x.classList.add('inactive');
-    })
-    // toggle active class to pressed button
-    document.getElementById(name)?.classList[is[k] ? 'add' : 'remove']('active');
-  }
-  Object.defineProperty(fn, 'name', {value: name});
-  document.getElementById(name)?.addEventListener('click', fn);
-  this[name] = fn;
-}
-
-const selectPoints = [{x: 0, y: 0}, {x: 0, y: 0}];
-Object.defineProperty(selectPoints, 'x', {
-  get: () => Math.min(selectPoints[0].x, selectPoints[1].x),
-});
-Object.defineProperty(selectPoints, 'y', {
-  get: () => Math.min(selectPoints[0].y, selectPoints[1].y),
-});
-Object.defineProperty(selectPoints, 'width', {
-  get: () => Math.abs(selectPoints[1].x - selectPoints[0].x),
-});
-Object.defineProperty(selectPoints, 'height', {
-  get: () => Math.abs(selectPoints[1].y - selectPoints[0].y),
-});
-function doSelectStart(e) {
-  if (! is.select) return;
-  e.cancelBubble = true;
-  e.evt.stopImmediatePropagation();
-
-  selectPoints[0] = stage.getRelativePointerPosition();
-  selectPoints[1] = {...selectPoints[0]};
-
-  const r = new Konva.Rect({
-    fill: 'rgba(255,255,255,0.05)',
-    stroke: 'white',
-    strokeWidth: STROKE_WIDTH,
-    strokeScaleEnabled: false,
-    dash: [8, 4],
-    visible: true,
-    listening: false,
-    id: 'selectingRect',
-  });
-  r.width(0);
-  r.height(0);
-  animation01(() => !is.select, applyInvert => {
-        if (applyInvert) {
-          r.dash([4, 4]);
-        } else {
-          r.dash([8, 4]);
-        }
-        r.dashOffset(r.dashOffset() + 4);
-  });
-  imageLayer.add(r);
-}
-function doSelectEnd(e) {
-  if (! is.select) return;
-  e.cancelBubble = true;
-
-  imageLayer.findOne('#selectingRect')?.destroy();
-  selectPoints[0] = {x: 0, y: 0};
-  selectPoints[1] = {x: 0, y: 0};
-}
-function doSelecting(e) {
-  if (!is.select) return;
-  e.cancelBubble = true;
-  const r = imageLayer.findOne('#selectingRect');
-  if (!r) return;
-
-  selectPoints[1] = stage.getRelativePointerPosition();
-  r.setAttrs({
-    x: selectPoints.x,
-    y: selectPoints.y,
-    width: selectPoints.width,
-    height: selectPoints.height,
-  }); 
-}
-function doSelectFinal(e) {
-  if (! is.select) return;
-  e.cancelBubble = true;
-}
-
 function handleBucketMode(kevt) {
   if (!is.bucket) {
     return;
@@ -170,7 +25,7 @@ function handleBucketMode(kevt) {
 
   if (kevt.target === stage) return;
 
-  lastPos = stage.getRelativePointerPosition();
+  setLastPos();
   // Event is triggered clicking on a transparent pixel of a flood image
   // Find coresponding image from imageLayer
   if (kevt.target?.parent === bucketLayer) {
@@ -191,403 +46,6 @@ function handleBucketMode(kevt) {
   kevt?.evt.stopImmediatePropagation();
 }
 
-const STROKE_WIDTH = 1;
-const PATH_OPACITY = 0.2;
-
-// Function to handle mouse click to add points to the path
-function doDrawPathing(kevt) {
-// TODO it is useless?
-  if (currentPathId) {
-    const currentPath = imageLayer.findOne(`#${currentPathId}`);
-    // Closed path has no need to add new point
-    if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
-      destroyHandleCircles();
-      currentPath.strokeWidth(0);
-      currentPath.draggable(false);
-      currentPath.selected = false;
-      currentPathId = null;
-      imageLayer.batchDraw();
-      return;
-    }
-  }
-
-  if (!is.drawPath) {
-    return;
-  }
-
-  var pos = stage.getRelativePointerPosition();
-  // TODO it interferes with image clicking on same point will do nothing?
-  if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y) {
-    return;
-  }
-  lastPos = pos;
-
-  // double click
-  if (kevt.evt.detail > 1) {
-    return;
-  } 
-
-  let currentPath;
-  if (!currentPathId) {
-    currentPathId = `Path${Math.random().toString(36).slice(2)}`;
-    currentPath = new Konva.Path({
-      data: '',
-      stroke: 'white',
-      strokeWidth: STROKE_WIDTH,
-      dash: [8, 4],
-      fill: '',
-      id: currentPathId,
-    });
-    imageLayer.add(currentPath);
-
-    currentPath.on('click', function(evt) {
-      if (is.select) return;
-      if (is.drag) return;
-      if (is.drawPath) return;
-      evt.cancelBubble = true;
-      // Click on unclosed curve does none
-      if (this.data().endsWith('Z') === false) {
-        return;
-      }
-      // Another path is currently drawing but we clicked on already closed path
-      if (currentPathId !== null && this.getId() !== currentPathId) {
-        const previousPath = imageLayer.findOne(`#${currentPathId}`);
-        // Prev path is currently drawing
-        if (previousPath.data().endsWith('Z') === false) {
-          evt.cancelBubble = false;
-          return;
-        } else {
-          // Reset prev path
-          destroyHandleCircles();
-          previousPath.strokeWidth(0);
-          previousPath.draggable(false);
-          previousPath.selected = false;
-          // Current path is this one closed just clicked
-          currentPathId = this.getId();
-        }
-      }
-
-      if (!currentPathId) {
-        currentPathId = this.getId();
-      }
-      // Reset previous path stroke
-      if (currentPathId !== this.getId()) {
-        const previousPath = imageLayer.findOne(`#${currentPathId}`);
-        previousPath.strokeWidth(0);
-        previousPath.draggable(false);
-        previousPath.selected = false;
-      }
-      currentPathId = this.getId(); // Set this path as the current path
-      currentImage = null;
-
-      if (is.addNodePath && this.selected) {
-        let clickPoint = currentPath.getRelativePointerPosition();
-        clickPoint.x = Math.round(clickPoint.x);
-        clickPoint.y = Math.round(clickPoint.y);
-        const [vertices, types] = getVerticesFromPathData(this.data());
-        const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
-        vertices.splice(index, 0, newPoint);
-        let type = 'L';
-        if (isMagneticNode) {
-          type = 'Q';
-        }
-        types.set(newPoint, type);
-        const pathData = generatePathDataFromVertices(vertices, types);
-        this.data(pathData);
-        destroyHandleCircles();
-        createHandleCircles(true);
-        imageLayer.batchDraw();
-        return;
-      }
-      this.selected = !this?.selected;
-      if (this?.selected) {
-        this.strokeWidth(STROKE_WIDTH);
-        this.draggable(true);
-        destroyHandleCircles();
-        createHandleCircles(true);
-      } else {
-        this.strokeWidth(0);
-        this.draggable(false);
-        destroyHandleCircles();
-      }
-
-      animation01(() => !this.selected, (applyInvert) => {
-        if (applyInvert) {
-          this.dash([4, 4]);
-        } else {
-          this.dash([8, 4]);
-        }
-        this.dashOffset(this.dashOffset() + 4);
-      });
-
-      imageLayer.batchDraw();
-      lastPos = null; // Reset last position for drawing
-
-      // Update button states
-      document.getElementById('doDelete').disabled = false; // Enable the delete button
-      document.getElementById('doFill').disabled = false; // Enable the fill button
-      document.getElementById('fillColorPicker').disabled = false; // Enable the fill color picker
-    });
-    currentPath.on('mousedown', function(evt) {
-      if (is.drawPath) return;
-      if (is.select) return;
-      if (is.drag) return;
-      evt.cancelBubble = true;
-      if (is.drag && !this.selected) {
-        evt.cancelBubble = false;
-      }
-      if (ghostNode && this.selected) {
-        ghostNode.setAttrs({fill: 'red', opacity: 1});
-      }
-      if (currentPath.selected) {
-        document.body.style.cursor = 'grab';
-      }
-    });
-    currentPath.on('mouseup', function(e) {
-      if (is.drawPath) return;
-      if (is.select) return;
-      if (is.drag) return;
-      imageTransformer.nodes([]);
-      const inx = imageTransformer.nodes().indexOf(e.target);
-      if (inx === -1) { // not found exclusively add it
-        imageTransformer.nodes([]);
-        !is.drawPath && imageTransformer.nodes([e.target]);
-      } else { // found remove it
-        const nodes = imageTransformer.nodes().slice();
-        nodes.splice(inx, 1);
-        imageTransformer.nodes(nodes);
-      }
-      e.cancelBubble = true;
-      if (is.drag && !this.selected) {
-        e.cancelBubble = false;
-      }
-      if (is.addNodePath && ghostNode) {
-        ghostNode.setAttrs({fill: 'white', opacity: 0.4});
-      }
-      document.body.style.cursor = 'default';
-    });
-    currentPath.on('dragstart', function(evt) {
-      evt.cancelBubble = true;
-      if (ghostNode && this.selected && is.addNodePath) {
-        ghostNode.setAttrs({fill: 'white', opacity: 0.4});
-      }
-      this.opacity(PATH_OPACITY);
-    });
-    currentPath.on('dragend', function(evt) {
-      evt.cancelBubble = true;
-      this.opacity(1);
-     });
-    currentPath.on('dragmove', function(evt) {
-      evt.cancelBubble = true;
-      if (is.drag && !this.selected) {
-        evt.cancelBubble = false;
-      }
-    });
-
-    let ghostNode = null;
-    currentPath.on('mousemove', () => {
-      if (is.addNodePath && currentPath.selected) {
-        // canvas point (it is relative to viewport)
-        let movingPoint = stage.getPointerPosition();
-        // to currentPath related to viewport
-        let itr = currentPath.getAbsoluteTransform().copy().invert();
-        movingPoint = itr.point(movingPoint);
-        movingPoint.x = Math.round(movingPoint.x);
-        movingPoint.y = Math.round(movingPoint.y);
-        const [vertices, types] = getVerticesFromPathData(currentPath.data());
-        let [newPoint,] = closestProjectedPoint(vertices, movingPoint);
-        if (ghostNode) {
-          // newPoint is in currentPath coordinates space
-          // ghostNode is inside imageLayer so get reference to imageLayer
-          itr = currentPath.getAbsoluteTransform();
-          newPoint = itr.point(newPoint);
-          ghostNode.absolutePosition(newPoint);
-          ghostNode.visible(true);
-        }
-      }
-    });
-    currentPath.on('mouseenter', () => {
-      if (is.addNodePath) {
-        ghostNode = new Konva.Circle({
-          x: 0,
-          y: 0,
-          radius: 10,
-          fill: 'white',
-          opacity: 0.4,
-          visible: true,
-          id: 'ghost',
-        });
-        imageLayer.add(ghostNode);
-      }
-    });
-    currentPath.on('mouseleave', () => {
-      ghostNode?.destroy();
-      ghostNode = null;
-    });
-  } else {
-    currentPath = imageLayer.findOne(`#${currentPathId}`);
-  }
-
-  if (! currentPath) {
-    return;
-  }
-
-  // Closed path has no need to add new point
-  if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
-    destroyHandleCircles();
-    currentPath.strokeWidth(0);
-    currentPath.draggable(false);
-    currentPath.selected = false;
-    currentPathId = null;
-    imageLayer.batchDraw();
-    return;
-  }
-
-  const itr = currentPath.getAbsoluteTransform().copy().invert();
-  // relative to stage to absolute canvas/stage
-  pos = stage.getAbsoluteTransform().point(pos);
-  // absolute to local currentPath
-  pos = itr.point(pos);
-  let pathData = currentPath.data();
-  if (pathData === '') {
-      // M'ove command
-      pathData += `M${pos.x},${pos.y}`;
-  } else {
-      // Add line to ('L') for subsequent clicks
-      pathData += ` L${pos.x},${pos.y}`;
-  }
-
-  //// Update the path data
-  currentPath.data(pathData);
-  imageLayer.batchDraw();
-  kevt.evt.stopImmediatePropagation();
-}
-
-function createHandleCircle(currentPath, vertex, index, fill) {
-  const circle = new Konva.Circle({
-    radius: 5,
-    fill,
-    visible: false,
-    name: currentPath.id(),
-    index,
-  });
-  // vertex has currentPath as space so transform it into imageLayer space 
-  const p = currentPath.getAbsoluteTransform(imageLayer).point(vertex);
-  // position using imageLayer - parent of circle -  space as reference
-  circle.position(p);
-  circle.on('dragstart', (evt) => {
-    evt.cancelBubble = true;
-    currentPathId = currentPath.id(); 
-    currentPath?.opacity(PATH_OPACITY);
-  });
-  circle.on('dragend', (evt) => {
-    evt.cancelBubble = true;
-    currentPathId = currentPath.id(); 
-    currentPath?.opacity(1);
-  });
-  // Event to update path when circle is dragged
-  circle.on('dragmove', (evt) => {
-    evt.cancelBubble = true;
-
-    if ( ! circle.draggable()) {
-      return;
-    }
-    let point = circle.getAbsolutePosition();
-    const itr = currentPath.getAbsoluteTransform().copy().invert();
-    point = itr.point(point);
-    // Update vertex position in vertices array
-    const index = circle.attrs.index;
-    const [vertices, types] = getVerticesFromPathData(currentPath.data());
-    vertices[index].x = point.x;
-    vertices[index].y = point.y;
-
-    // Generate new path data and update path
-    const newPathData = generatePathDataFromVertices(vertices, types);
-    currentPath.data(newPathData);
-
-    imageLayer.batchDraw();
-  });
-  circle.on('mouseenter', () => {
-    circle.radius(15);
-  });
-  circle.on('mousedown', (evt) => {
-    if (is.deleteNodePath || is.changeNodePath) {
-      return;
-    }
-    evt.cancelBubble = true;
-    const c = evt.target;
-    c.startDrag();
-    c.draggable(true);
-    c.fill('');
-    c.strokeWidth(1);
-    c.stroke(fill);
-    document.body.style.cursor = 'none';
-  });
-  circle.on('mouseup', (evt) => {
-    evt.cancelBubble = true;
-    const c = evt.target;
-    c.stopDrag();
-    c.draggable(false);
-    c.fill(fill);
-    c.strokeWidth(0);
-    c.stroke('');
-    currentPath?.opacity(1);
-    document.body.style.cursor = 'default';
-  });
-  circle.on('mouseleave', (evt) => {
-    evt.target.radius(5);
-  });
-
-  circle.on('click', (evt) => {
-    evt.cancelBubble = true;
-    if (! is.deleteNodePath) {
-      return;
-    }
-    if (! currentPathId) {
-      return;
-    }
-   
-    const c = evt.target;
-    const [vertices, types] = getVerticesFromPathData(currentPath.data());
-    const n = vertices[c.attrs.index];
-    if (types.has(n)) {
-      types.delete(n);
-    }
-    vertices.splice(c.attrs.index, 1);
-    pathData = generatePathDataFromVertices(vertices, types);
-    currentPath.data(pathData);
-    destroyHandleCircles();
-    createHandleCircles(true);
-    imageLayer.batchDraw();
-  });
-  circle.on('click', (evt) => {
-    evt.cancelBubble = true;
-    if (! is.changeNodePath) {
-      return;
-    }
-    if (! currentPathId) {
-      return;
-    }
-   
-    const c = evt.target;
-    const [vertices, types] = getVerticesFromPathData(currentPath.data());
-    const n = vertices[c.attrs.index];
-    if (! types.has(n)) {
-      return;
-    }
-    let cmd = types.get(n);
-    cmd = cmd === 'Q' ? 'L' : 'Q';
-    types.set(n, cmd);
-    pathData = generatePathDataFromVertices(vertices, types);
-    currentPath.data(pathData);
-    destroyHandleCircles();
-    createHandleCircles(true);
-    imageLayer.batchDraw();
-  });
-
-  imageLayer.add(circle);
-  return circle;
-}
 // Function to handle double click to close the path
 function handleStageDblClick() {
   if (!currentPathId) return;
@@ -598,7 +56,7 @@ function handleStageDblClick() {
     return;
   }
 
-  currentPathId = null;
+  setCurrentPathId(null);
   // Close the path by adding 'Z' to the SVG path data
   let pathData = currentPath.data();
   pathData += ' Z';
@@ -660,110 +118,6 @@ function handleStageDblClick() {
   document.getElementById('doDelete').disabled = false; // Enable delete button
 
   imageLayer.batchDraw();
-}
-
-function createHandleCircles(show=false) {
-  if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-
-  let [vertices, types] = getVerticesFromPathData(currentPath.data());
-  let i = 0;
-  for (let index = 0; index < vertices.length; index++) {
-    const vertex = vertices[index];
-    let already = vertices.slice(0, index).find(v => v.x === vertex.x && v.y === vertex.y);
-    if (already) continue;
-    i++; 
-    let fill = 'red';
-    const type = types.get(vertex);
-    if (type === 'Q') {
-      fill = 'blue';
-    }
-    const c = createHandleCircle(currentPath, vertex, index, fill);
-    c.setAttr('visible', show);
-  };
-}
-
-function destroyHandleCircles() {
-  if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-
-  const circles = imageLayer.find('.'+currentPath.id());
-  circles.forEach((circle) => circle.destroy());
-}
-
-function generatePathDataFromVertices(vertices, types) {
-  let pathData = `M${vertices[0].x},${vertices[0].y}`;
-  for (let i = 1; i < vertices.length; i++) {
-    const vertex = vertices[i];
-    if (!types.has(vertex)) continue; // TODO this is a serious flaw, the path is broken
-    const next = vertices[i+1] ?? vertices[0];
-    const command = types.get(vertex);
-    if (vertex.x === next.x && vertex.y === next.y) {
-      continue;
-    }
-    switch (command) {
-      case 'L':
-      pathData += ` L${vertex.x},${vertex.y}`;
-      break;
-      case 'Q':
-      pathData += ` Q${vertex.x},${vertex.y},${next.x},${next.y}`;
-      break;
-    }
-  }
-  pathData += ' Z';
-  return pathData;
-}
-
-function getVerticesFromPathData(pathData) {
-  const vertices = [];
-  const types = new WeakMap();
-  const commands = pathData.match(/[a-zA-Z][^a-zA-Z]*/g); // Split by command characters
-
-  let currentX = 0;
-  let currentY = 0;
-
-  for (let inx = 0; inx < commands.length; inx++) {
-    const command = commands[inx];
-    const type = command[0];
-    const coords = command.slice(1).trim().split(/[\s,]+/).map(Number);
-
-    switch (type) {
-      case 'M': // Move to
-      case 'L': // Line to
-        for (let i = 0; i < coords.length; i += 2) {
-          currentX = coords[i];
-          currentY = coords[i + 1];
-          let p = { x: currentX, y: currentY };
-          p = getPointFrom(p, vertices);
-          vertices.push(p);
-          types.set(p, type);
-        }
-        break;
-      case 'Q':
-        const [kx, ky, zx, zy] = coords;
-        let pk = { x: kx, y: ky };
-        pk = getPointFrom(pk, vertices);
-        let pz = { x: zx, y: zy };
-        pz = getPointFrom(pz, vertices);
-        vertices.push(pk, pz);
-        types.set(pk, 'Q');
-        //let typ = 'L';
-        //if (commands[inx-1][0] === 'Q') {
-        //  typ = 'Q';
-        //}
-        let typ = 'L';
-        types.set(pz, typ);
-      break;
-    }
-  };
-
-  return [vertices, types];
-}
-
-function getPointFrom(p, vertices) {
-  return vertices.find(v => {
-    return v.x === p.x && v.y === p.y;
-  }) ?? p;
 }
 
 function doChangeNodePathClick() {
@@ -852,30 +206,6 @@ floodFillWorker.onmessage = async function(e) {
   document.getElementById('doDelete').disabled = false;
 };
 
-function animation01(exitFn, animationFn, atMillisec=150) {
-  let zero;
-  requestAnimationFrame(start);
-  function start(t) {
-    zero = t;
-    animate(t)
-  }
-  let applyInvert = true;
-  async function animate(t) {
-    if (exitFn()) {
-      return;
-    }
-
-    const d = (t - zero) / atMillisec;
-    if (d > 1) {
-      animationFn(applyInvert);
-      applyInvert = ! applyInvert;
-      requestAnimationFrame(t => start(t));
-    } else {
-      requestAnimationFrame(t => animate(t));
-    }
-  };
-}
-
 async function fillSelectionImageClick() {
   if (is.magikWand === false) {
     return;
@@ -939,7 +269,7 @@ function handleSelectMode(kevt) {
   }
   if (kevt.target === stage) return;
 
-  lastPos = stage.getRelativePointerPosition();
+  setLastPos();
   fillSelectionImage(true);
   kevt?.evt.stopImmediatePropagation();
 }
@@ -1151,7 +481,7 @@ function handleClearAllClick() {
     l.clear();
   });
 
-  currentPathId = null;
+  setCurrentPathId(null);
   currentImage?.destroy();
   currentImage =null;
 }
@@ -1189,15 +519,11 @@ function doDropShapeAllClick() {
   bucketLayer.batchDraw();
 }
 
-// Variable to store the current path data
-var pathData = '';
-var currentPathId = null; // Variable to hold the current path object
-
 // Function to reset drawing state
 function resetPathState() {
-  currentPathId = null;
+  setCurrentPathId(null);
   pathData = '';
-  lastPos = null;
+  setLastPos(null);
 }
 
 function handleNewPathClick() {
@@ -1335,7 +661,7 @@ function handleImageUpload(e) {
         e.evt.preventDefault();
 
         currentImage = e.target;
-        currentPathId = null;
+        setCurrentPathId(null);
 
         const pos = stage.getRelativePointerPosition();
         lastClickPos = pos;
@@ -1797,7 +1123,7 @@ function handleDown() {
 }
 
 function inactivateModes(except='') {
-  currentPathId = null;
+  setCurrentPathId(null);
   currentImage = null;
   mode.value = 0;
 
@@ -1850,7 +1176,7 @@ stage.on('mousedown', e => {
   e.cancelBubble = true;
 
   const pos = stage.getRelativePointerPosition();
-  lastPos = pos;
+  setLastPos(pos);
   mousemove = true;
 
   if (pencil) {
