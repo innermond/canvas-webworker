@@ -2,19 +2,16 @@ import {stage, imageLayer, bucketLayer, justContourLayer} from '@/init/layers';
 import {imageTransformer} from '@/init/layers';
 import '@/init/create-dofuncs';
 import {is, mode} from '@/modes';
+import {previewLine} from '@/previewline'; 
 import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
 import {animation01} from '@/animation';
-import {currentPathId, setCurrentPathId, doDrawPathing} from '@/path';
+import {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, destroyHandleCircles, resetPathState, } from '@/path';
 import {lastPos, setLastPos} from '@/last-position';
+import {color, node,} from '@/vars';
 
 var currentImage; // Variable to hold the currently added image
 // Global variable to store the fill color with a default value
-var fillColor = '#000000'; // Default fill color (black)
-// It controlls sensitivity for flooding image areas with fillColor
-var fillColorSensitivity = 25;
-var opacityColor = 100;
-var blendColorDefault = 'source-over';
-var blendColor = blendColorDefault;
+// It controlls sensitivity for flooding image areas with color.fill
 // Size of pencil
 var pencilSize = 30;
 
@@ -46,80 +43,6 @@ function handleBucketMode(kevt) {
   kevt?.evt.stopImmediatePropagation();
 }
 
-// Function to handle double click to close the path
-function handleStageDblClick() {
-  if (!currentPathId) return;
-
-  previewLine?.remove();
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-  if (currentPath.data().endsWith('Z') === true) {
-    return;
-  }
-
-  setCurrentPathId(null);
-  // Close the path by adding 'Z' to the SVG path data
-  let pathData = currentPath.data();
-  pathData += ' Z';
-  // Update the path data and set the closed flag
-  currentPath.data(pathData);
-
-  currentPath.fill(fillColor);
-  currentPath.globalCompositeOperation(blendColor);
-  currentPath.strokeWidth(0);
-
-  let ghostNode;
-  let initialGhostPos = {x: 0, y: 0};
-  currentPath.on('dragstart', () => {
-    ghostNode = imageLayer.findOne('#ghost');
-    if (! ghostNode) {
-      return;
-    }
-    initialGhostPos = ghostNode.getAbsolutePosition();
-    const tr = currentPath.getAbsoluteTransform();
-    // relative to currentPath
-    initialGhostPos = tr.copy().invert().point(initialGhostPos);
-  });
-  // Update circle positions on path move
-  currentPath.on('dragmove transform', () => {
-    // calculate everything in viewport(canvas's stage as it is seen on screen) space
-    const tr = currentPath.getAbsoluteTransform();
-
-    if (currentPath.selected || is.deleteNodePath) {
-      const [vertices, types] = getVerticesFromPathData(currentPath.data());
-      const vertexCircles = imageLayer.find('.'+currentPath.id());
-      vertexCircles.forEach((vertex) => {
-        const {index} = vertex.attrs;
-        if (!vertices[index]) {
-          return;
-        }
-        const p = tr.point(vertices[index]);
-        vertex.absolutePosition({
-          x: p.x,
-          y: p.y,
-        });
-      });
-    }
-    // TODO fix wrongly ghost's positioning!!!
-    if (ghostNode) {
-      const gtr = tr.point(initialGhostPos);
-      gtr.x = Math.round(gtr.x);
-      gtr.y = Math.round(gtr.y);
-      ghostNode.absolutePosition(gtr);      
-    }
-
-    imageLayer.batchDraw();
-  });
-
-  resetPathState();
-
-  // Enable the "Fill Path" button and color picker after the path is closed
-  document.getElementById('doFill').disabled = false;
-  document.getElementById('fillColorPicker').disabled = false;
-  document.getElementById('doDelete').disabled = false; // Enable delete button
-
-  imageLayer.batchDraw();
-}
-
 function doChangeNodePathClick() {
   if (! currentPathId) {
     is.changeNodePath = false;
@@ -133,15 +56,12 @@ function doChangeNodePathClick() {
   document.getElementById('doChangeNodePath').classList[is.changeNodePath ? 'remove' : 'add']('inactive');
 }
 
-let isMagneticNode = false;
-
 function handleMagneticNodeClick() {
   if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
-  isMagneticNode = ! isMagneticNode;
+  node.isMagnetic = ! node.isMagnetic;
 
-  document.getElementById('doMagneticNode').checked = isMagneticNode;
+  document.getElementById('doMagneticNode').checked = node.isMagnetic;
 }
 
 // Function to handle the "Fill Path" button click
@@ -149,8 +69,8 @@ function doFillClick() {
   if (!currentPathId) return;
   const currentPath = imageLayer.findOne(`#${currentPathId}`);
 
-  currentPath.fill(fillColor);
-  currentPath.globalCompositeOperation(blendColor);
+  currentPath.fill(color.fill);
+  currentPath.globalCompositeOperation(color.blend);
   currentPath.strokeWidth(0);
 
   imageLayer.batchDraw();
@@ -226,8 +146,8 @@ async function fillSelectionImage(justContour=false) {
     const msg = {
       imageData,
       startPos,
-      fillColor,
-      tolerance: fillColorSensitivity,
+      fillColor: color.fill,
+      tolerance: color.sensitivity,
     };
     if (justContour) {
       msg.justContour = true;
@@ -379,8 +299,8 @@ async function fillBucket(cobaiImage) {
   floodFillWorker.postMessage({
     imageData,
     startPos,
-    fillColor,
-    tolerance: fillColorSensitivity,
+    fillColor: color.fill,
+    tolerance: color.sensitivity,
     justContour: is.magikWand,
   });
 
@@ -457,7 +377,7 @@ function handleDeleteClick() {
 
       // Disable buttons since there's no current path
       document.getElementById('doFill').disabled = true;
-      document.getElementById('fillColorPicker').disabled = true;
+      document.getElementById('color.fillPicker').disabled = true;
       document.getElementById('doDelete').disabled = true;
 
       // Clear the temporary line
@@ -519,13 +439,6 @@ function doDropShapeAllClick() {
   bucketLayer.batchDraw();
 }
 
-// Function to reset drawing state
-function resetPathState() {
-  setCurrentPathId(null);
-  pathData = '';
-  setLastPos(null);
-}
-
 function handleNewPathClick() {
   resetPathState();
 
@@ -541,7 +454,7 @@ function handleNewPathClick() {
   document.getElementById('doDrawPath').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('doFill').disabled = true;
-  document.getElementById('fillColorPicker').disabled = true;
+  document.getElementById('color.fillPicker').disabled = true;
   document.getElementById('doDelete').disabled = true;
 }
 
@@ -690,25 +603,25 @@ function handleImageUpload(e) {
 
 // Function to handle color picker change
 function handleColorPickerChange(e) {
-  fillColor = e.target.value; // Update global fillColor
-  const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
-  fillColor = fillColor.slice(0, 7) + alpha; 
+  color.fill = e.target.value; // Update global color.fill
+  const alpha = Math.round(255*color.opacity/100).toString(16).padStart(2, '0')
+  color.fill = color.fill.slice(0, 7) + alpha; 
   if (pencil) {
-    pencil.fill(fillColor);
+    pencil.fill(color.fill);
   }
 }
 
 function handleOpacityChange(e) {
-  opacityColor = e.target.value;
-  const alpha = Math.round(255*opacityColor/100).toString(16).padStart(2, '0')
-  fillColor = fillColor.slice(0, 7) + alpha; 
+  color.opacity = e.target.value;
+  const alpha = Math.round(255*color.opacity/100).toString(16).padStart(2, '0')
+  color.fill = color.fill.slice(0, 7) + alpha; 
   if (pencil) {
-    pencil.fill(fillColor);
+    pencil.fill(color.fill);
   }
 }
 
 function handleBlendColor(e) {
-  blendColor = e.target.value;
+  color.blend = e.target.value;
 }
 
 // Maps interval [0, 1] to [0, 500]
@@ -757,8 +670,8 @@ function handleZoom(evt) {
 }
 
 function handleFillImageSensitivityClick() {
-  fillColorSensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global fillColor
-  document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+  color.sensitivity = document.getElementById('fillImageSensitivityButton').value; // Update global color.fill
+  document.getElementById('fillImageSensitivityLabel').textContent = color.sensitivity; // Update global color.sensitivity
 }
 
 function adjustPencilCenter() {
@@ -783,7 +696,7 @@ let pencil;
 let mousemove = false;
 
 function gco() {
-    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : blendColor);
+    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : color.blend);
     return v;
 }
 // Mousedown event starts drawing with pencil
@@ -934,7 +847,7 @@ let isFillClean = false;
 function handleFillClean() {
     isFillClean = !isFillClean;
     if (!isFillClean && pencil) {
-        pencil.fill(fillColor);
+        pencil.fill(color.fill);
     }
     document.getElementById('fillCleanCheckbox').checked = isFillClean;
     document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
@@ -955,7 +868,7 @@ function createPencilShape(pencilShape = 'rectangle') {
         offsetY: 0,
         width: pencilSize,
         height: pencilSize,
-        fill: fillColor,
+        fill: color.fill,
       });
       break;
     case 'rhomb':
@@ -965,7 +878,7 @@ function createPencilShape(pencilShape = 'rectangle') {
         width: pencilSize,
         height: pencilSize,
         rotation: 45,
-        fill: fillColor,
+        fill: color.fill,
       });
       break;
     default:
@@ -974,7 +887,7 @@ function createPencilShape(pencilShape = 'rectangle') {
         offsetY: pencilSize * 0.5,
         width: pencilSize,
         height: pencilSize,
-        fill: fillColor,
+        fill: color.fill,
       });
   }
   pencil.setAttr('name', 'pencil');
@@ -996,66 +909,6 @@ function doDrawPencilClick() {
 
   document.getElementById('doDrawPencil').classList.remove('inactive');
 }
-
-function distance(point1, point2) {
-  const dx = point1.x - point2.x;
-  const dy = point1.y - point2.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function closestProjectedPoint(points, clickPoint) {
-  let smallest = Infinity;
-  let projected, index;
-  const pp = [...points, points[0]]; // closed path
-  for (let i = 1, p = {x: 0, y: 0}, curr = 0; i < pp.length; i++) {
-    p = projectPointOntoSegment(pp[i-1], pp[i], clickPoint);
-    curr = distance(clickPoint, p);
-    if (curr < smallest) {
-      smallest = curr;
-      projected = p;
-      index = i-1;
-    }
-  }
-  return [projected, index + 1];
-}
-
-// Function to project a point onto a segment (p1, p2)
-function projectPointOntoSegment(p1, p2, clickPoint) {
-  // TODO human error here
-  //const p1p2 = distance(p1, p2);
-  //const p1c = distance(p1, clickPoint);
-  //const p2c = distance(p2, clickPoint);
-  //const cosp1 = (p1c*p1c + p1p2*p1p2 - p2c*p2c)/(2*p1c*p1p2);
-  //const dist = cosp1*p1c;
-  //const sx = (p2.x-p1.x)*(dist/p1p2);
-  //const sy = Math.sqrt(dist*dist - sx*sx);
-  //let x = p1.x + sx;
-  //let y = p1.y + sy;
-  //x = Math.round(x);
-  //y = Math.round(y);
-
-  //return {x, y};
-
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-
-  // Calculate t, the parameter of the projection point along the line
-  const t = ((clickPoint.x - p1.x) * dx + (clickPoint.y - p1.y) * dy) / (dx * dx + dy * dy);
-
-  // Clamp t to [0, 1] to stay within the segment bounds
-  const clampedT = Math.max(0, Math.min(1, t));
-
-  // Calculate the projection point along the segment
-  const projectedPoint = {
-    x: p1.x + clampedT * dx,
-    y: p1.y + clampedT * dy
-  };
-  projectedPoint.x = Math.round(projectedPoint.x);
-  projectedPoint.y = Math.round(projectedPoint.y);
-  //console.log({x, y}, projectedPoint)
-  return projectedPoint;
-}
-
 function debug(canvas) {
   const el = document.querySelector('#debug > *:first-child');
   canvas.style = "";
@@ -1192,7 +1045,7 @@ stage.on('mousedown', e => {
   const cloned = pencil.clone({
     x: pos.x, y: pos.y,
     id: 'pencilGhost',
-    fill: 'transparent', stroke: fillColor, strokeWidth: 1,
+    fill: 'transparent', stroke: color.fill, strokeWidth: 1,
     globalCompositeOperation: 'source-over',
   });
   bucketLayer.add(cloned);
@@ -1207,41 +1060,6 @@ stage.on('mouseup mouseleave', (e) => {
   }
   collapseStroke();
 });
-// preview line
-const previewLine = new Konva.Line({
-  id: 'previewLine',
-  points: [],
-  stroke: 'white',
-  strokeWidth: 1,
-  lineCap: 'round',
-  dash: [10, 5],
-});
-stage.on('mousedown', e => {
-  if (!is.drawPath) return;
-  e.cancelBubble = true;
-
-  imageLayer.add(previewLine);
-  previewLine.zIndex(imageLayer.children.length-1);
-});
-stage.on('mouseup click', e => {
-  if (!is.drawPath) return;
-  e.cancelBubble = true;
-
-  previewLine.visible(false);
-});
-stage.on('mousemove', e => {
-  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
-  if (!is.drawPath) return;
-  e.cancelBubble = true;
-
-  var pos = imageLayer.getRelativePointerPosition();
-
-  previewLine.visible(true);
-  // Update the previewLine to preview the line from the last position to the current mouse position
-  previewLine?.points([lastPos.x, lastPos.y, pos.x, pos.y]);
-  imageLayer.batchDraw();
-});
-
 stage.on('click', removeSelection);
 stage.on('click', handleSelectMode);
 stage.on('click', handleBucketMode);
@@ -1252,7 +1070,7 @@ document.getElementById('doFill').addEventListener('click', doFillClick);
 
 document.getElementById('fillSelectionImageButton').addEventListener('click', fillSelectionImageClick);
 document.getElementById('fillImageSensitivityButton').addEventListener('input', handleFillImageSensitivityClick);
-document.getElementById('fillImageSensitivityLabel').textContent = fillColorSensitivity; // Update global fillColorSensitivity
+document.getElementById('fillImageSensitivityLabel').textContent = color.sensitivity; // Update global color.sensitivity
 
 document.getElementById('doDrawPencil').addEventListener('click', doDrawPencilClick);
 
@@ -1290,8 +1108,8 @@ document.getElementById('doMagneticNode').addEventListener('click', handleMagnet
 document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);
 document.getElementById('doDeleteNodePath').addEventListener('click', doDeleteNodePathClick);
 document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
-document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update fillColor on change
-document.getElementById('opacityInput').addEventListener('input', handleOpacityChange); // Update fillColor on change
-document.getElementById('opacityInput').value = opacityColor;
+document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update color.fill on change
+document.getElementById('opacityInput').addEventListener('input', handleOpacityChange); // Update color.fill on change
+document.getElementById('opacityInput').value = color.opacity;
 document.getElementById('blendModes').addEventListener('change', handleBlendColor);
 inactivateModes();
