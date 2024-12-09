@@ -35,6 +35,8 @@ function doDrawPathing(kevt) {
   }
 
   var pos = stage.getRelativePointerPosition();
+  pos.x = Math.round(pos.x);
+  pos.y = Math.round(pos.y);
   // TODO it interferes with image clicking on same point will do nothing?
   if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y) {
     return;

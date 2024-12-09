@@ -11,4 +11,6 @@ const node = {
   isMagnetic: false,
 }
 
-export {color, node};
+const selection = new Set();
+
+export {color, node, selection};

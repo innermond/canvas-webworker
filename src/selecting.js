@@ -2,6 +2,7 @@ import {stage, imageLayer} from '@/init/layers';
 import {is} from '@/modes';
 import {STROKE_WIDTH} from '@/path';
 import {animation01} from '@/animation';
+import {selection} from '@/vars';
 
 const selectPoints = [{x: 0, y: 0}, {x: 0, y: 0}];
 Object.defineProperty(selectPoints, 'x', {
@@ -16,6 +17,7 @@ Object.defineProperty(selectPoints, 'width', {
 Object.defineProperty(selectPoints, 'height', {
   get: () => Math.abs(selectPoints[1].y - selectPoints[0].y),
 });
+
 function doSelectStart(e) {
   if (! is.select) return;
   e.cancelBubble = true;
@@ -46,7 +48,7 @@ function doSelectStart(e) {
   });
   imageLayer.add(r);
 }
-const selection = new Set();
+
 function doSelectEnd(e) {
   if (! is.select) return;
   e.cancelBubble = true;
@@ -56,6 +58,7 @@ function doSelectEnd(e) {
   selectPoints[0] = {x: 0, y: 0};
   selectPoints[1] = {x: 0, y: 0};
 }
+
 function addNodesToSelection() {
   const sr = imageLayer.findOne('#selectingRect');
   if (!sr) return;
@@ -67,6 +70,7 @@ function addNodesToSelection() {
     selection.add(s);
   });
 }
+
 function doSelecting(e) {
   if (!is.select) return;
   e.cancelBubble = true;
@@ -81,9 +85,10 @@ function doSelecting(e) {
     height: selectPoints.height,
   }); 
 }
+
 function doSelectFinal(e) {
   if (! is.select) return;
   e.cancelBubble = true;
 }
 
-export {doSelectStart, doSelectEnd, doSelectFinal, doSelecting};
+export {selection, doSelectStart, doSelectEnd, doSelectFinal, doSelecting};
