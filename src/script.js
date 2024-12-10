@@ -5,7 +5,8 @@ import {is, mode} from '@/modes';
 import {previewLine} from '@/previewline'; 
 import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
 import {animation01} from '@/animation';
-import {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, destroyHandleCircles, resetPathState, } from '@/path';
+import {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, resetPathState, } from '@/path';
+import {destroyHandleCircles, } from '@/path/handle-circles';
 import {lastPos, setLastPos} from '@/last-position';
 import {color, node,} from '@/vars';
 

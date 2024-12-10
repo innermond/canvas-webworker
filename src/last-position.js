@@ -25,6 +25,8 @@ function setLastPos(pos) {
     return;
   }
   lastPos = pos;
+
+  return true;
 }
 
 function round(v) {
@@ -32,4 +34,4 @@ function round(v) {
   v.y = Math.round(v.y);
 }
 
-export {lastPos, setLastPos};
+export {lastPos, setLastPos, round};
