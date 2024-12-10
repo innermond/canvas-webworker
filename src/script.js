@@ -8,7 +8,7 @@ import {animation01} from '@/animation';
 import {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, resetPathState, } from '@/path';
 import {destroyHandleCircles, } from '@/path/handle-circles';
 import {lastPos, setLastPos} from '@/last-position';
-import {color, node,} from '@/vars';
+import {color, node, selection} from '@/vars';
 
 var currentImage; // Variable to hold the currently added image
 // Global variable to store the fill color with a default value
@@ -179,7 +179,15 @@ function removeSelection(e) {
   }
 
   if (e?.target === stage) {
-    imageTransformer.nodes([]);
+    selection.forEach(v => {
+      v.strokeWidth(0);
+      v.draggable(false);
+      v.selected = false;
+      setCurrentPathId(v.id());
+      destroyHandleCircles();
+    })
+    selection.clear();
+    //setCurrentPathId(null);
     imageTransformer.nodes([]);
   }
 }

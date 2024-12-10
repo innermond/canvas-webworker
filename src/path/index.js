@@ -7,15 +7,23 @@ import {createPath} from '@/path/create';
 import {destroyHandleCircles} from '@/path/handle-circles';
 
 const STROKE_WIDTH = 1;
+const STROKE_COLOR = '#fff';
+const STROKE_DASH = [8, 4];
 const PATH_OPACITY = 0.2;
 
-let currentPathId = null; // Variable to hold the current path object
+let currentPathId = null;
 function setCurrentPathId(v) {
   currentPathId = v;
 }
 
 // Function to handle mouse click to begin/add points to the path
 function doDrawPathing(kevt) {
+  if (!is.drawPath) return;
+  // double click
+  if (kevt.evt.detail > 1) return; 
+
+  console.log(selection);
+
 // TODO it is useless?
   if (currentPathId) {
     const currentPath = imageLayer.findOne(`#${currentPathId}`);
@@ -31,13 +39,8 @@ function doDrawPathing(kevt) {
     }
   }
 
-  if (!is.drawPath) return;
-
   var pos = stage.getRelativePointerPosition();
   if (! setLastPos(pos)) return;
-
-  // double click
-  if (kevt.evt.detail > 1) return; 
 
   let currentPath;
   if (!currentPathId) {
@@ -115,5 +118,5 @@ function resetPathState() {
   setLastPos(null);
 }
 
-export {STROKE_WIDTH, PATH_OPACITY};
+export {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH, PATH_OPACITY};
 export {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, resetPathState};

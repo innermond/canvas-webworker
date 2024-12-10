@@ -4,11 +4,12 @@ import {stage} from '@/init/layers';
 let lastPos = null;
 
 function setLastPos(pos) {
+  // reset
   if (pos === null) {
-    lastPos = pos;
+    lastPos = null;
     return
   }
-
+  // set relative to stage
   if (pos === undefined) {
     pos = stage.getRelativePointerPosition();
     round(pos);
@@ -19,7 +20,7 @@ function setLastPos(pos) {
     lastPos = pos;
     return
   }
-
+  // set by provided value
   round(pos);
   if (lastPos && lastPos.x === pos.x && lastPos.y === pos.y) {
     return;

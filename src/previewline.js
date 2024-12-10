@@ -1,17 +1,17 @@
 import {stage, imageLayer, } from '@/init/layers';
 import {is} from '@/modes';
 import {lastPos, } from '@/last-position';
-import {currentPathId, STROKE_WIDTH, } from '@/path';
+import {currentPathId, STROKE_WIDTH, STROKE_COLOR, STROKE_DASH,} from '@/path';
 
 // preview line
 const previewLine = new Konva.Line({
   id: 'previewLine',
   points: [],
-  stroke: 'white',
+  stroke: STROKE_COLOR,
   strokeWidth: STROKE_WIDTH,
   strokeScaleEnabled: false,
   lineCap: 'round',
-  dash: [10, 5],
+  dash: STROKE_DASH,
 });
 
 stage.on('mousedown', e => {

@@ -1,9 +1,9 @@
 import {stage, imageLayer, imageTransformer} from '@/init/layers';
 import {is} from '@/modes';
-import {setLastPos, } from '@/last-position';
+import {setLastPos, round} from '@/last-position';
 import {animation01} from '@/animation';
-import {node, } from '@/vars';
-import {STROKE_WIDTH, PATH_OPACITY, setCurrentPathId} from '@/path';
+import {node, selection} from '@/vars';
+import {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH, PATH_OPACITY, setCurrentPathId} from '@/path';
 import {destroyHandleCircles, createHandleCircles, } from '@/path/handle-circles';
 import {closestProjectedPoint, getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
 
@@ -15,9 +15,9 @@ function createPath(currentPathId) {
   
   const currentPath = new Konva.Path({
     data: '',
-    stroke: 'white',
+    stroke: STROKE_COLOR,
     strokeWidth: STROKE_WIDTH,
-    dash: [8, 4],
+    dash: STROKE_DASH,
     fill: '',
     id: currentPathId,
   });
@@ -29,43 +29,57 @@ function createPath(currentPathId) {
     if (is.drawPath) return;
     evt.cancelBubble = true;
     // Click on unclosed curve does none
-    if (this.data().endsWith('Z') === false) {
+    //if (this.data().endsWith('Z') === false) {
+    //  return;
+    //}
+    //// Another path is currently drawing but we clicked on already closed path
+    //if (currentPathId !== null && this.getId() !== currentPathId) {
+    //  const previousPath = imageLayer.findOne(`#${currentPathId}`);
+    //  // Prev path is currently drawing
+    //  if (previousPath.data().endsWith('Z') === false) {
+    //    evt.cancelBubble = false;
+    //    return;
+    //  } else {
+    //    // Reset prev path
+    //    destroyHandleCircles();
+    //    previousPath.strokeWidth(0);
+    //    previousPath.draggable(false);
+    //    previousPath.selected = false;
+    //    // Current path is this one closed just clicked
+    //    setCurrentPathId(this.getId());
+    //  }
+    //}
+   
+    if (selection.has(this)) {
+      selection.delete(this);
+      this.strokeWidth(0);
+      this.draggable(false);
+      this.selected = false;
+      destroyHandleCircles();
+      imageTransformer.nodes(Array.from(selection.values()));
       return;
-    }
-    // Another path is currently drawing but we clicked on already closed path
-    if (currentPathId !== null && this.getId() !== currentPathId) {
-      const previousPath = imageLayer.findOne(`#${currentPathId}`);
-      // Prev path is currently drawing
-      if (previousPath.data().endsWith('Z') === false) {
-        evt.cancelBubble = false;
-        return;
-      } else {
-        // Reset prev path
-        destroyHandleCircles();
-        previousPath.strokeWidth(0);
-        previousPath.draggable(false);
-        previousPath.selected = false;
-        // Current path is this one closed just clicked
-        setCurrentPathId(this.getId());
-      }
-    }
-
-    if (!currentPathId) {
-      setCurrentPathId(this.getId());
-    }
-    // Reset previous path stroke
-    if (currentPathId !== this.getId()) {
-      const previousPath = imageLayer.findOne(`#${currentPathId}`);
-      previousPath.strokeWidth(0);
-      previousPath.draggable(false);
-      previousPath.selected = false;
-    }
+    } 
+  
+    // reset
+    selection.forEach(v => {
+      v.strokeWidth(0);
+      v.draggable(false);
+      v.selected = false;
+    });
+    selection.clear();
+    selection.add(this);
+    imageTransformer.nodes(Array.from(selection.values()));
+    this.strokeWidth(STROKE_WIDTH);
+    this.draggable(true);
+    this.selected = true;
+    destroyHandleCircles();
+    createHandleCircles(true);
+    
     setCurrentPathId(this.getId());
 
     if (is.addNodePath && this.selected) {
       let clickPoint = currentPath.getRelativePointerPosition();
-      clickPoint.x = Math.round(clickPoint.x);
-      clickPoint.y = Math.round(clickPoint.y);
+      round(clickPoint);
       const [vertices, types] = getVerticesFromPathData(this.data());
       const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
       vertices.splice(index, 0, newPoint);
@@ -80,17 +94,6 @@ function createPath(currentPathId) {
       createHandleCircles(true);
       imageLayer.batchDraw();
       return;
-    }
-    this.selected = !this?.selected;
-    if (this?.selected) {
-      this.strokeWidth(STROKE_WIDTH);
-      this.draggable(true);
-      destroyHandleCircles();
-      createHandleCircles(true);
-    } else {
-      this.strokeWidth(0);
-      this.draggable(false);
-      destroyHandleCircles();
     }
 
     animation01(() => !this.selected, (applyInvert) => {
