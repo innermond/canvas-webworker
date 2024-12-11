@@ -1,4 +1,4 @@
-import {stage, imageLayer, imageTransformer} from '@/init/layers';
+import {stage, imageLayer, } from '@/init/layers';
 import {is} from '@/modes';
 import {setLastPos, } from '@/last-position';
 import {previewLine} from '@/previewline';
@@ -16,8 +16,6 @@ function doDrawPathing(kevt) {
   if (!is.drawPath) return;
   // double click
   if (kevt.evt.detail > 1) return; 
-
-  console.log(selection);
 
   //selection.forEach(currentPath => {
   //  // Closed path has no need to add new point

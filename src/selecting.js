@@ -65,6 +65,7 @@ function addNodesToSelection() {
 
   const box = sr.getClientRect();
   stage.children.forEach(s => {
+    if (s instanceof Konva.Layer) return;
     if (s.visible() === false) return;
     if (Konva.Util.haveIntersection(box, s.getClientRect) === false) return;
     selection.add(s);

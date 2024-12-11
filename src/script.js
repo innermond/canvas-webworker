@@ -178,7 +178,11 @@ function removeSelection(e) {
     justContourLayer.batchDraw();
   }
 
-  if (is.drawPath) return;
+  if (is.drawPath) {
+    destroyHandleCircles();
+    imageTransformer.nodes([]);
+    return;
+  }
 
   if (e?.target === stage) {
     selection.forEach(v => {
@@ -448,19 +452,17 @@ function doDropShapeAllClick() {
 function handleNewPathClick() {
   resetPathState();
 
-  is.drawPath = !is.drawPath;
-  if (is.drawPath === false) {
-    document.getElementById('doDrawPath').classList.add('inactive');
-    return;
-  }
+  selection.forEach(v => {
+    v.strokeWidth(0);
+    v.draggable(false);
+  });
+  destroyHandleCircles();
+  selection.clear();
+  imageTransformer.nodes([]);
 
-  document.getElementById('doDrawPencil').classList.add('inactive');
-  document.getElementById('doMagikWand').classList.add('inactive');
-  document.getElementById('doBucket').classList.add('inactive');
-  document.getElementById('doDrawPath').classList.remove('inactive');
   // Disable the fill button, color picker, and delete button since we are starting a new path
   document.getElementById('doFill').disabled = true;
-  document.getElementById('color.fillPicker').disabled = true;
+  document.getElementById('fillColorPicker').disabled = true;
   document.getElementById('doDelete').disabled = true;
 }
 
@@ -1104,6 +1106,7 @@ document.getElementById('zoomButton').setAttribute('step', zoomFactor);
 document.getElementById('zoomButton').value = zoomScale;
 document.getElementById('zoomButtonLabel').textContent = mapZoom(zoomScale);
 
+document.getElementById('doDrawPath').addEventListener('click',handleNewPathClick);
 document.getElementById('doDelete').addEventListener('click', handleDeleteClick);
 document.getElementById('doDeleteAll').addEventListener('click', handleClearAllClick);
 document.getElementById('doDropShape').addEventListener('click', doDropShapeClick);
