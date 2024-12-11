@@ -6,6 +6,10 @@ import {is, modes} from '@/modes';
 //}
 // Create functions like the one above for any do...modes's key
 // and bind them to their coresponding DOM buttons
+
+const ia = ['inactive', 'active'];
+const ai = [...ia].reverse();
+
 for (let k in modes) {
   const name = 'do' + k.charAt(0).toUpperCase() + k.slice(1);
   const fn = () => {
@@ -15,10 +19,12 @@ for (let k in modes) {
       let name = x.id.slice(2);
       name = name.charAt(0).toLowerCase() + name.slice(1);
       if (Object.keys(modes).includes(name) === false) return;;
-      x.classList.add('inactive');
+      // replace 'active' to 'inactive'
+      x.classList.replace(...ai);
     })
     // toggle active class to pressed button
-    document.getElementById(name)?.classList[is[k] ? 'add' : 'remove']('active');
+    const fromto = is[k] ? ia : ai;
+    document.getElementById(name)?.classList.replace(...fromto);
   }
   Object.defineProperty(fn, 'name', {value: name});
   document.getElementById(name)?.addEventListener('click', fn);

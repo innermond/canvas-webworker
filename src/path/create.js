@@ -23,30 +23,10 @@ function createPath(currentPathId) {
   imageLayer.add(currentPath);
 
   currentPath.on('click', function(evt) {
-    if (is.select) return;
+    //if (is.select) return;
     if (is.drag) return;
     if (is.drawPath) return;
     evt.cancelBubble = true;
-    // Click on unclosed curve does none
-    //if (this.data().endsWith('Z') === false) {
-    //  return;
-    //}
-    //// Another path is currently drawing but we clicked on already closed path
-    //if (currentPathId !== null && this.getId() !== currentPathId) {
-    //  const previousPath = imageLayer.findOne(`#${currentPathId}`);
-    //  // Prev path is currently drawing
-    //  if (previousPath.data().endsWith('Z') === false) {
-    //    evt.cancelBubble = false;
-    //    return;
-    //  } else {
-    //    // Reset prev path
-    //    destroyHandleCircles();
-    //    previousPath.strokeWidth(0);
-    //    previousPath.draggable(false);
-    //    // Current path is this one closed just clicked
-    //    setCurrentPathId(this.getId());
-    //  }
-    //}
    
     if (selection.has(this) && !is.addNodePath) {
       selection.delete(this);

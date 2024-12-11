@@ -1,4 +1,4 @@
-import {stage, imageLayer} from '@/init/layers';
+import {stage, imageLayer, imageTransformer} from '@/init/layers';
 import {is} from '@/modes';
 import {STROKE_WIDTH} from '@/path';
 import {animation01} from '@/animation';
@@ -57,6 +57,8 @@ function doSelectEnd(e) {
   imageLayer.findOne('#selectingRect')?.destroy();
   selectPoints[0] = {x: 0, y: 0};
   selectPoints[1] = {x: 0, y: 0};
+
+  imageTransformer.nodes(Array.from(selection.values()));
 }
 
 function addNodesToSelection() {
@@ -64,10 +66,11 @@ function addNodesToSelection() {
   if (!sr) return;
 
   const box = sr.getClientRect();
-  stage.children.forEach(s => {
-    if (s instanceof Konva.Layer) return;
+  imageLayer.children.forEach(s => {
+    if (Object.is(s, sr)) return;
+    if (!(s instanceof Konva.Path)) return;
     if (s.visible() === false) return;
-    if (Konva.Util.haveIntersection(box, s.getClientRect) === false) return;
+    if (Konva.Util.haveIntersection(box, s.getClientRect()) === false) return;
     selection.add(s);
   });
 }

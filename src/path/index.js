@@ -17,16 +17,6 @@ function doDrawPathing(kevt) {
   // double click
   if (kevt.evt.detail > 1) return; 
 
-  //selection.forEach(currentPath => {
-  //  // Closed path has no need to add new point
-  //  if (currentPath.attrs.data.endsWith('Z')) {
-  //    destroyHandleCircles();
-  //    currentPath.strokeWidth(0);
-  //    currentPath.draggable(false);
-  //    imageLayer.batchDraw();
-  //  }
-  //});
-
   var pos = stage.getRelativePointerPosition();
   if (! setLastPos(pos)) return;
 
@@ -91,7 +81,10 @@ function handleStageDblClick() {
   selection.delete(currentPath);
 
   resetPathState();
-
+  if (is.drawPath) {
+    is.drawPath = false;
+    document.getElementById('doDrawPath').classList.replace('active', 'inactive');
+  }
   // Enable the "Fill Path" button and color picker after the path is closed
   document.getElementById('doFill').disabled = false;
   document.getElementById('fillColorPicker').disabled = false;

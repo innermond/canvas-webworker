@@ -469,7 +469,7 @@ function handleNewPathClick() {
 function doAddNodePathClick() {
   if (selection.size === 0) {
     is.addNodePath = false;
-    document.getElementById('doAddNodePath').classList.add('inactive');
+    document.getElementById('doAddNodePath').classList.replace('active', 'inactive');
     return;
   }
   document.getElementById('doAddNodePath').classList[is.addNodePath ? 'remove' : 'add']('inactive');
@@ -956,22 +956,15 @@ function debug(canvas) {
 }
 
 function handleUp() {
-  if (selection.size === 0) {
-    return
-  }
-  const [currentPath] = selection;
-  if (!selection.has(currentPath)) {
-    return;
-  }
+  if (selection.size === 0) return;
 
   const z = currentPath.getZIndex();
   currentPath.setZIndex(z+1);
 }
 
 function handleDown() {
-  if (selection.size === 0) {
-    return
-  }
+  if (selection.size === 0) return;
+
   const [currentPath] = selection;
   if (!selection.has(currentPath)) {
     return;
