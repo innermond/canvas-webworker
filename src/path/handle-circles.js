@@ -1,7 +1,8 @@
 import {imageLayer, } from '@/init/layers';
 import {is} from '@/modes';
-import {currentPathId, setCurrentPathId, PATH_OPACITY} from '@/path';
+import {PATH_OPACITY} from '@/path';
 import {getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
+import {selection,} from '@/vars';
 
 function createHandleCircle(currentPath, vertex, index, fill) {
   const circle = new Konva.Circle({
@@ -17,12 +18,10 @@ function createHandleCircle(currentPath, vertex, index, fill) {
   circle.position(p);
   circle.on('dragstart', (evt) => {
     evt.cancelBubble = true;
-    setCurrentPathId(currentPath.id()); 
     currentPath?.opacity(PATH_OPACITY);
   });
   circle.on('dragend', (evt) => {
     evt.cancelBubble = true;
-    setCurrentPathId(currentPath.id()); 
     currentPath?.opacity(1);
   });
   // Event to update path when circle is dragged
@@ -83,9 +82,6 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     if (! is.deleteNodePath) {
       return;
     }
-    if (! currentPathId) {
-      return;
-    }
    
     const c = evt.target;
     const [vertices, types] = getVerticesFromPathData(currentPath.data());
@@ -103,9 +99,6 @@ function createHandleCircle(currentPath, vertex, index, fill) {
   circle.on('click', (evt) => {
     evt.cancelBubble = true;
     if (! is.changeNodePath) {
-      return;
-    }
-    if (! currentPathId) {
       return;
     }
    
@@ -130,33 +123,30 @@ function createHandleCircle(currentPath, vertex, index, fill) {
 }
 
 function createHandleCircles(show=false) {
-  if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-
-  let [vertices, types] = getVerticesFromPathData(currentPath.data());
-  let i = 0;
-  for (let index = 0; index < vertices.length; index++) {
-    const vertex = vertices[index];
-    let already = vertices.slice(0, index).find(v => v.x === vertex.x && v.y === vertex.y);
-    if (already) continue;
-    i++; 
-    let fill = 'red';
-    const type = types.get(vertex);
-    if (type === 'Q') {
-      fill = 'blue';
-    }
-    const c = createHandleCircle(currentPath, vertex, index, fill);
-    c.setAttr('visible', show);
-  };
+  selection.forEach(currentPath => {
+    let [vertices, types] = getVerticesFromPathData(currentPath.data());
+    let i = 0;
+    for (let index = 0; index < vertices.length; index++) {
+      const vertex = vertices[index];
+      let already = vertices.slice(0, index).find(v => v.x === vertex.x && v.y === vertex.y);
+      if (already) continue;
+      i++; 
+      let fill = 'red';
+      const type = types.get(vertex);
+      if (type === 'Q') {
+        fill = 'blue';
+      }
+      const c = createHandleCircle(currentPath, vertex, index, fill);
+      c.setAttr('visible', show);
+    };
+  });
 }
 
 function destroyHandleCircles() {
-  if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-
-  const circles = imageLayer.find('.'+currentPath.id());
-  circles.forEach((circle) => circle.destroy());
+  selection.forEach(currentPath => {
+    const circles = imageLayer.find('.'+currentPath.id());
+    circles.forEach((circle) => circle.destroy());
+  });
 }
-
 
 export {createHandleCircles, destroyHandleCircles, };

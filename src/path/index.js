@@ -11,11 +11,6 @@ const STROKE_COLOR = '#fff';
 const STROKE_DASH = [8, 4];
 const PATH_OPACITY = 0.2;
 
-let currentPathId = null;
-function setCurrentPathId(v) {
-  currentPathId = v;
-}
-
 // Function to handle mouse click to begin/add points to the path
 function doDrawPathing(kevt) {
   if (!is.drawPath) return;
@@ -24,45 +19,40 @@ function doDrawPathing(kevt) {
 
   console.log(selection);
 
-// TODO it is useless?
-  if (currentPathId) {
-    const currentPath = imageLayer.findOne(`#${currentPathId}`);
-    // Closed path has no need to add new point
-    if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
-      destroyHandleCircles();
-      currentPath.strokeWidth(0);
-      currentPath.draggable(false);
-      currentPath.selected = false;
-      currentPathId = null;
-      imageLayer.batchDraw();
-      return;
-    }
-  }
+  //selection.forEach(currentPath => {
+  //  // Closed path has no need to add new point
+  //  if (currentPath.attrs.data.endsWith('Z')) {
+  //    destroyHandleCircles();
+  //    currentPath.strokeWidth(0);
+  //    currentPath.draggable(false);
+  //    imageLayer.batchDraw();
+  //  }
+  //});
 
   var pos = stage.getRelativePointerPosition();
   if (! setLastPos(pos)) return;
 
   let currentPath;
-  if (!currentPathId) {
-    currentPathId = `Path${Math.random().toString(36).slice(2)}`;
+  if (selection.size === 0) {
+    const currentPathId = `Path${Math.random().toString(36).slice(2)}`;
     currentPath = createPath(currentPathId);
+    selection.add(currentPath);
   } else {
-    currentPath = imageLayer.findOne(`#${currentPathId}`);
+    [currentPath] = selection;
   }
 
   if (! currentPath) return;
 
   // Closed path has no need to add new point
-  if (currentPath.selected && currentPath.attrs.data.endsWith('Z')) {
+  if (currentPath.attrs.data.endsWith('Z')) {
     destroyHandleCircles();
     currentPath.strokeWidth(0);
     currentPath.draggable(false);
-    currentPath.selected = false;
-    currentPathId = null;
     imageLayer.batchDraw();
     return;
   }
 
+  currentPath.strokeWidth(STROKE_WIDTH);
   const itr = currentPath.getAbsoluteTransform().copy().invert();
   // relative to stage to absolute canvas/stage
   pos = stage.getAbsoluteTransform().point(pos);
@@ -77,17 +67,16 @@ function doDrawPathing(kevt) {
       pathData += ` L${pos.x},${pos.y}`;
   }
 
-  //// Update the path data
   currentPath.data(pathData);
   imageLayer.batchDraw();
   kevt.evt.stopImmediatePropagation();
 }
 
 function handleStageDblClick() {
-  if (!currentPathId) return;
+  if (selection.size === 0) return;
 
   previewLine?.remove();
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
+  const [currentPath] = selection;
   if (currentPath.data().endsWith('Z') === true) {
     return;
   }
@@ -101,6 +90,7 @@ function handleStageDblClick() {
   currentPath.fill(color.fill);
   currentPath.globalCompositeOperation(color.blend);
   currentPath.strokeWidth(0);
+  selection.delete(currentPath);
 
   resetPathState();
 
@@ -114,9 +104,8 @@ function handleStageDblClick() {
 
 // Function to reset drawing state
 function resetPathState() {
-  setCurrentPathId(null);
   setLastPos(null);
 }
 
 export {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH, PATH_OPACITY};
-export {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, resetPathState};
+export {doDrawPathing, handleStageDblClick, resetPathState};

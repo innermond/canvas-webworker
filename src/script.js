@@ -5,7 +5,7 @@ import {is, mode} from '@/modes';
 import {previewLine} from '@/previewline'; 
 import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
 import {animation01} from '@/animation';
-import {currentPathId, setCurrentPathId, doDrawPathing, handleStageDblClick, resetPathState, } from '@/path';
+import { doDrawPathing, handleStageDblClick, resetPathState, } from '@/path';
 import {destroyHandleCircles, } from '@/path/handle-circles';
 import {lastPos, setLastPos} from '@/last-position';
 import {color, node, selection} from '@/vars';
@@ -45,7 +45,7 @@ function handleBucketMode(kevt) {
 }
 
 function doChangeNodePathClick() {
-  if (! currentPathId) {
+  if (selection.size === 0) {
     is.changeNodePath = false;
     document.getElementById('doChangeNodePath').classList.add('inactive');
     return;
@@ -58,7 +58,7 @@ function doChangeNodePathClick() {
 }
 
 function handleMagneticNodeClick() {
-  if (!currentPathId) return;
+  if (selection.size === 0) return;
 
   node.isMagnetic = ! node.isMagnetic;
 
@@ -67,8 +67,8 @@ function handleMagneticNodeClick() {
 
 // Function to handle the "Fill Path" button click
 function doFillClick() {
-  if (!currentPathId) return;
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
+  if (selection.size === 0) return;
+  const [currentPath] = selection;
 
   currentPath.fill(color.fill);
   currentPath.globalCompositeOperation(color.blend);
@@ -178,16 +178,15 @@ function removeSelection(e) {
     justContourLayer.batchDraw();
   }
 
+  if (is.drawPath) return;
+
   if (e?.target === stage) {
     selection.forEach(v => {
       v.strokeWidth(0);
       v.draggable(false);
-      v.selected = false;
-      setCurrentPathId(v.id());
-      destroyHandleCircles();
-    })
+    });
+    destroyHandleCircles();
     selection.clear();
-    //setCurrentPathId(null);
     imageTransformer.nodes([]);
   }
 }
@@ -375,18 +374,17 @@ function parseColor(color) {
 
 // Function to handle the "Delete" button click
 function handleDeleteClick() {
-    if (currentPathId) {
+    if (selection.size) {
       destroyHandleCircles();
-      const currentPath = imageLayer.findOne(`#${currentPathId}`);
+      const [currentPath] = selection;
       currentPath.destroy(); // Remove the current path
-      imageLayer.find(currentPathId).forEach(c => c.destroy());
       resetPathState(); // Reset drawing state
 
       imageTransformer.nodes([]);
 
       // Disable buttons since there's no current path
       document.getElementById('doFill').disabled = true;
-      document.getElementById('color.fillPicker').disabled = true;
+      document.getElementById('fillColorPicker').disabled = true;
       document.getElementById('doDelete').disabled = true;
 
       // Clear the temporary line
@@ -410,17 +408,16 @@ function handleClearAllClick() {
     l.clear();
   });
 
-  setCurrentPathId(null);
   currentImage?.destroy();
   currentImage =null;
 }
 
 function doDropShapeClick() {
-  if (! currentPathId) {
+  if (selection.size === 0) {
     return;
   }
 
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
+  const [currentPath] = selection;
   if (! currentPath) {
     return;
   }
@@ -468,7 +465,7 @@ function handleNewPathClick() {
 }
 
 function doAddNodePathClick() {
-  if (! currentPathId) {
+  if (selection.size === 0) {
     is.addNodePath = false;
     document.getElementById('doAddNodePath').classList.add('inactive');
     return;
@@ -477,7 +474,7 @@ function doAddNodePathClick() {
 }
 
 function doDeleteNodePathClick() {
-  if (! currentPathId) {
+  if (selection.size === 0) {
     is.deleteNodePath = false;
     document.getElementById('doDeleteNodePath').classList.add('inactive');
     return;
@@ -583,7 +580,6 @@ function handleImageUpload(e) {
         e.evt.preventDefault();
 
         currentImage = e.target;
-        setCurrentPathId(null);
 
         const pos = stage.getRelativePointerPosition();
         lastClickPos = pos;
@@ -714,14 +710,13 @@ stage.on('mousedown', (evt) => {
     return;
   }
 
-  if (!is.drawPath && currentPathId) {
-    const p = imageLayer.findOne(`#${currentPathId}`);
+  if (!is.drawPath && selection.size) {
+    const [p] = selection;
     // Prev path is currently drawing
-    if (false === is.addNodePath && p.data().endsWith('Z') === true && p.selected === true) {
+    if (false === is.addNodePath && p.data().endsWith('Z') === true && selection.has(p) === true) {
       // Reset prev path
       p.strokeWidth(0);
       p.draggable(false);
-      p.selected = false;
       destroyHandleCircles();
     }
   }
@@ -959,11 +954,11 @@ function debug(canvas) {
 }
 
 function handleUp() {
-  if (!currentPathId) {
+  if (selection.size === 0) {
     return
   }
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-  if (!currentPath.selected) {
+  const [currentPath] = selection;
+  if (!selection.has(currentPath)) {
     return;
   }
 
@@ -972,11 +967,11 @@ function handleUp() {
 }
 
 function handleDown() {
-  if (!currentPathId) {
+  if (selection.size === 0) {
     return
   }
-  const currentPath = imageLayer.findOne(`#${currentPathId}`);
-  if (!currentPath.selected) {
+  const [currentPath] = selection;
+  if (!selection.has(currentPath)) {
     return;
   }
 
@@ -984,8 +979,9 @@ function handleDown() {
   currentPath.setZIndex(z-1);
 }
 
+//FIXME
 function inactivateModes(except='') {
-  setCurrentPathId(null);
+  selection.clear();
   currentImage = null;
   mode.value = 0;
 

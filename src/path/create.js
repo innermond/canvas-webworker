@@ -3,14 +3,13 @@ import {is} from '@/modes';
 import {setLastPos, round} from '@/last-position';
 import {animation01} from '@/animation';
 import {node, selection} from '@/vars';
-import {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH, PATH_OPACITY, setCurrentPathId} from '@/path';
+import {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH, PATH_OPACITY, } from '@/path';
 import {destroyHandleCircles, createHandleCircles, } from '@/path/handle-circles';
 import {closestProjectedPoint, getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
 
 function createPath(currentPathId) {
   if (currentPathId === undefined) {
     currentPathId = `Path${Math.random().toString(36).slice(2)}`;
-    setCurrentPathId(currentPathId);
   }
   
   const currentPath = new Konva.Path({
@@ -44,17 +43,15 @@ function createPath(currentPathId) {
     //    destroyHandleCircles();
     //    previousPath.strokeWidth(0);
     //    previousPath.draggable(false);
-    //    previousPath.selected = false;
     //    // Current path is this one closed just clicked
     //    setCurrentPathId(this.getId());
     //  }
     //}
    
-    if (selection.has(this)) {
+    if (selection.has(this) && !is.addNodePath) {
       selection.delete(this);
       this.strokeWidth(0);
       this.draggable(false);
-      this.selected = false;
       destroyHandleCircles();
       imageTransformer.nodes(Array.from(selection.values()));
       return;
@@ -64,21 +61,17 @@ function createPath(currentPathId) {
     selection.forEach(v => {
       v.strokeWidth(0);
       v.draggable(false);
-      v.selected = false;
     });
+    destroyHandleCircles();
     selection.clear();
-    selection.add(this);
-    imageTransformer.nodes(Array.from(selection.values()));
     this.strokeWidth(STROKE_WIDTH);
     this.draggable(true);
-    this.selected = true;
-    destroyHandleCircles();
+    selection.add(this);
     createHandleCircles(true);
+    imageTransformer.nodes(Array.from(selection.values()));
     
-    setCurrentPathId(this.getId());
-
-    if (is.addNodePath && this.selected) {
-      let clickPoint = currentPath.getRelativePointerPosition();
+    if (is.addNodePath) {
+      let clickPoint = this.getRelativePointerPosition();
       round(clickPoint);
       const [vertices, types] = getVerticesFromPathData(this.data());
       const [newPoint, index] = closestProjectedPoint(vertices, clickPoint);
@@ -96,7 +89,7 @@ function createPath(currentPathId) {
       return;
     }
 
-    animation01(() => !this.selected, (applyInvert) => {
+    animation01(() => !selection.has(this), (applyInvert) => {
       if (applyInvert) {
         this.dash([4, 4]);
       } else {
@@ -119,13 +112,13 @@ function createPath(currentPathId) {
     if (is.select) return;
     if (is.drag) return;
     evt.cancelBubble = true;
-    if (is.drag && !this.selected) {
+    if (is.drag && !selection.has(this)) {
       evt.cancelBubble = false;
     }
-    if (ghostNode && this.selected) {
+    if (ghostNode && selection.has(this)) {
       ghostNode.setAttrs({fill: 'red', opacity: 1});
     }
-    if (currentPath.selected) {
+    if (selection.has(this)) {
       document.body.style.cursor = 'grab';
     }
   });
@@ -144,7 +137,7 @@ function createPath(currentPathId) {
       imageTransformer.nodes(nodes);
     }
     e.cancelBubble = true;
-    if (is.drag && !this.selected) {
+    if (is.drag && !selection.has(this)) {
       e.cancelBubble = false;
     }
     if (is.addNodePath && ghostNode) {
@@ -154,7 +147,7 @@ function createPath(currentPathId) {
   });
   currentPath.on('dragstart', function(evt) {
     evt.cancelBubble = true;
-    if (ghostNode && this.selected && is.addNodePath) {
+    if (ghostNode && selection.has(this) && is.addNodePath) {
       ghostNode.setAttrs({fill: 'white', opacity: 0.4});
     }
     this.opacity(PATH_OPACITY);
@@ -165,7 +158,7 @@ function createPath(currentPathId) {
    });
   currentPath.on('dragmove', function(evt) {
     evt.cancelBubble = true;
-    if (is.drag && !this.selected) {
+    if (is.drag && !selection.has(this)) {
       evt.cancelBubble = false;
     }
   });
@@ -187,7 +180,7 @@ function createPath(currentPathId) {
     // calculate everything in viewport(canvas's stage as it is seen on screen) space
     const tr = currentPath.getAbsoluteTransform();
 
-    if (currentPath.selected || is.deleteNodePath) {
+    if (selection.has(currentPath) || is.deleteNodePath) {
       const [vertices, ] = getVerticesFromPathData(currentPath.data());
       const vertexCircles = imageLayer.find('.'+currentPath.id());
       vertexCircles.forEach((vertex) => {
@@ -214,7 +207,7 @@ function createPath(currentPathId) {
   });
 
   currentPath.on('mousemove', () => {
-    if (is.addNodePath && currentPath.selected) {
+    if (is.addNodePath && selection.has(currentPath)) {
       // canvas point (it is relative to viewport)
       let movingPoint = stage.getPointerPosition();
       // to currentPath related to viewport

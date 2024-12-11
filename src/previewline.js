@@ -1,7 +1,8 @@
 import {stage, imageLayer, } from '@/init/layers';
 import {is} from '@/modes';
 import {lastPos, } from '@/last-position';
-import {currentPathId, STROKE_WIDTH, STROKE_COLOR, STROKE_DASH,} from '@/path';
+import {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH,} from '@/path';
+import {selection,} from '@/vars';
 
 // preview line
 const previewLine = new Konva.Line({
@@ -30,7 +31,7 @@ stage.on('mouseup click', e => {
 });
 
 stage.on('mousemove', e => {
-  if (!currentPathId || !lastPos) return; // Don't preview if no path or no previous point
+  if (selection.size === 0 || !lastPos) return; // Don't preview if no path or no previous point
   if (!is.drawPath) return;
   e.cancelBubble = true;
 
