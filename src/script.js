@@ -5,10 +5,14 @@ import {is, mode} from '@/modes';
 import {previewLine} from '@/previewline'; 
 import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
 import {animation01} from '@/animation';
-import { doDrawPathing, handleStageDblClick, resetPathState, } from '@/path';
+import {doDrawPathing, handleStageDblClick, resetPathState,} from '@/path';
 import {destroyHandleCircles, } from '@/path/handle-circles';
 import {lastPos, setLastPos} from '@/last-position';
 import {color, node, selection} from '@/vars';
+import {floodFillWorker} from '@/floodfill';
+import {fillBucket, getImageDataComposedWithBucket, collapseBucketLayer, getAsRawImage} from  '@/bucket.js';
+import {isFillWay, gco} from '@/fillWays';
+import {imageUpload} from '@/handler/upload';
 
 var currentImage; // Variable to hold the currently added image
 // Global variable to store the fill color with a default value
@@ -78,54 +82,6 @@ function doFillClick() {
 
   document.getElementById('doFill').classList.remove('inactive');
 }
-
-// Create a new web worker
-const floodFillWorker = new Worker('floodfillWorker.js');
-
-  // Handle the response from the web worker
-floodFillWorker.onmessage = async function(e) {
-  // Receive a widthxheight image that has bucket zone surrounded by transparency
-  // Image is just to be laid out 
-  const { justContour, floodImageData, x, y, w, h, } = e.data;
-
-  // Polite mode: take into account already draw pixels
-  const floodBmp = await createImageBitmap(floodImageData)
-  const floodImage = new Konva.Image({
-    x: 0, y: 0,
-    width: floodBmp.width,
-    height: floodBmp.height,
-    image: floodBmp,
-    globalCompositeOperation: gco(),
-  });
-
-  if ( ! justContour) {
-    currentImage = floodImage;
-    bucketLayer.add(floodImage);
-    bucketLayer.batchDraw();
-  } else {
-    floodImage.setAttr('id', 'floodImageContour');
-    justContourLayer.add(floodImage);
-    justContourLayer.batchDraw();
-
-    animation01(() => {
-      if ( ! floodImage?.parent) {
-        return true;
-      }
-      return false;
-    }, (applyInvert) => {
-      if (applyInvert) {
-        floodImage.cache();
-        floodImage.filters([Konva.Filters.Invert]);
-      } else {
-        floodImage.clearCache();
-        floodImage.filters([]);
-      }
-    });
-  }
-
-  document.getElementById('fillSelectionImageButton').classList.remove('inactive');
-  document.getElementById('doDelete').disabled = false;
-};
 
 async function fillSelectionImageClick() {
   if (is.magikWand === false) {
@@ -205,45 +161,6 @@ function handleSelectMode(kevt) {
   fillSelectionImage(true);
   kevt?.evt.stopImmediatePropagation();
 }
-
-function getAsRawImage(layer) {
-  Konva.autoDrawEnabled = false;
-
-  const { x, y, scaleX, scaleY, width, height, } = stage.attrs;
-  const old = { x, y, scaleX, scaleY, width, height };
-
-  const w = layer.width();
-  const h = layer.height();
-  // Reset stage (no skew or rotation)
-  stage.setAttrs({
-    x: 0, y: 0,
-    scaleX: 1, scaleY: 1,
-    width: w, height: h,
-  });
-
-  const canvas = layer.toCanvas();
-  const image = new Konva.Image({
-    x: 0, y: 0,
-    width: w,
-    height: h,
-    image: canvas,
-  });
-
-  // Transform back
-  stage.setAttrs(old);
-
-  Konva.autoDrawEnabled = true;
-
-  return image;
-}
-
-function collapseBucketLayer() {
-  const bucketImage = getAsRawImage(bucketLayer);
-  bucketLayer.destroyChildren();
-  bucketLayer.add(bucketImage);
-
-  return bucketImage;
-}
 function collapseStroke() {
   if (bucketLayer.children.length === 0) return;
   const bucketImage = getAsRawImage(bucketLayer);
@@ -252,71 +169,6 @@ function collapseStroke() {
   imageLayer.add(bucketImage);
 }
 
-async function getImageDataComposedWithBucket(kimage) {
-  // Get raw native image behind currentImage
-  const imageElement = kimage.image();
-  // Native (unscaled) dimensions of image
-  const width = imageElement.width;
-  const height = imageElement.height;
-
-  // Get native image data to be sent outside to the worker
-  const imageCanvas = document.createElement('canvas');
-  imageCanvas.width = width;
-  imageCanvas.height = height;
-  const imageCtx = imageCanvas.getContext('2d');
-  // fiil our imageCanvas with native imageElement
-  imageCtx.drawImage(imageElement, 0, 0);
-
-  const bucketImage = getAsRawImage(bucketLayer);
-  const bucketBmp = await createImageBitmap(bucketImage.image());
-  imageCtx.drawImage(bucketBmp, 0, 0,);
-  const imageData = imageCtx.getImageData(0, 0, width, height);
-
-  return imageData;
-}
-
-async function fillBucket(cobaiImage) {
-  const bucketOrSelectImage = is.bucket || is.magikWand;
-  if (!bucketOrSelectImage || !cobaiImage || !cobaiImage?.parent) return;
-
-  lastClickPos = cobaiImage.getRelativePointerPosition();
-
-  // Get raw native image behind currentImage
-  const imageElement = cobaiImage.image();
-  // Native (unscaled) dimensions of image
-  const width = imageElement.width;
-  const height = imageElement.height;
-
-  // Get native image data to be sent outside to the worker
-  const imageCanvas = document.createElement('canvas');
-  imageCanvas.width = width;
-  imageCanvas.height = height;
-  const imageCtx = imageCanvas.getContext('2d');
-  // fiil our imageCanvas with native imageElement
-  imageCtx.drawImage(imageElement, 0, 0);
-
-  // Get pos on a transformed currentImage (through stage's transformation)
-  const localPos = cobaiImage.getRelativePointerPosition();
-  const startPos = {
-    x: Math.round(localPos.x),
-    y: Math.round(localPos.y),
-  };
-
-  const bucketImage = await collapseBucketLayer();
-  const bucketBmp = await createImageBitmap(bucketImage.image());
-  imageCtx.drawImage(bucketBmp, 0, 0,);
-  const imageData = imageCtx.getImageData(0, 0, width, height);
-
-  // Send image data and other details to the web worker
-  floodFillWorker.postMessage({
-    imageData,
-    startPos,
-    fillColor: color.fill,
-    tolerance: color.sensitivity,
-    justContour: is.magikWand,
-  });
-
-}
 
 // Function to get pixel color from the image at a given position
 function getPixelColor(image, x, y) {
@@ -378,31 +230,22 @@ function parseColor(color) {
 
 // Function to handle the "Delete" button click
 function handleDeleteClick() {
-    if (selection.size) {
-      destroyHandleCircles();
-      const [currentPath] = selection;
-      currentPath.destroy(); // Remove the current path
-      resetPathState(); // Reset drawing state
+  if (selection.size) {
+    destroyHandleCircles();
+    const [currentPath] = selection;
+    selection.delete(currentPath);
+    currentPath?.destroy(); // Remove the current path
+    imageTransformer.nodes([]);
+    resetPathState(); // Reset drawing state
 
-      imageTransformer.nodes([]);
+    // Disable buttons since there's no current path
+    document.getElementById('doFill').disabled = true;
+    document.getElementById('fillColorPicker').disabled = true;
+    document.getElementById('doDelete').disabled = true;
 
-      // Disable buttons since there's no current path
-      document.getElementById('doFill').disabled = true;
-      document.getElementById('fillColorPicker').disabled = true;
-      document.getElementById('doDelete').disabled = true;
-
-      // Clear the temporary line
-      imageLayer.batchDraw();
-    } else if (currentImage) {
-      currentImage.destroy(); // Remove the current image
-      currentImage = null; // Reset current image variable
-
-      imageTransformer.nodes([]);
-
-      // Disable the delete button since there's no current image
-      document.getElementById('doDelete').disabled = true;
-      imageLayer.batchDraw(); // Redraw the imageLayer
-    }
+    // Clear the temporary line
+    imageLayer.batchDraw();
+  }
 }
 
 function handleClearAllClick() {
@@ -412,8 +255,10 @@ function handleClearAllClick() {
     l.clear();
   });
 
+  const [currentImage] = selection;
+  selection.delete(currentImage);
   currentImage?.destroy();
-  currentImage =null;
+  imageTransformer.nodes([]);
 }
 
 function doDropShapeClick() {
@@ -487,125 +332,6 @@ function doDeleteNodePathClick() {
     document.getElementById('doChangeNodePath').classList.add('inactive');
   }
   document.getElementById('doDeleteNodePath').classList[is.deleteNodePath ? 'remove' : 'add']('inactive');
-}
-
-var lastClickPos = null; // Global variable to store the last clicked position on the image
-var imageScaleX, imageScaleY; // Variables to store the scaling factors
-
-// Function to handle image upload
-function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) {
-    return; // Exit if no file is selected
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(event) {
-    const img = new Image();
-    img.onload = function() {
-
-      const { width: pwidth, height: pheight } = document.querySelector('#container').style;
-      const stageApparentWidth = parseInt(pwidth); //stage.width();
-      const stageApparentHeight = parseInt(pheight); //stage.height();
-      const imgWidth = img.width;
-      const imgHeight = img.height;
-
-      // Calculate aspect ratios
-      const stageAspectRatio = stageApparentWidth / stageApparentHeight;
-      const imgAspectRatio = imgWidth / imgHeight;
-
-      // Determine how to scale the image to fit within the stage
-      let newWidth, newHeight;
-      if (imgAspectRatio > stageAspectRatio) {
-        // Image is wider than the stage, scale by width
-        newWidth = stageApparentWidth;
-        newHeight = (imgHeight * stageApparentWidth) / imgWidth;
-      } else {
-        // Image is taller than the stage, scale by height
-        newHeight = stageApparentHeight;
-        newWidth = (imgWidth * stageApparentHeight) / imgHeight;
-      }
-      // Calculate the scaling factors
-      imageScaleX = newWidth / imgWidth; // Scale factor for the width
-      imageScaleY = newHeight / imgHeight; // Scale factor for the height
-      // FIXME
-      stage.width(img.width)
-      stage.height(img.height)
-      stage.container().querySelector('* > div').style.transform = `scale(${Math.max(imageScaleX, imageScaleY)})`;
-      //const allLayers = [imageLayer, bucketLayer, imageLayer];
-      //for (const layer of allLayers) {
-      //  // Remove including non-drawing preview line 
-      //  layer.destroyChildren()
-      //}
-      // Add back preview line
-      //restorePreviewLine();
-
-      const newImage = new Konva.Image({
-        image: img,
-      });
-      imageLayer.add(newImage);
-      previewLine.zIndex(imageLayer.children.length-1);
-
-      newImage.on('mousedown', function(e) {
-        if (is.magikWand) return;
-        if (is.drawPencil) return; 
-        if (is.select) return; 
-        e.target.startDrag();
-        if (is.bucket) {
-          e.target.stopDrag();
-        }
-      });
-      newImage.on('mouseup', function(e) {
-        if (is.select) return; 
-        e.target.stopDrag();
-        if (is.bucket) return; 
-        if (is.drawPath) return; 
-        if (is.drawPencil) return; 
-        if (is.select) return; 
-        if (is.drag) return; 
-        
-        imageTransformer.nodes([]);
-        const inx = imageTransformer.nodes().indexOf(e.target);
-        if (inx === -1) { // not found exclusively add it
-          imageTransformer.nodes([]);
-          imageTransformer.nodes([e.target]);
-        } else { // found remove it
-          const nodes = imageTransformer.nodes().slice();
-          nodes.splice(inx, 1);
-          imageTransformer.nodes(nodes);
-        }
-      });
-      newImage.on('click', function(e) {
-        if (is.drawPath) return;
-        if (is.select) return; 
-
-        e.evt.preventDefault();
-
-        currentImage = e.target;
-
-        const pos = stage.getRelativePointerPosition();
-        lastClickPos = pos;
-        
-        document.getElementById('doDelete').disabled = false; // Enable delete button
-      });
-      //newImage.on('transform', function(e) {
-      //  const c = justContourLayer.findOne('#floodImageContour');
-      //  if (!c) return;
-      //  const her = c.getAbsoluteTransform();
-      //  const me = e.target.getAbsoluteTransform();
-      //  const our = me.multiply(her);
-      //  console.log(our.decompose())
-      //  e.target.setAttrs(our.decompose());
-      //});
-
-      imageLayer.batchDraw(); // Redraw the imageLayer to show the image
-
-      document.getElementById('doDelete').disabled = false; // Enable delete button after image is added
-    };
-    img.src = event.target.result; // Set image source to the file's data URL
-  };
-
-  reader.readAsDataURL(file); // Read the file as a data URL
 }
 
 // Function to handle color picker change
@@ -702,10 +428,6 @@ function handleScalePencil() {
 let pencil;
 let mousemove = false;
 
-function gco() {
-    const v = isFillClean ? 'destination-out' : (isDrawProtect ? 'destination-over' : color.blend);
-    return v;
-}
 // Mousedown event starts drawing with pencil
 stage.on('mousedown', (evt) => {
   if (is.deleteNodePath || is.changeNodePath) {
@@ -714,6 +436,7 @@ stage.on('mousedown', (evt) => {
 
   if (!is.drawPath && selection.size) {
     const [p] = selection;
+    if (false === (p instanceof Konva.Path)) return;
     // Prev path is currently drawing
     if (false === is.addNodePath && p.data().endsWith('Z') === true && selection.has(p) === true) {
       // Reset prev path
@@ -817,7 +540,7 @@ stage.on('mousemove', (evt) => {
       const x = pencilPrevPos.x + i*stepX;
       const y = pencilPrevPos.y + i*stepY;
 
-      if (isFillClean && pencil) {
+      if (isFillWay.clean && pencil) {
         pencil.fill('#FFFFFF');
       }
       const cloned = pencil.clone({
@@ -830,7 +553,7 @@ stage.on('mousemove', (evt) => {
     pencilPrevPos = pos;
   }
 
-  if (isFillClean && pencil) {
+  if (isFillWay.clean && pencil) {
     pencil.fill('#FFFFFF');
   }
   if (!pencilPrevPos) {
@@ -840,23 +563,19 @@ stage.on('mousemove', (evt) => {
   bucketLayer.batchDraw();
 });
 
-let isDrawProtect = false;
-
 function handleDrawProtect() {
-    isDrawProtect = !isDrawProtect;
-    document.getElementById('drawProtectCheckbox').checked = isDrawProtect;
-    document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
+    isFillWay.protect = !isFillWay.protect;
+    document.getElementById('drawProtectCheckbox').checked = isFillWay.protect;
+    document.getElementById('drawProtectLabel').textContent = isFillWay.protect ? 'active' : 'inactive';
 }
 
-let isFillClean = false;
-
 function handleFillClean() {
-    isFillClean = !isFillClean;
-    if (!isFillClean && pencil) {
+    isFillWay.clean = !isFillWay.clean;
+    if (!isFillWay.clean && pencil) {
         pencil.fill(color.fill);
     }
-    document.getElementById('fillCleanCheckbox').checked = isFillClean;
-    document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+    document.getElementById('fillCleanCheckbox').checked = isFillWay.clean;
+    document.getElementById('fillCleanCheckboxLabel').textContent = isFillWay.clean ? 'active' : 'inactive';
 }
 
 let pencilShape = 'rectangle';
@@ -977,7 +696,7 @@ function handleDown() {
 //FIXME
 function inactivateModes(except='') {
   selection.clear();
-  currentImage = null;
+  imageTransformer.nodes([]);
   mode.value = 0;
 
   const modes = [
@@ -1075,10 +794,10 @@ document.getElementById('fillImageSensitivityLabel').textContent = color.sensiti
 document.getElementById('doDrawPencil').addEventListener('click', doDrawPencilClick);
 
 document.getElementById('drawProtectCheckbox').addEventListener('change', handleDrawProtect);
-document.getElementById('drawProtectLabel').textContent = isDrawProtect ? 'active' : 'inactive';
+document.getElementById('drawProtectLabel').textContent = isFillWay.protect ? 'active' : 'inactive';
 
 document.getElementById('fillCleanCheckbox').addEventListener('change', handleFillClean);
-document.getElementById('fillCleanCheckboxLabel').textContent = isFillClean ? 'active' : 'inactive';
+document.getElementById('fillCleanCheckboxLabel').textContent = isFillWay.clean ? 'active' : 'inactive';
 
 document.getElementById('scalePencilButton').addEventListener('input', handleScalePencil);
 document.getElementById('scalePencilLabel').textContent = pencilSize;
@@ -1108,7 +827,7 @@ document.getElementById('doAddNodePath').addEventListener('click', doAddNodePath
 document.getElementById('doMagneticNode').addEventListener('click', handleMagneticNodeClick);
 document.getElementById('doChangeNodePath').addEventListener('click', doChangeNodePathClick);
 document.getElementById('doDeleteNodePath').addEventListener('click', doDeleteNodePathClick);
-document.getElementById('uploadImageButton').addEventListener('change', handleImageUpload);
+document.getElementById('uploadImageButton').addEventListener('change', imageUpload);
 document.getElementById('fillColorPicker').addEventListener('input', handleColorPickerChange); // Update color.fill on change
 document.getElementById('opacityInput').addEventListener('input', handleOpacityChange); // Update color.fill on change
 document.getElementById('opacityInput').value = color.opacity;
