@@ -19,6 +19,7 @@ function createPath(currentPathId) {
     dash: STROKE_DASH,
     fill: '',
     id: currentPathId,
+    strokeScaleEnabled: false,
   });
   imageLayer.add(currentPath);
 
