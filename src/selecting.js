@@ -70,9 +70,37 @@ function addNodesToSelection() {
     if (Object.is(s, sr)) return;
     if (!(s instanceof Konva.Path)) return;
     if (s.visible() === false) return;
-    if (Konva.Util.haveIntersection(box, s.getClientRect()) === false) return;
+    if (isContainingRect(box, getStagedClientRect(s)) === false) return;
     selection.add(s);
   });
+}
+
+function getStagedClientRect(s) {
+  const xx = [], yy = [];
+  const tr = s.getAbsoluteTransform(stage);
+  let p = {x: 0, y: 0};
+    
+  s.data().split(/\s+/).forEach(s => {
+    if (s === 'Z') return;
+    s = s.split(',');
+    p.x = parseInt(s[0].slice(1));
+    p.y = parseInt(s[1]);
+    p = tr.point(p);
+    xx.push(p.x);
+    yy.push(p.y);
+  });
+  const xmin = Math.min.apply(null, xx), xmax = Math.max.apply(null, xx);
+  const ymin = Math.min.apply(null, yy), ymax = Math.max.apply(null, yy);
+
+  return {x: xmin, y: ymin, width: xmax - xmin, height: ymax - ymin};
+}
+
+function isContainingRect(r1, r2) {
+  if (r1.x > r2.x) return false; 
+  if (r1.y > r2.y) return false; 
+  if (r1.width < r2.width) return false; 
+  if (r1.height < r2.height) return false; 
+  return true;
 }
 
 function doSelecting(e) {
