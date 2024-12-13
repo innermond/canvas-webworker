@@ -1,15 +1,16 @@
-import {stage, bucketLayer, justContourLayer} from '@/init/layers';
-import {lastPos, } from '@/last-position';
+import {bucketLayer, justContourLayer} from '@/init/layers';
 import {gco} from '@/fillWays';
 import {animation01} from '@/animation';
 import {selection} from '@/vars';
+import {emit} from '@/emit';
 
 const floodFillWorker = new Worker('floodfillWorker.js');
+emit.register('floodfill');
 
 floodFillWorker.onmessage = async function(e) {
   // Receive a widthxheight image that has bucket zone surrounded by transparency
   // Image is just to be laid out 
-  const { justContour, floodImageData, x, y, w, h, } = e.data;
+  const { justContour, floodImageData, } = e.data;
 
   // Polite mode: take into account already draw pixels
   const floodBmp = await createImageBitmap(floodImageData)
@@ -46,8 +47,7 @@ floodFillWorker.onmessage = async function(e) {
     });
   }
 
-  document.getElementById('fillSelectionImageButton').classList.replace('inactive', 'active');
-  document.getElementById('doDelete').classList.replace('inactive', 'active');
+  emit.send('floodfill', {phase: 'start'});
 };
 
 export {floodFillWorker};

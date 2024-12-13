@@ -1,3 +1,7 @@
+const STROKE_WIDTH = 1;
+const STROKE_COLOR = '#fff';
+const STROKE_DASH = [8, 4];
+const PATH_OPACITY = 0.2;
 const blendColorDefault = 'source-over';
 
 const color = {
@@ -14,3 +18,4 @@ const node = {
 const selection = new Set();
 
 export {color, node, selection};
+export {STROKE_COLOR, STROKE_WIDTH, STROKE_DASH, PATH_OPACITY};

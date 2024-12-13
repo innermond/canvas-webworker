@@ -3,13 +3,9 @@ import {is} from '@/modes';
 import {setLastPos, } from '@/last-position';
 import {previewLine} from '@/previewline';
 import {color, selection,} from '@/vars';
+import {STROKE_COLOR, STROKE_WIDTH, STROKE_DASH, PATH_OPACITY} from '@/vars';
 import {createPath} from '@/path/create';
 import {destroyHandleCircles} from '@/path/handle-circles';
-
-const STROKE_WIDTH = 1;
-const STROKE_COLOR = '#fff';
-const STROKE_DASH = [8, 4];
-const PATH_OPACITY = 0.2;
 
 // Function to handle mouse click to begin/add points to the path
 function doDrawPathing(kevt) {

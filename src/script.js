@@ -1,22 +1,18 @@
+import {color, node, selection} from '@/vars';
 import {stage, imageLayer, bucketLayer, justContourLayer} from '@/init/layers';
 import {imageTransformer} from '@/init/layers';
 import '@/init/create-dofuncs';
 import {is, mode} from '@/modes';
-import {previewLine} from '@/previewline'; 
 import {doSelectStart, doSelectEnd, doSelectFinal, doSelecting} from '@/selecting';
-import {animation01} from '@/animation';
 import {doDrawPathing, handleStageDblClick, resetPathState,} from '@/path';
 import {destroyHandleCircles, } from '@/path/handle-circles';
 import {lastPos, setLastPos} from '@/last-position';
-import {color, node, selection} from '@/vars';
 import {floodFillWorker} from '@/floodfill';
 import {fillBucket, getImageDataComposedWithBucket, collapseBucketLayer, getAsRawImage} from  '@/bucket.js';
 import {isFillWay, gco} from '@/fillWays';
 import {imageUpload} from '@/handler/upload';
+import '@/handler/events';
 
-var currentImage; // Variable to hold the currently added image
-// Global variable to store the fill color with a default value
-// It controlls sensitivity for flooding image areas with color.fill
 // Size of pencil
 var pencilSize = 30;
 

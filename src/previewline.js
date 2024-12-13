@@ -1,8 +1,8 @@
 import {stage, imageLayer, } from '@/init/layers';
 import {is} from '@/modes';
 import {lastPos, } from '@/last-position';
-import {STROKE_WIDTH, STROKE_COLOR, STROKE_DASH,} from '@/path';
 import {selection,} from '@/vars';
+import {STROKE_COLOR, STROKE_WIDTH, STROKE_DASH,} from '@/vars';
 
 // preview line
 const previewLine = new Konva.Line({
