@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
+import babel from 'vite-plugin-babel';
 
 export default defineConfig({
   root: resolve(__dirname, "src"),
@@ -22,4 +23,18 @@ export default defineConfig({
       input: resolve(__dirname, "src", "index.html"),
     },
   },
+  plugins: [
+    babel({
+      babelConfig: {
+        babelrc: false,
+        configFile: false,
+        plugins: [
+          [
+            "@babel/plugin-proposal-decorators",
+            { loose: true, version: "2022-03" },
+          ],
+        ],
+      },
+    }),
+  ],
 });
