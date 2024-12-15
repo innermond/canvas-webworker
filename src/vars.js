@@ -15,7 +15,10 @@ const node = {
   isMagnetic: false,
 }
 
+const doPhases = ['inactive', 'active'];
+const doPhasesReversed = [...doPhases].reverse();
+
 const selection = new Set();
 
-export {color, node, selection};
+export {color, node, selection, doPhases, doPhasesReversed};
 export {STROKE_COLOR, STROKE_WIDTH, STROKE_DASH, PATH_OPACITY};

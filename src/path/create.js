@@ -24,7 +24,7 @@ function createPath(currentPathId) {
   imageLayer.add(currentPath);
 
   currentPath.on('click', function(evt) {
-    //if (is.select) return;
+    if (is.select) return;
     if (is.drag) return;
     if (is.drawPath) return;
     evt.cancelBubble = true;

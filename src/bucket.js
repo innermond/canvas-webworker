@@ -1,4 +1,4 @@
-import {is, mode} from '@/modes';
+import {is} from '@/modes';
 import {stage, bucketLayer, } from '@/init/layers';
 import {setLastPos} from '@/last-position';
 import {floodFillWorker} from '@/floodfill';

@@ -3,6 +3,7 @@ import {is} from '@/modes';
 import {PATH_OPACITY} from '@/path';
 import {getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
 import {selection,} from '@/vars';
+import {emit} from '@/emit';
 
 function createHandleCircle(currentPath, vertex, index, fill) {
   const circle = new Konva.Circle({
@@ -78,11 +79,12 @@ function createHandleCircle(currentPath, vertex, index, fill) {
   });
 
   circle.on('click', (evt) => {
-    evt.cancelBubble = true;
     if (! is.deleteNodePath) {
       return;
     }
-   
+
+    evt.cancelBubble = true;
+    
     const c = evt.target;
     const [vertices, types] = getVerticesFromPathData(currentPath.data());
     const n = vertices[c.attrs.index];
@@ -97,11 +99,12 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     imageLayer.batchDraw();
   });
   circle.on('click', (evt) => {
-    evt.cancelBubble = true;
     if (! is.changeNodePath) {
       return;
     }
-   
+  
+    evt.cancelBubble = true;
+
     const c = evt.target;
     const [vertices, types] = getVerticesFromPathData(currentPath.data());
     const n = vertices[c.attrs.index];
@@ -116,6 +119,10 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     destroyHandleCircles();
     createHandleCircles(true);
     imageLayer.batchDraw();
+
+    is.changeNodePath = false;
+    
+    emit.send('changeNodePath');
   });
 
   imageLayer.add(circle);

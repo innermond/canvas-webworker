@@ -1,3 +1,5 @@
+import {emit} from '@/emit';
+
 export default function createModes(labels) {
   const modes = labels.reduce((acc, v, inx) => {
     acc[v] = 1 << inx;
@@ -22,6 +24,7 @@ export default function createModes(labels) {
       enumerable: true,
       configurable: true,
     });
+    emit.register(k);
   });
 
   return {modes, mode, is};

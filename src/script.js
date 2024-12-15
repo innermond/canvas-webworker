@@ -1,4 +1,4 @@
-import {color, node, selection} from '@/vars';
+import {color, node, selection,} from '@/vars';
 import {stage, imageLayer, bucketLayer, justContourLayer} from '@/init/layers';
 import {imageTransformer} from '@/init/layers';
 import '@/init/create-dofuncs';
@@ -12,6 +12,7 @@ import {fillBucket, getImageDataComposedWithBucket, collapseBucketLayer, getAsRa
 import {isFillWay, gco} from '@/fillWays';
 import {imageUpload} from '@/handler/upload';
 import '@/handler/events';
+import {emit} from '@/emit';
 
 // Size of pencil
 var pencilSize = 30;
@@ -42,19 +43,6 @@ function handleBucketMode(kevt) {
 
   fillBucket(kevt.target);
   kevt?.evt.stopImmediatePropagation();
-}
-
-function doChangeNodePathClick() {
-  if (selection.size === 0) {
-    is.changeNodePath = false;
-    document.getElementById('doChangeNodePath').classList.add('inactive');
-    return;
-  }
-  if (is.changeNodePath) {
-    document.getElementById('doDrawPath').classList.add('inactive');
-    document.getElementById('doDeleteNodePath').classList.add('inactive');
-  }
-  document.getElementById('doChangeNodePath').classList[is.changeNodePath ? 'remove' : 'add']('inactive');
 }
 
 function handleMagneticNodeClick() {
@@ -113,15 +101,15 @@ function removeSelection(e) {
   document.getElementById('fillSelectionImageButton').classList.add('inactive');
   if (is.addNodePath) {
     is.addNodePath = false;
-    document.getElementById('doAddNodePath').classList.add('inactive');
+    document.getElementById('doAddNodePath').classList.replace('active', 'inactive');
   }
   if (is.deleteNodePath) {
     is.deleteNodePath = false;
-    document.getElementById('doDeleteNodePath').classList.add('inactive');
+    document.getElementById('doDeleteNodePath').classList.replace('active', 'inactive');
   }
   if (is.changeNodePath) {
     is.changeNodePath = false;
-    document.getElementById('doChangeNodePath').classList.add('inactive');
+    document.getElementById('doChangeNodePath').classList.replace('active', 'inactive');
   }
 
   const a = justContourLayer.children.length;
@@ -308,26 +296,15 @@ function handleNewPathClick() {
 }
 
 function doAddNodePathClick() {
-  if (selection.size === 0) {
-    is.addNodePath = false;
-    document.getElementById('doAddNodePath').classList.replace('active', 'inactive');
-    return;
-  }
-  document.getElementById('doAddNodePath').classList[is.addNodePath ? 'remove' : 'add']('inactive');
+  emit.send('addNodePath');
+}
+
+function doChangeNodePathClick() {
+  emit.send('changeNodePath');
 }
 
 function doDeleteNodePathClick() {
-  if (selection.size === 0) {
-    is.deleteNodePath = false;
-    document.getElementById('doDeleteNodePath').classList.add('inactive');
-    return;
-  }
-
-  if (is.deleteNodePath) {
-    document.getElementById('doDrawPath').classList.add('inactive');
-    document.getElementById('doChangeNodePath').classList.add('inactive');
-  }
-  document.getElementById('doDeleteNodePath').classList[is.deleteNodePath ? 'remove' : 'add']('inactive');
+  emit.send('deleteNodePath');
 }
 
 // Function to handle color picker change
@@ -425,7 +402,7 @@ let pencil;
 let mousemove = false;
 
 // Mousedown event starts drawing with pencil
-stage.on('mousedown', (evt) => {
+stage.on('mousedown', () => {
   if (is.deleteNodePath || is.changeNodePath) {
     return;
   }
@@ -673,6 +650,7 @@ function debug(canvas) {
 function handleUp() {
   if (selection.size === 0) return;
 
+  const [currentPath] = selection;
   const z = currentPath.getZIndex();
   currentPath.setZIndex(z+1);
 }

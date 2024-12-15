@@ -53,7 +53,7 @@ function doDrawPathing(kevt) {
 
   currentPath.data(pathData);
   imageLayer.batchDraw();
-  kevt.evt.stopImmediatePropagation();
+  //kevt.evt.stopImmediatePropagation();
 }
 
 function handleStageDblClick() {

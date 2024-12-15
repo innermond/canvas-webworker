@@ -1,4 +1,5 @@
 import {is, modes} from '@/modes';
+import {doPhases, doPhasesReversed} from '@/vars';
 
 //function doSelect() {
 //  is.select = !is.select;
@@ -7,8 +8,6 @@ import {is, modes} from '@/modes';
 // Create functions like the one above for any do...modes's key
 // and bind them to their coresponding DOM buttons
 
-const ia = ['inactive', 'active'];
-const ai = [...ia].reverse();
 
 for (let k in modes) {
   const name = 'do' + k.charAt(0).toUpperCase() + k.slice(1);
@@ -20,10 +19,10 @@ for (let k in modes) {
       name = name.charAt(0).toLowerCase() + name.slice(1);
       if (Object.keys(modes).includes(name) === false) return;;
       // replace 'active' to 'inactive'
-      x.classList.replace(...ai);
+      x.classList.replace(...doPhasesReversed);
     })
     // toggle active class to pressed button
-    const fromto = is[k] ? ia : ai;
+    const fromto = is[k] ? doPhases : doPhasesReversed;
     document.getElementById(name)?.classList.replace(...fromto);
   }
   Object.defineProperty(fn, 'name', {value: name});
