@@ -1,15 +1,16 @@
-import createModes from '@/create-modes';
-import {color} from '@/vars';
+import createModes from "@/create-modes";
+import { color } from "@/vars";
 
-const labels = [
-  'protect',
-  'clean',
-];
-const {modes: fillWays, mode: fillWay, is: isFillWay,} = createModes(labels);
+const labels = ["protect", "clean"];
+const { modes: fillWays, mode: fillWay, is: isFillWay } = createModes(labels);
 
 function gco() {
-    const v = isFillWay.clean ? 'destination-out' : (isFillWay.protect ? 'destination-over' : color.blend);
-    return v;
+  const v = isFillWay.clean
+    ? "destination-out"
+    : isFillWay.protect
+      ? "destination-over"
+      : color.blend;
+  return v;
 }
 
-export {fillWays, fillWay, isFillWay, gco};
+export { fillWays, fillWay, isFillWay, gco, labels };

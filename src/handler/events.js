@@ -1,57 +1,95 @@
-import {selection, doPhases, doPhasesReversed} from '@/vars';
-import {is} from '@/modes';
-import {emit} from '@/emit';
+import { selection, node, doPhases, doPhasesReversed } from "@/vars";
+import { is } from "@/modes";
+import { emit } from "@/emit";
 
 function elementReplacePhases(id, state) {
-  id = id.startsWith('do') ? id : 'do' + id.charAt(0).toUpperCase() + id.slice(1);
-  document.getElementById(id).classList.replace.apply(document.getElementById(id).classList, state ? doPhases : doPhasesReversed);
+  id = id.startsWith("do")
+    ? id
+    : "do" + id.charAt(0).toUpperCase() + id.slice(1);
+  document
+    .getElementById(id)
+    .classList.replace.apply(
+      document.getElementById(id).classList,
+      state ? doPhases : doPhasesReversed
+    );
 }
 
 function handleFloodFillEvent(e) {
-  if (e.detail.phase === 'start') {
-    document.getElementById('fillSelectionImageButton').classList.replace('inactive', 'active');
-    document.getElementById('doDelete').classList.replace('inactive', 'active');
+  if (e.detail.phase === "start") {
+    document
+      .getElementById("fillSelectionImageButton")
+      .classList.replace("inactive", "active");
+    document.getElementById("doDelete").classList.replace("inactive", "active");
   }
 }
 
 function handleChangeNodePath() {
   if (selection.size === 0) {
     is.changeNodePath = false;
-    document.getElementById('doChangeNodePath').classList.replace('active', 'inactive');
+    if (node.isMagnetic) {
+      node.isMagnetic = false;
+      emit.send("isMagneticNode");
+    }
     return;
   }
   if (is.changeNodePath) {
-    document.getElementById('doDrawPath').classList.replace('active', 'inactive');
-    document.getElementById('doDeleteNodePath').classList.replace('active', 'inactive');
+    if (node.isMagnetic) {
+      node.isMagnetic = false;
+      emit.send("isMagneticNode");
+    }
+    if (is.drawPath) {
+      emit.send("drawPath");
+    }
+    if (is.deleteNodePath) {
+      emit.send("deleteNodePath");
+    }
   }
-  elementReplacePhases('changeNodePath', is.changeNodePath);
-
+  elementReplacePhases("changeNodePath", is.changeNodePath);
 }
 
 function handleAddNodePath() {
   if (selection.size === 0) {
     is.addNodePath = false;
-    document.getElementById('doAddNodePath').classList.replace('active', 'inactive');
+    if (node.isMagnetic) {
+      node.isMagnetic = false;
+      emit.send("isMagneticNode");
+    }
+    document
+      .getElementById("doAddNodePath")
+      .classList.replace("active", "inactive");
     return;
   }
-  elementReplacePhases('addNodePath', is.addNodePath);
+  if (!is.addNodePath && node.isMagnetic) {
+    node.isMagnetic = false;
+    emit.send("isMagneticNode");
+  }
+  elementReplacePhases("addNodePath", is.addNodePath);
 }
 
 function handleDeleteNodePath() {
   if (selection.size === 0) {
     is.deleteNodePath = false;
-    document.getElementById('doDeleteNodePath').classList.add('inactive');
+    if (node.isMagnetic) {
+      node.isMagnetic = false;
+      emit.send("isMagneticNode");
+    }
+    document.getElementById("doDeleteNodePath").classList.add("inactive");
     return;
   }
 
-  if (is.deleteNodePath) {
-    document.getElementById('doDrawPath').classList.replace('active', 'inactive');
-    document.getElementById('doChangeNodePath').classList.replace('active', 'inactive');
+  if (is.deleteNodePath && node.isMagnetic) {
+    node.isMagnetic = false;
+    emit.send("isMagneticNode");
   }
-  elementReplacePhases('deleteNodePath', is.deleteNodePath);
+  elementReplacePhases("deleteNodePath", is.deleteNodePath);
 }
 
-emit.receive('floodfill', handleFloodFillEvent);
-emit.receive('changeNodePath', handleChangeNodePath);
-emit.receive('addNodePath', handleAddNodePath);
-emit.receive('deleteNodePath', handleDeleteNodePath);
+function handleMagneticNode() {
+  elementReplacePhases("magneticNode", node.isMagnetic);
+}
+
+emit.receive("floodfill", handleFloodFillEvent);
+emit.receive("changeNodePath", handleChangeNodePath);
+emit.receive("addNodePath", handleAddNodePath);
+emit.receive("deleteNodePath", handleDeleteNodePath);
+emit.receive("isMagneticNode", handleMagneticNode);

@@ -6,6 +6,7 @@ import {
   justContourLayer,
 } from "@/init/layers";
 import { imageTransformer } from "@/init/layers";
+import "@/init/register-events";
 import "@/init/create-dofuncs";
 import { is, mode } from "@/modes";
 import {
@@ -60,14 +61,6 @@ function handleBucketMode(kevt) {
   kevt?.evt.stopImmediatePropagation();
 }
 
-function handleMagneticNodeClick() {
-  if (selection.size === 0) return;
-
-  node.isMagnetic = !node.isMagnetic;
-
-  document.getElementById("doMagneticNode").checked = node.isMagnetic;
-}
-
 // Function to handle the "Fill Path" button click
 function doFillClick() {
   if (selection.size === 0) return;
@@ -116,21 +109,15 @@ function removeSelection(e) {
   document.getElementById("fillSelectionImageButton").classList.add("inactive");
   if (is.addNodePath) {
     is.addNodePath = false;
-    document
-      .getElementById("doAddNodePath")
-      .classList.replace("active", "inactive");
+    emit.send("addNodePath");
   }
   if (is.deleteNodePath) {
     is.deleteNodePath = false;
-    document
-      .getElementById("doDeleteNodePath")
-      .classList.replace("active", "inactive");
+    emit.send("deleteNodePath");
   }
   if (is.changeNodePath) {
     is.changeNodePath = false;
-    document
-      .getElementById("doChangeNodePath")
-      .classList.replace("active", "inactive");
+    emit.send("changeNodePath");
   }
 
   const a = justContourLayer.children.length;
@@ -315,16 +302,10 @@ function handleNewPathClick() {
   document.getElementById("doDelete").disabled = true;
 }
 
-function doAddNodePathClick() {
-  emit.send("addNodePath");
-}
-
-function doChangeNodePathClick() {
-  emit.send("changeNodePath");
-}
-
-function doDeleteNodePathClick() {
-  emit.send("deleteNodePath");
+function handleMagneticNodeClick() {
+  if (!is.addNodePath) return;
+  node.isMagnetic = !node.isMagnetic;
+  emit.send("isMagneticNode");
 }
 
 // Function to handle color picker change
@@ -868,17 +849,8 @@ document
   .getElementById("doDropShapeAll")
   .addEventListener("click", doDropShapeAllClick);
 document
-  .getElementById("doAddNodePath")
-  .addEventListener("click", doAddNodePathClick);
-document
   .getElementById("doMagneticNode")
   .addEventListener("click", handleMagneticNodeClick);
-document
-  .getElementById("doChangeNodePath")
-  .addEventListener("click", doChangeNodePathClick);
-document
-  .getElementById("doDeleteNodePath")
-  .addEventListener("click", doDeleteNodePathClick);
 document
   .getElementById("uploadImageButton")
   .addEventListener("change", imageUpload);
