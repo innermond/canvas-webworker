@@ -6,15 +6,13 @@ function elementReplacePhases(id, state) {
   id = id.startsWith("do")
     ? id
     : "do" + id.charAt(0).toUpperCase() + id.slice(1);
+  const fromto = state ? doPhases : doPhasesReversed;
   document
     .getElementById(id)
-    .classList.replace.apply(
-      document.getElementById(id).classList,
-      state ? doPhases : doPhasesReversed
-    );
+    .classList.replace(...fromto);
 }
 
-function handleFloodFillEvent(e) {
+function handleFloodFillEvent() {
   if (e.detail.phase === "start") {
     document
       .getElementById("fillSelectionImageButton")

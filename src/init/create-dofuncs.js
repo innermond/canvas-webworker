@@ -13,7 +13,7 @@ for (let k in modes) {
   const name = "do" + k.charAt(0).toUpperCase() + k.slice(1);
   const fn = () => {
     is[k] = !is[k];
-    emit.send(k);
+
     // Add inactive class to all do...modes's key DOM elements
     document.querySelectorAll("[id^=do]")?.forEach((x) => {
       let name = x.id.slice(2);
@@ -25,6 +25,8 @@ for (let k in modes) {
     // toggle active class to pressed button
     const fromto = is[k] ? doPhases : doPhasesReversed;
     document.getElementById(name)?.classList.replace(...fromto);
+    
+    emit.send(k);
   };
   Object.defineProperty(fn, "name", { value: name });
   document.getElementById(name)?.addEventListener("click", fn);

@@ -77,10 +77,10 @@ function handleStageDblClick() {
   selection.delete(currentPath);
 
   resetPathState();
-  if (is.drawPath) {
-    is.drawPath = false;
-    document.getElementById('doDrawPath').classList.replace('active', 'inactive');
-  }
+  //if (is.drawPath) {
+  //  is.drawPath = false;
+  //  document.getElementById('doDrawPath').classList.replace('active', 'inactive');
+  //}
   // Enable the "Fill Path" button and color picker after the path is closed
   document.getElementById('doFill').disabled = false;
   document.getElementById('fillColorPicker').disabled = false;

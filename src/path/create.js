@@ -90,7 +90,6 @@ function createPath(currentPathId) {
 
   currentPath.on('mousedown', function(evt) {
     if (is.drawPath) return;
-    if (is.select) return;
     if (is.drag) return;
     evt.cancelBubble = true;
     if (is.drag && !selection.has(this)) {
@@ -104,8 +103,8 @@ function createPath(currentPathId) {
     }
   });
   currentPath.on('mouseup', function(e) {
-    if (is.drawPath) return;
     if (is.select) return;
+    if (is.drawPath) return;
     if (is.drag) return;
     imageTransformer.nodes([]);
     const inx = imageTransformer.nodes().indexOf(e.target);

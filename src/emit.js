@@ -24,7 +24,6 @@ const emit = new (class {
   //@eventExistOrOut
   send(name, detail, target) {
     if (!allowed.hasOwnProperty(name)) return;
-    console.log(allowed);
     const event = new CustomEvent(name, {
       bubbles: true,
       cancelable: true,

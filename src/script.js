@@ -132,6 +132,8 @@ function removeSelection(e) {
     return;
   }
 
+  if (is.drag) return;
+
   if (e?.target === stage) {
     selection.forEach((v) => {
       v.strokeWidth(0);
@@ -286,6 +288,7 @@ function doDropShapeAllClick() {
 }
 
 function handleNewPathClick() {
+  if(! is.drawPath) return;
   resetPathState();
 
   selection.forEach((v) => {
@@ -411,7 +414,7 @@ let mousemove = false;
 
 // Mousedown event starts drawing with pencil
 stage.on("mousedown", () => {
-  if (is.deleteNodePath || is.changeNodePath) {
+  if (is.deleteNodePath || is.changeNodePath || is.select) {
     return;
   }
 
