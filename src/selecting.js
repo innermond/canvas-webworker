@@ -20,6 +20,10 @@ Object.defineProperty(selectPoints, 'height', {
 });
 
 function doSelectStart(e) {
+  //is.select = true;
+  if (is.drawPath) {
+    is.select = false;
+  }
   if (! is.select) return;
   if (selection.size) return;
   e.cancelBubble = true;

@@ -29,14 +29,14 @@ function createPath(currentPathId) {
     if (is.drawPath) return;
     evt.cancelBubble = true;
    
-    if (selection.has(this) && !is.addNodePath) {
-      selection.delete(this);
-      this.strokeWidth(0);
-      this.draggable(false);
-      destroyHandleCircles();
-      imageTransformer.nodes(Array.from(selection.values()));
-      return;
-    } 
+    //if (selection.has(this) && !is.addNodePath) {
+    //  selection.delete(this);
+    //  this.strokeWidth(0);
+    //  this.draggable(false);
+    //  destroyHandleCircles();
+    //  imageTransformer.nodes(Array.from(selection.values()));
+    //  return;
+    //} 
   
     // reset
     selection.forEach(v => {

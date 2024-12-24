@@ -29,6 +29,7 @@ import { isFillWay, gco } from "@/fillWays";
 import { imageUpload } from "@/handler/upload";
 import "@/handler/events";
 import { emit } from "@/emit";
+import "@/drag";
 
 // Size of pencil
 var pencilSize = 30;
@@ -716,25 +717,6 @@ stage.on("mouseup", doSelectEnd);
 document.body.addEventListener("mouseup", doSelectEnd);
 stage.on("mousemove", doSelecting);
 stage.on("click", doSelectFinal);
-// drag mode
-stage.on("mousedown", (e) => {
-  if (!is.drag) return;
-  e.cancelBubble = true;
-
-  stage.startDrag();
-  document.body.style.cursor = "grab";
-});
-stage.on("mouseup", (e) => {
-  if (!is.drag) return;
-  e.cancelBubble = true;
-
-  stage.stopDrag();
-  document.body.style.cursor = "inherit";
-});
-stage.on("click", (e) => {
-  if (!is.drag) return;
-  e.cancelBubble = true;
-});
 // drawPencil mode
 stage.on("mousedown", (e) => {
   if (!is.drawPencil) return;
