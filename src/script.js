@@ -16,7 +16,7 @@ import {
   doSelecting,
 } from "@/selecting";
 import { doDrawPathing, handleStageDblClick, resetPathState } from "@/path";
-import { destroyHandleCircles } from "@/path/handle-circles";
+import { destroyHandleCircles, syncRadiusCircles, } from "@/path/handle-circles";
 import { lastPos, setLastPos } from "@/last-position";
 import { floodFillWorker } from "@/floodfill";
 import {
@@ -370,6 +370,7 @@ function handleZoom(evt) {
 
   // Scale the stage (uniformly for both x and y)
   stage.scale({ x: zoomScale, y: zoomScale });
+  syncRadiusCircles();
 
   // Calculate the new position after zooming, to keep the center in the same place
   let newPos = {

@@ -1,18 +1,29 @@
-import {imageLayer, } from '@/init/layers';
+import {imageLayer, stage, } from '@/init/layers';
 import {is} from '@/modes';
-import {PATH_OPACITY} from '@/path';
+import {selection, STROKE_WIDTH, PATH_OPACITY, CIRCLE_RADIUS_OFF, CIRCLE_RADIUS_ON,} from '@/vars';
 import {getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
-import {selection,} from '@/vars';
 import {emit} from '@/emit';
+
+function numberTransformed(n, from) {
+  const tr = stage.getAbsoluteTransform(from).invert();
+  let p0 = {x: 0, y: 0};
+  let p9 = {x: n, y: 0};
+  p0 = tr.point(p0);
+  p9 = tr.point(p9);
+
+  const ntr = (p9.x - p0.x);
+  return ntr;
+}
 
 function createHandleCircle(currentPath, vertex, index, fill) {
   const circle = new Konva.Circle({
-    radius: 5,
     fill,
     visible: false,
     name: currentPath.id(),
     index,
+    strokeScaleEnabled: false,
   });
+  circle.radius(numberTransformed(CIRCLE_RADIUS_OFF, circle));
   // vertex has currentPath as space so transform it into imageLayer space 
   const p = currentPath.getAbsoluteTransform(imageLayer).point(vertex);
   // position using imageLayer - parent of circle -  space as reference
@@ -48,7 +59,8 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     imageLayer.batchDraw();
   });
   circle.on('mouseenter', () => {
-    circle.radius(15);
+    const n = numberTransformed(CIRCLE_RADIUS_ON, circle);
+    circle.radius(n);
   });
   circle.on('mousedown', (evt) => {
     if (is.deleteNodePath || is.changeNodePath) {
@@ -59,7 +71,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     c.startDrag();
     c.draggable(true);
     c.fill('');
-    c.strokeWidth(1);
+    c.strokeWidth(STROKE_WIDTH);
     c.stroke(fill);
     document.body.style.cursor = 'none';
   });
@@ -75,7 +87,7 @@ function createHandleCircle(currentPath, vertex, index, fill) {
     document.body.style.cursor = 'default';
   });
   circle.on('mouseleave', (evt) => {
-    evt.target.radius(5);
+    evt.target.radius(numberTransformed(CIRCLE_RADIUS_OFF, circle));
   });
 
   circle.on('click', (evt) => {
@@ -150,10 +162,18 @@ function createHandleCircles(show=false) {
 }
 
 function destroyHandleCircles() {
+  applyFnCircles(circle => circle.destroy());
+}
+
+function syncRadiusCircles(n = CIRCLE_RADIUS_OFF) {
+  applyFnCircles(circle => circle.radius(numberTransformed(n, circle)));
+}
+
+function applyFnCircles(fn) {
   selection.forEach(currentPath => {
     const circles = imageLayer.find('.'+currentPath.id());
-    circles.forEach((circle) => circle.destroy());
+    circles.forEach((circle) => fn(circle));
   });
 }
 
-export {createHandleCircles, destroyHandleCircles, };
+export {createHandleCircles, destroyHandleCircles, syncRadiusCircles};
