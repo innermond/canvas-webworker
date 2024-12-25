@@ -2,7 +2,7 @@ import { bucketLayer, justContourLayer } from "@/init/layers";
 import { gco } from "@/fillWays";
 import { animation01 } from "@/animation";
 import { selection } from "@/vars";
-import { emit } from "@/emit";
+import { emit } from "@/lib/emit";
 
 const floodFillWorker = new Worker("floodfillWorker.js");
 

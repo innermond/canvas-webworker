@@ -28,7 +28,7 @@ import {
 import { isFillWay, gco } from "@/fillWays";
 import { imageUpload } from "@/handler/upload";
 import "@/handler/events";
-import { emit } from "@/emit";
+import { emit } from "@/lib/emit";
 import "@/drag";
 
 // Size of pencil
