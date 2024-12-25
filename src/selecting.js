@@ -20,14 +20,14 @@ Object.defineProperty(selectPoints, 'height', {
 });
 
 function doSelectStart(e) {
-  //is.select = true;
+  is.autoexclude(false);
+  is.select = true;
   if (is.drawPath) {
     is.select = false;
   }
   if (! is.select) return;
   if (selection.size) return;
   e.cancelBubble = true;
-  e.evt.stopImmediatePropagation();
 
   selectPoints[0] = stage.getRelativePointerPosition();
   selectPoints[1] = {...selectPoints[0]};
@@ -56,6 +56,7 @@ function doSelectStart(e) {
 }
 
 function doSelectEnd(e) {
+  is.autoexclude(true);
   if (! is.select) return;
   if (selection.size) return;
   e.cancelBubble = true;
@@ -128,6 +129,7 @@ function isContainingRect(r1, r2) {
 function doSelecting(e) {
   if (!is.select) return;
   if (selection.size) return;
+  if (is.drawPath) return;
   e.cancelBubble = true;
   const r = imageLayer.findOne('#selectingRect');
   if (!r) return;

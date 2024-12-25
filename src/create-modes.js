@@ -35,7 +35,7 @@ export default function createModes(labels) {
         if (exclude) {
           v ? mode(modes[k]) : (value = 0);
         } else {
-          v ? value |= modes[k] : value & ~modes[k];
+          v ? value |= modes[k] : value &= ~modes[k];
         }
       },
       enumerable: true,

@@ -24,7 +24,7 @@ function createPath(currentPathId) {
   imageLayer.add(currentPath);
 
   currentPath.on('click', function(evt) {
-    if (is.select) return;
+    //if (is.select) return;
     if (is.drag) return;
     if (is.drawPath) return;
     evt.cancelBubble = true;
@@ -37,7 +37,8 @@ function createPath(currentPathId) {
     //  imageTransformer.nodes(Array.from(selection.values()));
     //  return;
     //} 
-  
+ 
+    const wasInSelection = selection.has(this);
     // reset
     selection.forEach(v => {
       v.strokeWidth(0);
@@ -45,9 +46,11 @@ function createPath(currentPathId) {
     });
     destroyHandleCircles();
     selection.clear();
-    this.strokeWidth(STROKE_WIDTH);
-    this.draggable(true);
-    selection.add(this);
+    if (! wasInSelection) {
+      this.strokeWidth(STROKE_WIDTH);
+      this.draggable(true);
+      selection.add(this);
+    }
     createHandleCircles(true);
     imageTransformer.nodes(Array.from(selection.values()));
     
