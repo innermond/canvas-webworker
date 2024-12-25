@@ -1,4 +1,4 @@
-import { emit } from "@/emit";
+import { emit } from "@/lib/emit";
 import { labels as mainModes } from "@/modes";
 import { labels as fillWayModes } from "@/fillWays";
 

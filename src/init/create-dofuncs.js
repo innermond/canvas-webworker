@@ -1,6 +1,6 @@
 import { is, modes } from "@/modes";
 import { doPhases, doPhasesReversed } from "@/vars";
-import { emit } from "@/emit";
+import { emit } from "@/lib/emit";
 
 //function doSelect() {
 //  is.select = !is.select;

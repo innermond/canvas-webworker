@@ -1,6 +1,6 @@
 import { selection, node, doPhases, doPhasesReversed } from "@/vars";
 import { is } from "@/modes";
-import { emit } from "@/emit";
+import { emit } from "@/lib/emit";
 
 function elementReplacePhases(id, state) {
   id = id.startsWith("do")

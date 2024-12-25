@@ -2,7 +2,7 @@ import {imageLayer, stage, } from '@/init/layers';
 import {is} from '@/modes';
 import {selection, STROKE_WIDTH, PATH_OPACITY, CIRCLE_RADIUS_OFF, CIRCLE_RADIUS_ON,} from '@/vars';
 import {getVerticesFromPathData, generatePathDataFromVertices, } from '@/path/funcs';
-import {emit} from '@/emit';
+import {emit} from '@/lib/emit';
 
 function numberTransformed(n, from) {
   const tr = stage.getAbsoluteTransform(from).invert();

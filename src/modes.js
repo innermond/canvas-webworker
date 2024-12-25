@@ -1,4 +1,4 @@
-import createModes from "@/create-modes";
+import createModes from "@/lib/create-modes";
 
 const labels = [
   "drawPath",
